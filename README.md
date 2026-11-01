@@ -57,12 +57,17 @@ Russian installer entry points are included as `УСТАНОВИТЬ ECHOES.bat`
 - **Peer-to-peer connections:** Tor-based identities, direct connection options, local-network discovery, and relay/discovery integrations. Connection availability depends on the chosen transport and network.
 - **Conversations:** private and group chats, replies and threads, files, photos, videos, GIFs, voice messages, and voice calls. Photo/video previews can open in larger resizable windows.
 - **Feed:** posts, comments, polls, track sharing, emoji reactions, moments, and time capsules.
-- **Listen together:** synchronized listening rooms, shared queues, collaborative playlists, radio broadcasts, and what friends are listening to now.
+- **Listen together:** synchronized listening rooms, collaborative playlists, and what friends are listening to now.
+- **Your radio station:** a public station name and avatar, visible to listeners and in the public directory. Build a separate on-air queue from your library/playlists, drag to reorder, edit it live, pause, skip, select a track, and repeat. The broadcast schedule runs independently of the host’s personal player. Guests see the queue and follow the on-air track. Hold to speak on air. Up to 100 tracks with a known duration; listeners use their library, supported streams, or the host’s shared file when a direct connection is available.
 - **Music with friends:** taste compatibility, an interactive taste map, music quizzes, live quizzes, challenges, weekly rankings, and achievements.
 - **Make it yours:** profiles, avatars, banners, frames, badges, gifts, showcases, and a community market for appearance items and themes.
 - Moderation tools, notifications, device synchronization, backups, and update sharing round out the network features. Encrypted relayed message envelopes are implemented separately from public posts.
 
 ![Echoes.NET demo feed](docs/screenshots/network.png)
+
+![Radio station editor with independent on-air queue](docs/screenshots/radio-editor.png)
+
+![Radio station host controls and listener queue](docs/screenshots/radio-live.png)
 
 ### Track duels and music tier lists
 
@@ -70,7 +75,7 @@ Russian installer entry points are included as `УСТАНОВИТЬ ECHOES.bat`
 - Add online contenders, inspect the leaderboard, and play your winners.
 - **Duel settings:** combine genre, artist, album, playlist, liked-track, and duration filters for the next tournament.
 - **Chorus-first previews are enabled by default.** A single background worker reuses cached analysis or finds an energetic repeated section. If a chorus cannot be identified, it uses a highlight or the beginning; it never pauses the interface to analyze audio.
-- **Evolving fire aura:** emerald, blue, violet, pink, orange, and icy light mark increasing win counts. Procedural smoke, glowing filaments, and tiny embers surround the cover; a byte-bounded loop cache and frame blending keep the animation light.
+- **Evolving fire aura:** emerald, blue, violet, pink, orange, and icy light mark increasing win counts. Native-resolution translucent flames and embers emerge directly from the rounded card edges, without an enlarged low-resolution texture or rectangular aura surface. The bounded cache stores small emitter recipes and is released when hidden.
 - **Music tier list:** organize tracks visually into ranked rows, adjust the board, and save/share the result.
 - Cached artwork, effects, and monitor-aware animation timing keep the duel arena economical to draw.
 

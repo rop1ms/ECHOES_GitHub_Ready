@@ -1,9 +1,10 @@
 {
-  "version": "2026.11.01-2",
-  "files": 470,
-  "total_bytes": 139767683,
+  "version": "2026.11.01-3",
+  "files": 476,
+  "total_bytes": 140351778,
   "largest_file_bytes": 36722718,
   "private_profile_included": false,
+  "text_checksum": "sha256_lf normalizes CRLF to LF for Git checkouts",
   "files_manifest": [
     {
       "path": ".gitattributes",
@@ -441,9 +442,9 @@
     },
     {
       "path": "app/duel_fire.py",
-      "bytes": 4936,
-      "sha256": "f6fb012589d77e550b795d95896d37a015b9ea5227d8e32f4a171ba3306fc76e",
-      "sha256_lf": "c3191c1c6ee59fd1393e7a1a00bda3954ef510e983b8f03c3fa2a4d6ecc54c56"
+      "bytes": 5584,
+      "sha256": "70d5a1afaa8e5f4c65185685299391adf8b71c03a5e265896c8c0ec1aafbe2db",
+      "sha256_lf": "cd1b46a559304df1ee758812b277c08192a800abf4c29d8a12e29bd1e0df72a8"
     },
     {
       "path": "app/duel_settings.py",
@@ -1387,9 +1388,9 @@
     },
     {
       "path": "app/music_duel.py",
-      "bytes": 61309,
-      "sha256": "35ead57e469b787ef9b7daf8919d47161ec0cbd407dd569d0ec9d9cff40a2425",
-      "sha256_lf": "e9efaf2d5954285b2b73a35026a37681e4f8a8c0ba7c2d52ee70ee4565889d93"
+      "bytes": 61408,
+      "sha256": "c992cd258ad98135bb41f9ded5c0452213f03a0ee82073200255abc7e947b3d4",
+      "sha256_lf": "4c6e581efd8009d30952d1d26c856a58b9257fdd8ed3261d7b1e2da55f051951"
     },
     {
       "path": "app/music_intel.py",
@@ -1447,9 +1448,9 @@
     },
     {
       "path": "app/net_core.py",
-      "bytes": 251108,
-      "sha256": "b2044fa92137fa4228ed15ef3be4b96e07633443bac09bda96207fedf883e8a1",
-      "sha256_lf": "d7614500d06cbd8783ab3e5e32afd67dacdf91d036f5f7f7ef95f7f5bb9fa49e"
+      "bytes": 256268,
+      "sha256": "c6399ccf0c15ad19ca61804a2be22a3eb809ca0c7cd743a3fa64a1b5ca4bf2aa",
+      "sha256_lf": "1d38a99114d69b1cc0926bf22e455b577cdad1d68d7cd287ddab7a1faeac75dc"
     },
     {
       "path": "app/net_crypto.py",
@@ -1549,9 +1550,9 @@
     },
     {
       "path": "app/net_page.py",
-      "bytes": 367954,
-      "sha256": "9f81aeff365a62cf08e2da10df8a2a00af35aec9ab4980d53b8b44da7a5dd230",
-      "sha256_lf": "1ceaf7a436a872444dfe50f21cebcf58505760d6bef388e6098e78b9a1f7cc39"
+      "bytes": 370988,
+      "sha256": "86a5fae28ca459c84c09fb74c7f3c2ee77f41138b626c83a9774d64aca73d287",
+      "sha256_lf": "4df478065bac44dd6adb4a7c5aa7e67e78e5f801b5b47bbff70b9e7b51ab8b42"
     },
     {
       "path": "app/net_perf.py",
@@ -1860,6 +1861,18 @@
       "sha256_lf": "28ff7eff3b908e7a2df798720a0b532c617491c455cbb91bda0efd641cd848f3"
     },
     {
+      "path": "app/radio_station.py",
+      "bytes": 5621,
+      "sha256": "4a612f520a111aadc7860372e1759703f96f8ffd63ee8c7d6bb31c9ffe73b9ed",
+      "sha256_lf": "4a612f520a111aadc7860372e1759703f96f8ffd63ee8c7d6bb31c9ffe73b9ed"
+    },
+    {
+      "path": "app/radio_ui.py",
+      "bytes": 10927,
+      "sha256": "4cc0abf85ea1945ff290c9dfd61aeb45b9f792a67058b39932a6413fc11a2eff",
+      "sha256_lf": "4cc0abf85ea1945ff290c9dfd61aeb45b9f792a67058b39932a6413fc11a2eff"
+    },
+    {
       "path": "app/raster_budget.py",
       "bytes": 951,
       "sha256": "473b55dc21112e5ade9aa2af16103bbf753a33638ced4f4034a9ec124084d088",
@@ -2042,8 +2055,8 @@
     {
       "path": "app/version.txt",
       "bytes": 14,
-      "sha256": "1e09f2bd2b48cdfe7bc552666a24cedb127738b714a314e55a4373f0257afd61",
-      "sha256_lf": "fabdcad4020eadeed978b27d732954b739e40ffac52c973ff0add53edbfe667a"
+      "sha256": "f522137019da551a9ba0a3bbc5125610a3730f1bb31d6dd785568e7d1b7faacf",
+      "sha256_lf": "15d1fb714e82e9993f325e64faa88dc53adff985b2280e7b826f08c6cb0ba3bb"
     },
     {
       "path": "app/video_safety.py",
@@ -2275,9 +2288,9 @@
     },
     {
       "path": "docs/CHANGELOG.md",
-      "bytes": 4501,
-      "sha256": "8f2d2e1cf79f745f3572ec0d465012e77d832e88407f2b2f2ebbac454af7cf82",
-      "sha256_lf": "8f2d2e1cf79f745f3572ec0d465012e77d832e88407f2b2f2ebbac454af7cf82"
+      "bytes": 7446,
+      "sha256": "4265c4329f64ff9c0984c2d2429a596d20bfec9eaf95dfb3d59420c28ce623e7",
+      "sha256_lf": "8d955b3246a74ae6a4bf0b351e7f86ae9777a2a49dccaed6764c665bc1e191bd"
     },
     {
       "path": "docs/MEMORY_BENCHMARK.json",
@@ -2318,8 +2331,8 @@
     },
     {
       "path": "docs/screenshots/duel-fire.png",
-      "bytes": 517985,
-      "sha256": "1696d1ced71fd6e9f8af5812bcf517a18ed69ab3b470ff3cdbbb6b0d24559993"
+      "bytes": 496268,
+      "sha256": "5732b4421f799cf0578bd523d44966ff8f67b1752a3ee5dd077660e1c70b2e43"
     },
     {
       "path": "docs/screenshots/duel-settings.png",
@@ -2357,6 +2370,16 @@
       "sha256": "f24687bf0601f4efaaebeeaeda42868df7e8fade83bfaa18efe31bd30646d1f0"
     },
     {
+      "path": "docs/screenshots/radio-editor.png",
+      "bytes": 177574,
+      "sha256": "53b49f18b36b91827a53a2f2550172c5345c4ea2db5fb2307cbfb724b0b188d0"
+    },
+    {
+      "path": "docs/screenshots/radio-live.png",
+      "bytes": 377602,
+      "sha256": "105a7a4e849363210ddb35677bb6878b89d7ebb8ff3950ad597f7af56142dd5e"
+    },
+    {
       "path": "docs/screenshots/studio.png",
       "bytes": 136770,
       "sha256": "a82f4337141b890dfacda0424e14a032fe503f9c20a21fdaa54d50250b42ae2a"
@@ -2368,9 +2391,9 @@
     },
     {
       "path": "docs/VALIDATION.md",
-      "bytes": 4475,
-      "sha256": "9be2edaff5834ae65ee2a5db06421dfd04da2923725e6a23c2c760f444750e99",
-      "sha256_lf": "9be2edaff5834ae65ee2a5db06421dfd04da2923725e6a23c2c760f444750e99"
+      "bytes": 7472,
+      "sha256": "af02f35a182cc2d9c2205234ea327bf0eb30fe3bf660e196488460f41238df93",
+      "sha256_lf": "6318d15ee93b586b590d717d9ebc9b8ee68db7bba0545d1f7c98035c5afc1223"
     },
     {
       "path": "ECHOES Launcher.exe",
@@ -2420,6 +2443,12 @@
       "sha256_lf": "0f4de00e08f693b9e608ab4697692411ed2d66bb204e1771df6492b2d5d9c9d0"
     },
     {
+      "path": "qa/check_radio_fire_ui.py",
+      "bytes": 5538,
+      "sha256": "da60de6b95aa0fbaf72c8fe1a538fd61e811d8d1e3de105e1f6ddcf247fa610e",
+      "sha256_lf": "da60de6b95aa0fbaf72c8fe1a538fd61e811d8d1e3de105e1f6ddcf247fa610e"
+    },
+    {
       "path": "qa/make_readme_screenshots.py",
       "bytes": 7207,
       "sha256": "a965ae4f4049bc872a3a35d4d7d21a9c910b432fec670db3de444ac3b38941a3",
@@ -2427,15 +2456,15 @@
     },
     {
       "path": "qa/package_github.py",
-      "bytes": 3800,
-      "sha256": "0961b55d5bad1245f4d2333133758c305c2b12bb2188b462b92d0b9c4e4b2dca",
-      "sha256_lf": "9422b85bf27485df4035656e3ac070b2ab934b0523b17538b438f8edd26407a8"
+      "bytes": 3825,
+      "sha256": "3f11850884893b0784eda2ec56f82831a371b272c1e548829e9977344dd11022",
+      "sha256_lf": "1402a505f4c472353436c39378962d1c83968f470da8e915e1927d11e111b011"
     },
     {
       "path": "qa/test_duel_reports.py",
-      "bytes": 10144,
-      "sha256": "3490ddc9789245371593fa406872c61d03db17ef7499f4775d7ac87a528fbb34",
-      "sha256_lf": "3490ddc9789245371593fa406872c61d03db17ef7499f4775d7ac87a528fbb34"
+      "bytes": 10099,
+      "sha256": "c2f4229e2c88baf113e2d0d2c0ad6862f70864fa97f48acd3919f5aacb95fb3b",
+      "sha256_lf": "c2f4229e2c88baf113e2d0d2c0ad6862f70864fa97f48acd3919f5aacb95fb3b"
     },
     {
       "path": "qa/test_interaction_latency.py",
@@ -2480,6 +2509,12 @@
       "sha256_lf": "67ed5f71aab073933cc6c92560863268edf315640c7ce5fd878856b5f1db6c16"
     },
     {
+      "path": "qa/test_radio_fire.py",
+      "bytes": 11103,
+      "sha256": "4bac0fe2e14896234769a433760379fec600c580faae30195fbd2893a2b8521d",
+      "sha256_lf": "4bac0fe2e14896234769a433760379fec600c580faae30195fbd2893a2b8521d"
+    },
+    {
       "path": "qa/test_static_components.py",
       "bytes": 4450,
       "sha256": "7e8adf4c2022dae8395f252f8ab3e5d065aee2ca9aeb916b3b80acf69b7bb8f4",
@@ -2517,15 +2552,15 @@
     },
     {
       "path": "README.md",
-      "bytes": 16673,
-      "sha256": "3757d353c56e142b8f44eb577d21d8bbb93431702722bc3bfe736dfa898d94c7",
-      "sha256_lf": "3757d353c56e142b8f44eb577d21d8bbb93431702722bc3bfe736dfa898d94c7"
+      "bytes": 17643,
+      "sha256": "cd8fd6083b3a34d02102b5438c237debc0a472dcd034dabd4569564a4289eced",
+      "sha256_lf": "fd3c5eab1674ae26eb00b10d4f347e1ad32400834ca995714045ba2ad8b18732"
     },
     {
       "path": "README.ru.md",
-      "bytes": 27208,
-      "sha256": "d4ade5d41d873ddd220a74edd191af033d04bc1a93cfc535b0d9cf4a89c4ea8a",
-      "sha256_lf": "d4ade5d41d873ddd220a74edd191af033d04bc1a93cfc535b0d9cf4a89c4ea8a"
+      "bytes": 28822,
+      "sha256": "55d5deefccc2b60fd4e9f0834e9877b5f5a9c9d87507de4b52ecf361f47a3820",
+      "sha256_lf": "a2cac08e2797f9b5512126ea1bad1774bf233760db021dda815a8b6fc0a44467"
     },
     {
       "path": "requirements-dev.txt",
@@ -2755,6 +2790,5 @@
       "sha256": "2dc34cb0907db285e278a28ac3857ab7007c8bfcea0db6dcfcb6cc851dbc22dd",
       "sha256_lf": "52ac85fd77f976787fc771b4b7e9baf4d889013591d6ed7a3a819de07f36ea66"
     }
-  ],
-  "text_checksum": "sha256_lf normalizes CRLF to LF for Git checkouts"
+  ]
 }

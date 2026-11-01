@@ -1,3 +1,21 @@
+# 2026.11.01-3
+
+## English
+
+- Native-resolution vector flames originate on the track card’s rounded outline, with flowing ribbons, local glow and embers. No enlarged raster aura or rectangular effect boundary. Fixed champion streak counting.
+- Public radio station branding: independent station name and bounded custom avatar in room state, friend presence and signed public-directory announcements.
+- Independent on-air schedule: up to 100 queued tracks, live edits/reordering, pause/resume, next, direct selection and repeat. Personal host playback cannot overwrite the broadcast. The schedule advances in the network thread, even with the station page hidden.
+- Liquid Glass station editor and listener queue, in English and Russian. Small position packets preserve profile/queue by revision; periodic full refresh and joining guests receive full metadata. Position-only updates retain the visible queue widgets.
+- Validation limited to 19 feature-specific tests and the radio/fire UI walkthrough in both languages. No full regression suite run for this release.
+
+## Русский
+
+- Векторное пламя в родном разрешении исходит от контура карточки: плавные языки, локальное свечение и искры, без растянутой текстуры и прямоугольной границы эффекта. Исправлен подсчёт серии побед чемпиона.
+- Название и аватар радиостанции передаются в комнату, друзьям и в подписанные объявления публичного каталога.
+- Независимое расписание эфира: до 100 треков, редактирование и сортировка на ходу, пауза/продолжение, следующий трек, выбор из очереди и повтор. Личный плеер ведущего больше не перезаписывает эфир. Очередь переключается в сетевом потоке, даже когда страница станции скрыта.
+- Редактор станции и очередь слушателей в Liquid Glass на русском и английском. Позиционные обновления компактны; профиль и очередь обновляются по версии, при входе и периодически. Виджеты очереди не пересоздаются при каждом обновлении позиции.
+- Только 19 проверок этих функций и отдельный проход интерфейса радио/огня на двух языках. Полный набор регрессионных тестов в этой версии не запускался.
+
 # 2026.11.01-2
 
 ## English

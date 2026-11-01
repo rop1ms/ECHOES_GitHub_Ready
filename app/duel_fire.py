@@ -1,80 +1,101 @@
-"""Spectral smoke, glowing filaments and embers on a byte-bounded loop cache."""
+"""Native-resolution edge flames. No enlarged bitmap or rectangular aura surface."""
 from collections import OrderedDict
+from dataclasses import dataclass
 import math
 from PyQt6.QtCore import QPointF,QRectF,Qt
-from PyQt6.QtGui import QColor,QImage,QPainter,QPainterPath,QPen,QPixmap
+from PyQt6.QtGui import QColor,QPainter,QPainterPath,QPen,QLinearGradient,QRadialGradient,QBrush
 from duel_settings import fire_tier
 
 COLORS=('#28ee9a','#429cff','#a876ff','#ff55a7','#ff9747','#c4faff')
 
+@dataclass(frozen=True)
+class Emitter:
+    x:float;y:float;nx:float;ny:float;tx:float;ty:float;seed:float;breadth:float;reach:float
+
 class FireCache:
-    def __init__(self):self.frames=OrderedDict();self.bytes=0;self._geometry=None
-    def clear(self):self.frames.clear();self.bytes=0;self._geometry=None
-    def policy(self,width,height):
-        from performance import config
-        opts=config();quality=opts['aura_quality'];side,frames={'low':(112,10),'balanced':(160,16),'high':(224,20)}[quality]
-        h=max(1,round(side*(height+88)/(width+88)));size=side*h*4;budget=opts['aura_mb']*2**20
-        frames=min(frames,max(4,budget//max(1,size*2)))
-        return side,h,frames,budget,quality
-    def frame(self,width,height,wins,now):
+    def __init__(self):self.frames=OrderedDict();self.bytes=0
+    def clear(self):self.frames.clear();self.bytes=0
+    def frame(self,width,height,wins,now=0):
         tier=fire_tier(wins)
-        if not tier:return None
-        w,h,count,budget,quality=self.policy(width,height)
-        geometry=(width,height,w,h,count,budget)
-        if geometry!=self._geometry:self.clear();self._geometry=geometry
-        phase_index=int((now%1.6)/1.6*count)%count
-        key=(tier,phase_index)
+        if not tier:return ()
+        from performance import config
+        opts=config();count={'low':36,'balanced':64,'high':88}[opts['aura_quality']]
+        key=(width,height,tier,count)
         if key in self.frames:
             self.frames.move_to_end(key);return self.frames[key]
-        import numpy as np
-        phase=phase_index*math.tau/count
-        x=np.linspace(-44,width+44,w,dtype=np.float32)[None,:]
-        y=np.linspace(-44,height+44,h,dtype=np.float32)[:,None]
-        qx=np.abs(x-width/2)-(width/2-24);qy=np.abs(y-height/2)-(height/2-24)
-        distance=np.sqrt(np.maximum(qx,0)**2+np.maximum(qy,0)**2)+np.minimum(np.maximum(qx,qy),0)-24
-        u=x/width;v=y/height
-        warp=np.sin(u*13+v*7+phase)*.06+np.sin(v*17-phase)*.035
-        turbulence=(np.sin((u+warp)*31+v*9+phase*2)*.24+
-                    np.sin(u*13-(v+warp)*33+phase)*.23+
-                    np.sin(u*71+v*41+np.sin(v*17+phase))*.12+
-                    np.sin(u*121-v*83-phase*2)*.065+.5)
-        turbulence=np.clip(turbulence,0,1)
-        plume=np.exp(-np.maximum(distance,0)/(9+turbulence*27))
-        hollow=np.clip((distance+12)/12,0,1)
-        density=np.clip((turbulence-.24)/.68,0,1)**1.6
-        alpha=np.clip(plume*hollow*density*(.73+tier*.025),0,.9)
-        core=np.exp(-((distance-2)/1.7)**2)*(.5+.5*turbulence)
-        alpha=np.maximum(alpha,core*.88)
-        boundary=np.minimum(np.minimum(x+44,width+44-x),np.minimum(y+44,height+44-y))
-        alpha*=np.clip(boundary/17,0,1)**1.5
-        base=QColor(COLORS[tier-1]);color=np.array([base.red(),base.green(),base.blue()],dtype=np.float32)
-        brightness=.55+turbulence[...,None]*.9
-        rgb=np.minimum(255,color[None,None,:]*brightness+core[...,None]*120)
-        pixels=np.empty((h,w,4),dtype=np.uint8);pixels[:,:,:3]=rgb.astype(np.uint8);pixels[:,:,3]=(alpha*255).astype(np.uint8)
-        image=QImage(pixels.tobytes(),w,h,w*4,QImage.Format.Format_RGBA8888).copy()
-        painter=QPainter(image);painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        sx=w/(width+88);sy=h/(height+88);painter.scale(sx,sy);painter.translate(44,44)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        for i in range(8):
-            side=-1 if i%2==0 else 1;edge=0 if side<0 else width
-            yy=height*(i+.4)/8;drift=math.sin(phase+i*2.3)*8
-            path=QPainterPath(QPointF(edge,yy+22));path.cubicTo(edge+side*(15+drift),yy+2,edge-side*4,yy-18,edge+side*(9-drift),yy-35)
-            ink=QColor(base).lighter(145);ink.setAlpha(90);painter.setPen(QPen(ink,1.15));painter.drawPath(path)
-        painter.setPen(Qt.PenStyle.NoPen)
-        for i in range(12):
-            drift=(phase/math.tau+i*.173)%1.;xx=(-12 if i%2==0 else width+12)+math.sin(i*8+phase)*16
-            yy=height*(1-drift);ink=QColor(base).lighter(170);ink.setAlpha(int(math.sin(drift*math.pi)*190));painter.setBrush(ink)
-            radius=1.1+(i%3)*.45;painter.drawEllipse(QPointF(xx,yy),radius,radius)
-        painter.end();pixmap=QPixmap.fromImage(image);self.frames[key]=pixmap;self.bytes+=w*h*4
+        outline=QPainterPath();outline.addRoundedRect(QRectF(-width/2,-height/2,width,height),24,24)
+        length=outline.length();emitters=[]
+        for i in range(count):
+            seed=i*2.3999632297+tier*.37
+            percent=outline.percentAtLength((i+.3+.15*math.sin(seed))*length/count)
+            origin=outline.pointAtPercent(percent)
+            a=outline.pointAtPercent(max(0,percent-.0008));b=outline.pointAtPercent(min(1,percent+.0008))
+            tx,ty=b.x()-a.x(),b.y()-a.y();norm=max(.001,math.hypot(tx,ty));tx/=norm;ty/=norm
+            nx,ny=-ty,tx
+            if nx*origin.x()+ny*origin.y()<0:nx,ny=-nx,-ny
+            emitters.append(Emitter(origin.x(),origin.y(),nx,ny,tx,ty,seed,5+(i%4)*2,24+tier*3+(i%5)*7))
+        packet=tuple(emitters);self.frames[key]=packet;self.bytes+=len(packet)*1024
+        budget=opts['aura_mb']*2**20
         while self.bytes>budget and self.frames:
-            _,old=self.frames.popitem(last=False);self.bytes-=old.width()*old.height()*4
-        return pixmap
+            _,old=self.frames.popitem(last=False);self.bytes-=len(old)*1024
+        return packet
     def draw(self,painter,rect,width,height,wins,now):
-        current=self.frame(width,height,wins,now)
-        if current is None:return
-        w,h,count,budget,quality=self.policy(width,height)
-        if quality=='low':painter.drawPixmap(rect,current,QRectF(current.rect()));return
-        step=1.6/count;mix=(now%1.6)/step%1
-        following=self.frame(width,height,wins,now+step)
-        opacity=painter.opacity();painter.setOpacity(opacity*(1-mix));painter.drawPixmap(rect,current,QRectF(current.rect()))
-        painter.setOpacity(opacity*mix);painter.drawPixmap(rect,following,QRectF(following.rect()));painter.setOpacity(opacity)
+        packet=self.frame(width,height,wins,now)
+        if not packet:return
+        color=QColor(COLORS[fire_tier(wins)-1]);painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        for emitter in packet:
+            e=emitter;phase=now*2.8+e.seed
+            flicker=.78+.2*math.sin(phase)+.09*math.sin(phase*1.73)
+            reach=e.reach*flicker
+            # The lower edge curls out and upward rather than hitting a flat floor.
+            if e.ny>.65:reach*=.46
+            curl=math.sin(phase*.87)*15
+            ox,oy=e.x,e.y
+            lift=28+19*(.5+.5*math.sin(phase*.61))
+            tip=QPointF(ox+e.nx*reach*.8+e.tx*curl,oy+e.ny*reach*.7+e.ty*curl-lift)
+            root=QPointF(ox,oy)
+            edges=[[],[]]
+            for j in range(9):
+                u=j/8;wave=math.sin(u*8.4-phase)*13*math.sin(math.pi*u)
+                x=ox+e.nx*reach*.8*u+e.tx*(curl*u+wave)
+                y=oy+e.ny*reach*.7*u+e.ty*(curl*u+wave)-lift*u*u
+                half=e.breadth*(1-u)**.85*(.85+.15*math.sin(u*13+phase))
+                edges[0].append(QPointF(x-e.tx*half,y-e.ty*half))
+                edges[1].append(QPointF(x+e.tx*half,y+e.ty*half))
+            points=edges[0]+list(reversed(edges[1]))
+            path=QPainterPath(points[0])
+            for j in range(1,len(points)-1):
+                path.quadTo(points[j],(points[j]+points[j+1])*.5)
+            path.lineTo(points[-1])
+            path.closeSubpath()
+            # Translucent ribbons overlap softly. Outlined tongues look like petals.
+            painter.setPen(Qt.PenStyle.NoPen)
+            gradient=QLinearGradient(root,tip)
+            pulse=.65+.35*math.sin(phase*.81)**2
+            hot=QColor(color).lighter(135);hot.setAlpha(int(170*pulse));gradient.setColorAt(0,hot)
+            body=QColor(color);body.setAlpha(int(92*pulse));gradient.setColorAt(.32,body)
+            body.setAlpha(27);gradient.setColorAt(.68,body);body.setAlpha(0);gradient.setColorAt(1,body)
+            if int(e.seed*10)%2==0:
+                bloom=QRadialGradient(root,23)
+                ink=QColor(color);ink.setAlpha(42);bloom.setColorAt(0,ink)
+                ink.setAlpha(0);bloom.setColorAt(1,ink)
+                painter.setBrush(bloom);painter.drawEllipse(root,23,23)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.fillPath(path,gradient)
+            if int(e.seed*10)%3==0:
+                smoke=QPainterPath(root);smoke.cubicTo(QPointF(ox+e.nx*reach*.6+curl,oy+e.ny*reach*.5),
+                                                    QPointF(tip.x()+curl*.5,tip.y()-10),QPointF(tip.x()-curl*.3,tip.y()-22))
+                vapor=QLinearGradient(root,QPointF(tip.x(),tip.y()-22))
+                ink=QColor(color);ink.setAlpha(55);vapor.setColorAt(0,ink);ink.setAlpha(0);vapor.setColorAt(1,ink)
+                painter.setPen(QPen(QBrush(vapor),1.25));painter.drawPath(smoke)
+        # Sparse embers have independent trajectories and no rectangular clipping.
+        painter.setPen(Qt.PenStyle.NoPen)
+        for i in range(10):
+            e=packet[(i*7)%len(packet)];life=(now*.27+i*.173)%1
+            x=e.x+e.nx*(8+life*44)+math.sin(i*3.7+now)*5
+            y=e.y+e.ny*life*20-life*66
+            ink=QColor(color).lighter(185);ink.setAlpha(int(math.sin(life*math.pi)*150));painter.setBrush(ink)
+            radius=.6+(i%3)*.28;painter.drawEllipse(QPointF(x,y),radius,radius)
+        painter.restore()

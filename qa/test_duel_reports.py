@@ -62,8 +62,8 @@ class DuelOptions(unittest.TestCase):
 
     def test_fire_cache_is_bounded_and_colors_change(self):
         cache=FireCache();first=cache.frame(300,412,1,1.)
-        self.assertEqual(first.cacheKey(),cache.frame(300,412,1,1.).cacheKey())
-        self.assertNotEqual(first.toImage(),cache.frame(300,412,20,1.).toImage())
+        self.assertIs(first,cache.frame(300,412,1,1.))
+        self.assertNotEqual(first,cache.frame(300,412,20,1.))
         for n in range(100):cache.frame(300,412,1+n%40,n/12)
         self.assertLessEqual(len(cache.frames),36)
 

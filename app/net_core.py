@@ -572,7 +572,9 @@ class NostrPeer:
         elif t == "room_state":
             st = obj.get("state") or {}
             key = json.dumps([(st.get("track") or {}).get("title"), (st.get("track") or {}).get("artist"),
-                              bool(st.get("playing")), st.get("members")], ensure_ascii=False)
+                              bool(st.get("playing")), st.get("members"),
+                              (st.get("radio") or {}).get("revision"), (st.get("radio") or {}).get("current"),
+                              'queue' in (st.get('radio') or {})], ensure_ascii=False)
             pos = float(st.get("pos") or 0)
             last = self._last.get(t)
             if last and last[0] == key and now - last[1] < 30:
@@ -780,6 +782,10 @@ class NetNode:
                         return
                     self.log(f"[net] tor: {e} — остаются прямые соединения и Nostr")
                 self._set_state("online", 100, self._status_text(), True)
+            if self.room_host is not None and self.room_host.get('station') is not None:
+                task = self.__dict__.get('_radio_task')
+                if task is None or task.done():
+                    self._radio_task = asyncio.create_task(self._radio_loop())
             while not self._stop:
                 await self._maintain()
                 for _ in range(10):
@@ -787,6 +793,10 @@ class NetNode:
                         break
                     await asyncio.sleep(1)
         finally:
+            task = self.__dict__.pop('_radio_task', None)
+            if task:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
             for p in list(self.peers.values()):
                 await p.send({"t": "bye"})
                 p.close()
@@ -1173,6 +1183,7 @@ class NetNode:
         room = None
         if self.room_host is not None:
             room = {"title": clip(self.room_host.get("title"), 80), "n": len(self.room_members) + 1}
+            self._radio_summary(room)
         return {"t": "hi", "name": self._name(), "bio": clip(self.settings.get("bio"), 300),
                 "now": self.now_playing if self.settings.get("share_now", True) else None, "room": room,
                 "taste": self.taste if self.settings.get("share_taste", True) else None, "pv": self.pv,
@@ -1262,7 +1273,7 @@ class NetNode:
             now = clean_track(m.get("now"))
             room = m.get("room") if isinstance(m.get("room"), dict) else None
             if room:
-                room = {"title": clip(room.get("title"), 80), "n": int(clean_sec(room.get("n"), 999) or 1)}
+                room = self._clean_room_summary(room)
             taste = clean_taste(m.get("taste"))
             self.store.upsert_contact(o, name=clip(m.get("name"), MAX_NAME), bio=clip(m.get("bio"), 300),
                                       now=json.dumps(now, ensure_ascii=False) if now else "",
@@ -1401,11 +1412,15 @@ class NetNode:
             if self.room_host is not None:
                 self.__dict__.setdefault("_names", {})[o] = clip(m.get("name"), MAX_NAME)
                 self.room_members.add(o)
+                self.room_host.get('sent_revisions', {}).pop(o, None)
+                getattr(p, '_last', {}).pop('room_state', None)
                 await self._room_broadcast()
                 await self._room_say(None, f"{self._contact_name(o)} зашёл в комнату")
         elif t == "room_leave":
             if o in self.room_members:
                 self.room_members.discard(o)
+                if self.room_host:
+                    self.room_host.get('sent_revisions', {}).pop(o, None)
                 await self._room_broadcast()
                 await self._room_say(None, f"{self._contact_name(o)} вышел")
         elif t == "room_say":
@@ -1422,6 +1437,9 @@ class NetNode:
                     self.emit("toast", "Комната закрыта")
                 else:
                     st["track"] = clean_track(st.get("track"))
+                    if 'radio' in st:
+                        from radio_station import clean_wire
+                        st['radio'] = clean_wire(st['radio'], (self.room_state or {}).get('radio'))
                     self.room_state = st
                     self.emit("room", self.room_view())
         elif t == "room_chat":
@@ -2563,6 +2581,7 @@ class NetNode:
         else:
             self.public["rooms"][key] = {"npub": ev["pubkey"], "onion": onion, "title": clip(tag(ev, "title"), 80),
                                          "genre": clip(data.get("genre"), 40), "now": clean_track(data.get("now")),
+                                         "radio": self._clean_room_summary(data).get('radio'),
                                          "n": int(clean_sec(data.get("n"), 999) or 1), "exp": int(exp or 0),
                                          "ts": ev["created_at"]}
             self._want_profile(ev["pubkey"])
@@ -3833,6 +3852,7 @@ class NetNode:
         if self.room_host is not None and not leaving:
             room = {"title": clip(self.room_host.get("title"), 80), "n": len(self.room_members) + 1,
                     "public": bool(self.room_host.get("public"))}
+            self._radio_summary(room)
         now = self.now_playing if (self.settings.get("share_now", True) and self.settings.get("now_public", True)
                                    and not leaving) else None
         content = {"v": PROTO, "on": not leaving, "room": room, "now": now, "name": self._name()}
@@ -3874,8 +3894,7 @@ class NetNode:
             if data.get("now") is not None or "now" in data:
                 upd["now"] = json.dumps(now, ensure_ascii=False) if now else ""
             room = data.get("room") if isinstance(data.get("room"), dict) else None
-            upd["room"] = json.dumps({"title": clip(room.get("title"), 80),
-                                      "n": int(clean_sec(room.get("n"), 999) or 1)}, ensure_ascii=False) if room else ""
+            upd["room"] = json.dumps(self._clean_room_summary(room), ensure_ascii=False) if room else ""
         self.store.upsert_contact(onion, **upd)
         was = onion in self.peers
         if fresh:
@@ -4029,6 +4048,7 @@ class NetNode:
             return
         st = rh.get("state") or {}
         data = {"genre": rh.get("genre", ""), "now": st.get("track"), "n": len(self.room_members) + 1}
+        self._radio_summary(data)
         tags = [["d", rh["id"]], ["title", rh.get("title", "")], ["status", "ended" if ended else "live"],
                 ["t", "echoes"], ["expiration", str(int(time.time()) + 300)], self._link_tag(),
                 ["echoes-room", json.dumps(data, ensure_ascii=False)]]
@@ -4603,6 +4623,68 @@ class NetNode:
 
     # ── «Слушать вместе» ── #
 
+    @staticmethod
+    def _clean_room_summary(raw):
+        from radio_station import summary
+        return {'title': clip(raw.get('title'), 80), 'n': int(clean_sec(raw.get('n'), 999) or 1),
+                'radio': summary(raw.get('radio')), 'now': clean_track(raw.get('now'))}
+
+    def _radio_summary(self, destination):
+        st = (self.room_host or {}).get('state') or {}
+        if st.get('radio'):
+            from radio_station import summary
+            destination.update(radio=summary(st['radio']), now=clean_track(st.get('track')))
+
+    async def radio_open(self, config):
+        from radio_station import Station
+        try:
+            station = Station(config)
+        except ValueError as error:
+            self.emit('toast', str(error)); return
+        self.settings['radio_station'] = station.config()
+        self.save_settings()
+        await self.room_open(station.brand['name'], True, station.genre,
+                             bool(self.settings.get('share_tracks', True)), radio=station)
+
+    async def radio_configure(self, config):
+        station = (self.room_host or {}).get('station')
+        if station is None: return
+        try:
+            station.configure(config)
+        except ValueError as error:
+            self.emit('toast', str(error)); return
+        self.settings['radio_station'] = station.config()
+        self.save_settings()
+        self.room_host.update(title=station.brand['name'], genre=station.genre, state=station.state())
+        await self._room_broadcast()
+        await self._nostr_room_announce()
+        if getattr(self, 'nostr', None) is not None:
+            await self._presence_send()
+
+    async def radio_control(self, action, qid=None):
+        station = (self.room_host or {}).get('station')
+        if station is None: return
+        station.control(action, qid)
+        self.room_host['state'] = station.state()
+        await self._room_broadcast()
+
+    async def _radio_loop(self):
+        last_key = None; last_send = 0.
+        while self.room_host is not None and self.room_host.get('station') is not None:
+            rh = self.room_host
+            st = rh['station'].state()
+            key = (st['radio']['revision'], st['radio']['current'], st['playing'])
+            rh['state'] = st
+            if key != last_key or time.monotonic()-last_send >= 5:
+                try:
+                    await self._room_broadcast()
+                    if key != last_key:
+                        await self._nostr_room_announce()
+                except Exception as error:
+                    self.log(f'[radio] broadcast: {type(error).__name__}')
+                last_key = key; last_send = time.monotonic()
+            await asyncio.sleep(1)
+
     def room_view(self) -> dict | None:
         if self.room_host is not None:
             return {"role": "host", "title": self.room_host.get("title", ""), "state": self.room_host.get("state"),
@@ -4620,16 +4702,21 @@ class NetNode:
         offs = sorted(o for _r, o in self._clock[:3])
         return time.time() + offs[len(offs) // 2]
 
-    async def room_open(self, title, public=None, genre="", share=True):
+    async def room_open(self, title, public=None, genre="", share=True, radio=None):
         """public — комната видна всем в Echoes.NET (объявление в Nostr), зайти могут и незнакомцы.
         share — гостям, у которых трека нет, хост отдаёт свой файл."""
         if public is None:                                     # по умолчанию комнаты — для всех
             public = bool(self.settings.get("rooms_public", True)) and getattr(self, "nostr", None) is not None
         if self.room_guest:
             await self.room_leave()
+        if self.room_host is not None:
+            await self.room_close()
         self.room_host = {"title": clip(title, 80) or f"Комната {self._name()}", "state": None,
                           "public": bool(public), "genre": clip(genre, 40), "share": bool(share),
                           "id": secrets.token_hex(6)}
+        if radio is not None:
+            self.room_host.update(station=radio, state=radio.state(), sent_revisions={})
+            self._radio_task = asyncio.create_task(self._radio_loop())
         self.room_members = set()
         self.room_chat = []
         self.emit("room", self.room_view())
@@ -4642,6 +4729,10 @@ class NetNode:
     async def room_close(self):
         if self.room_host is None:
             return
+        task = self.__dict__.pop('_radio_task', None)
+        if task:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
         if self.room_host.get("public"):
             try:
                 await self._nostr_room_announce(ended=True)
@@ -4659,7 +4750,7 @@ class NetNode:
 
     async def room_update(self, state):
         """Хост: трек/позиция/пауза изменились (state: track, pos, playing)."""
-        if self.room_host is None:
+        if self.room_host is None or self.room_host.get('station') is not None:
             return
         st = dict(state or {})
         st["track"] = clean_track(st.get("track"))
@@ -4679,9 +4770,21 @@ class NetNode:
         for o in list(self.room_members):
             p = self.peers.get(o)
             if p:
-                await p.send({"t": "room_state", "state": st})
+                packet = st
+                if st.get('radio'):
+                    revisions = self.room_host.setdefault('sent_revisions', {})
+                    radio = st['radio']
+                    previous = revisions.get(o)
+                    full = not previous or previous[0] != radio['revision'] or time.monotonic()-previous[1] >= 30
+                    if not full:
+                        packet = {**st, 'radio': {k:v for k,v in radio.items() if k not in ('avatar', 'queue')}}
+                    await p.send({"t": "room_state", "state": packet})
+                    if full: revisions[o] = (radio['revision'], time.monotonic())
+                else:
+                    await p.send({"t": "room_state", "state": packet})
         self.emit("room", self.room_view())
-        hk = (json.dumps((st.get("track") or {}), sort_keys=True, ensure_ascii=False), len(self.room_members))
+        hk = (json.dumps((st.get("track") or {}), sort_keys=True, ensure_ascii=False), len(self.room_members),
+              (st.get('radio') or {}).get('revision'))
         if self.settings.get("share_now", True) and hk != self.__dict__.get("_room_hi_key"):
             self._room_hi_key = hk                             # трек/состав сменились — друзьям обновить «hi»
             await self._broadcast_friends(self._hi())

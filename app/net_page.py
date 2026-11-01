@@ -908,7 +908,12 @@ class NetPage(QWidget):
                 self.threads._deb.start()
         elif kind == "room":
             if self._tab == "room":
-                self._fill_room()
+                view = self.node.room_view() or {}
+                state = view.get('state') or {}; radio = state.get('radio') or {}
+                signature = (view.get('role'), radio.get('revision'), radio.get('current'),
+                             state.get('playing'), tuple(view.get('members') or []))
+                if not radio or signature != self.__dict__.get('_radio_view_signature'):
+                    self._fill_room()
             if data is None:
                 self._sync.update(sent=None, follow=None, follow_path="")
                 self._voice_stop()
@@ -1131,7 +1136,7 @@ class NetPage(QWidget):
             self._now_key = k
             nd.call(nd.set_now_playing, track_meta(cur))
         now = time.time()
-        if nd.room_host is not None:
+        if nd.room_host is not None and nd.room_host.get('station') is None:
             playing = self.shell.is_playing()
             try:
                 pos = float(self.win.engine.get_position() or 0)
@@ -3423,6 +3428,8 @@ class NetPage(QWidget):
         if self.node is None:
             return
         import json
+        from duel_settings import tr as translate
+        t = lambda ru,en: translate(self.win,ru,en)
         page = self.room_page
         page.clear()
         rv = self.node.room_view()
@@ -3456,17 +3463,10 @@ class NetPage(QWidget):
             row2.addStretch(1)
             hero.lay.addLayout(row2)
             row3 = QHBoxLayout()                                   # радиостанция: эфир без конца
-            self.radio_src = QComboBox()
-            self.radio_src.addItem("Моя волна — бесконечно", "wave")
-            for n in self.shell.user_playlists():
-                if self.win.playlists.get(n, {}).get("tracks"):
-                    self.radio_src.addItem(f"Плейлист «{n}» по кругу", n)
-            self.radio_src.setFixedWidth(330)
-            row3.addWidget(self.radio_src)
-            rb = ghost_btn("  Запустить радиостанцию")
+            rb = ghost_btn(t("Создать радиостанцию", "Create radio station"))
             rb.setIcon(ya_icon("broadcast_tower", 18))
-            rb.setToolTip("Эфир без конца: музыка идёт сама, вы — диджей. «Сказать в эфир» — удерживайте кнопку,\n"
-                          "музыка у слушателей приглушится, пока вы говорите.")
+            rb.setToolTip(t("Свой аватар, название и эфирная очередь, отдельная от личного плеера.",
+                            "Your own avatar, name and on-air queue, independent of your personal player."))
             rb.clicked.connect(self._open_radio)
             row3.addWidget(rb)
             row3.addStretch(1)
@@ -3482,10 +3482,14 @@ class NetPage(QWidget):
                 f, v = card()
                 f.setFixedSize(280, 150)
                 room = json.loads(c["room"])
-                now = json.loads(c["now"]) if c["now"] else None
+                now = room.get('now') if room.get('radio') else (json.loads(c["now"]) if c["now"] else None)
                 h = QHBoxLayout()
                 av = QLabel(); av.setFixedSize(36, 36)
-                av.setPixmap(self._av(c["onion"], c["name"], 36, True))
+                if room.get('radio'):
+                    from radio_ui import avatar_pixmap
+                    av.setPixmap(avatar_pixmap(room['radio'].get('avatar',''),36))
+                else:
+                    av.setPixmap(self._av(c["onion"], c["name"], 36, True))
                 h.addWidget(self._clickable(av, c["onion"]))
                 col = QVBoxLayout(); col.setSpacing(0)
                 col.addWidget(lbl(room.get("title") or "Комната", "NetName"))
@@ -3506,16 +3510,26 @@ class NetPage(QWidget):
             return
         host = rv["role"] == "host"
         st = rv.get("state") or {}
+        station = st.get('radio') or {}
+        self._radio_view_signature = (rv.get('role'), station.get('revision'), station.get('current'),
+                                      st.get('playing'), tuple(rv.get('members') or []))
         tr = st.get("track")
         hero = Hero(rv.get("title") or "Комната",
-                    ("Вы ведёте комнату — всё, что играет у вас, слышат гости." if host else
+                    (t("Публичный эфир · своя очередь, отдельная от вашего плеера", "Public broadcast · its own queue, independent of your player") if station and host else
+                     t("Вы слушаете эфир радиостанции", "You are listening to the station broadcast") if station else
+                     "Вы ведёте комнату — всё, что играет у вас, слышат гости." if host else
                      f"Ведёт {rv.get('host_name')}. Ваш плеер следует за хостом."),
                     c1="#00d4ff", c2="#ff4fa3", height=96)
         page.v.addWidget(hero)
+        if station:
+            from radio_ui import avatar_pixmap
+            branding=QHBoxLayout(); photo=QLabel(); photo.setPixmap(avatar_pixmap(station.get('avatar',''),56))
+            branding.addWidget(photo); branding.addWidget(lbl(station.get('name','Echoes Radio'),'NetName')); branding.addStretch()
+            hero.lay.addLayout(branding)
         page.v.addSpacing(10)
         mid = QHBoxLayout(); mid.setSpacing(14)
         left, lv = card()
-        lv.addWidget(lbl("СЕЙЧАС ИГРАЕТ", "Section"))
+        lv.addWidget(lbl(t("В ЭФИРЕ", "ON AIR") if station else "СЕЙЧАС ИГРАЕТ", "Section"))
         if tr:
             cur = self.shell.current_track()
             cov = cur.get("cover", "") if cur and track_key(cur) == track_key(tr) else ""
@@ -3527,23 +3541,34 @@ class NetPage(QWidget):
         lv.addWidget(lbl("СЛУШАЮТ", "Section"))
         mem = rv.get("members") or []
         if host:
-            mem = [self.node._name() + " (вы)"] + list(mem)
+            mem = [self.node._name() + t(" (вы)"," (you)")] + list(mem)
         lv.addWidget(lbl(", ".join(mem) or "пока только вы", wrap=True))
         if not host:
             self.sync_lbl = lbl("Синхронизация по часам хоста…", "YaSub")
             lv.addWidget(self.sync_lbl)
         lv.addStretch(1)
-        radio = host and str(rv.get("title", "")).startswith("📻")
+        radio = host and bool(station)
+        if radio:
+            controls=QHBoxLayout()
+            pause=ghost_btn(t('Пауза эфира','Pause broadcast') if st.get('playing') else t('Продолжить эфир','Resume broadcast'))
+            pause.clicked.connect(lambda:self.node.call(self.node.radio_control,'pause')); controls.addWidget(pause)
+            nxt=ghost_btn(t('Следующий','Next')); nxt.clicked.connect(lambda:self.node.call(self.node.radio_control,'next')); controls.addWidget(nxt)
+            lv.addLayout(controls)
+            edit=ghost_btn(t('Станция и очередь','Station and queue')); edit.clicked.connect(self._edit_radio); lv.addWidget(edit)
+            if tr:
+                monitor=ghost_btn(t('Прослушать текущий трек','Preview current track'))
+                monitor.clicked.connect(lambda _=False,meta=tr:self.play_meta(meta)); lv.addWidget(monitor)
         if radio:                                              # радиостанция: эфир и «сказать в эфир»
-            onair = lbl(f"● В ЭФИРЕ  ·  слушателей: {len(rv.get('members') or [])}")
+            onair = lbl(t('В ЭФИРЕ','ON AIR') if st.get('playing') else t('ЭФИР НА ПАУЗЕ','BROADCAST PAUSED'))
             onair.setStyleSheet("color:#ff4d4d;font-weight:900;letter-spacing:1px;")
             lv.addWidget(onair)
         lv.addWidget(lbl("ГОЛОС", "Section"))
         vr = QHBoxLayout()
         on = bool(self._voice and self._voice.mic_active)
         if radio:
-            mic = accent_btn("\U000f1007  Удерживайте — сказать в эфир")
-            mic.setToolTip("Пока держите — вас слышат, музыка у слушателей тише. Отпустили — снова музыка.")
+            mic = accent_btn(t("Удерживайте — сказать в эфир", "Hold to talk on air"))
+            mic.setIcon(ya_icon('mic',18))
+            mic.setToolTip(t("Пока держите — вас слышат, музыка у слушателей тише.", "Hold to talk. Music is quieter for listeners while you speak."))
             mic.pressed.connect(lambda: self._radio_talk(True))
             mic.released.connect(lambda: self._radio_talk(False))
         else:
@@ -3572,6 +3597,19 @@ class NetPage(QWidget):
         left.setFixedWidth(330)
         mid.addWidget(left)
         right, rvl = card()
+        if station:
+            rvl.addWidget(lbl(t('ЭФИРНАЯ ОЧЕРЕДЬ','ON-AIR QUEUE'),'Section'))
+            queue=QListWidget(); queue.setMinimumHeight(130); queue.setMaximumHeight(230)
+            for entry in station.get('queue',[]):
+                track=entry.get('track') or {}
+                current=entry.get('id')==station.get('current')
+                item=QListWidgetItem(('›  ' if current else '    ')+f"{track.get('artist','')} — {track.get('title','')}")
+                item.setData(Qt.ItemDataRole.UserRole,entry.get('id')); queue.addItem(item)
+                if current:item.setForeground(QColor(YELLOW))
+            if host:
+                queue.setToolTip(t('Двойной щелчок — поставить в эфир','Double-click to play on air'))
+                queue.itemDoubleClicked.connect(lambda item:self.node.call(self.node.radio_control,'play',item.data(Qt.ItemDataRole.UserRole)))
+            rvl.addWidget(queue)
         rvl.addWidget(lbl("ЧАТ КОМНАТЫ", "Section"))
         self.room_chat_view = Page(margins=(0, 0, 0, 0))
         self.room_chat_view.v.setSpacing(4)
@@ -3620,28 +3658,23 @@ class NetPage(QWidget):
             pass
 
     def _open_radio(self):
-        """Радиостанция: публичная комната «📻 …» + бесконечная очередь (волна или плейлист по кругу)."""
+        from duel_settings import tr
         if not self.running() or not self.node.state.get("online"):
-            self.toast("Сначала включите сеть")
+            self.toast(tr(self.win,"Сначала включите сеть","Turn on the network first"))
             return
-        name = self.room_name.text().strip() or f"Радио {self.node._name()}"
-        src = self.radio_src.currentData() if getattr(self, "radio_src", None) is not None else "wave"
-        self.node.call(self.node.room_open, "📻 " + name, True,
-                       self.room_genre.text().strip() if getattr(self, "room_genre", None) else "",
-                       bool(self.node.settings.get("share_tracks", True)))
-        sh = self.shell
-        try:
-            if src == "wave":
-                sh.start_wave("my")
-            else:
-                sh.open_playlist(src)
-                sh._pp_play(True)
-                self.win.repeat_mode = 1                       # по кругу — эфир не кончается
-            sh.show_page("net")
-            self.show_tab("room")
-        except Exception as e:                                 # noqa: BLE001
-            print("[radio]", e)
-        self.toast("Радиостанция в эфире — её видят все в Echoes.NET")
+        from radio_ui import StationDialog
+        dialog = StationDialog(self, self.node.settings.get('radio_station'))
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.node.call(self.node.radio_open, dialog.result_config)
+            self.shell.show_page('net')
+            self.show_tab('room')
+
+    def _edit_radio(self):
+        from radio_ui import StationDialog
+        config = self.node.settings.get('radio_station') or {}
+        dialog = StationDialog(self, config)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.node.call(self.node.radio_configure, dialog.result_config)
 
     def _radio_talk(self, on):
         """«Сказать в эфир»: пока кнопка зажата — микрофон и тише музыка (у себя тоже)."""
@@ -5648,7 +5681,11 @@ class NetPage(QWidget):
             h = QHBoxLayout()
             nm = self._pub_name(r["npub"], r["onion"])
             av = QLabel(); av.setFixedSize(36, 36)
-            av.setPixmap(self._pub_av(r["npub"], nm, 36, r["onion"]))
+            if r.get('radio'):
+                from radio_ui import avatar_pixmap
+                av.setPixmap(avatar_pixmap(r['radio'].get('avatar',''),36))
+            else:
+                av.setPixmap(self._pub_av(r["npub"], nm, 36, r["onion"]))
             h.addWidget(av)
             col = QVBoxLayout(); col.setSpacing(0)
             col.addWidget(lbl(r["title"] or "Комната", "NetName"))

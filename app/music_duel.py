@@ -59,7 +59,8 @@ class Duel:
         """Сколько раундов подряд держится нынешний чемпион (царь горы)."""
         if self.mode!='king':return 0
         n=0
-        for c in reversed(self.history):
+        for index in range(len(self.history)-1,-1,-1):
+            c=self.history[index+1] if index+1<len(self.history) else self.champion
             if c!=self.champion:break
             n+=1
         return n

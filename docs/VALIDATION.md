@@ -1,4 +1,33 @@
-# Release verification — 2026.11.01-2
+# Release verification — 2026.11.01-3
+
+This release was checked only for the changed radio and card-fire features, as requested.
+
+| Focused check | Result |
+| --- | --- |
+| `qa/test_radio_fire.py` | 19 tests passed |
+| Station schedule | Advance/repeat/end, pause/resume/next, select, edit/reorder/remove, retain elapsed position |
+| Station isolation | Host personal-player updates cannot overwrite radio; ordinary rooms still accept player updates |
+| Station transport | Guest receives branding and queue; revision-matched deltas retain both; signed public announcements include branding; closing cancels the scheduler |
+| Input and memory bounds | Avatar format/dimensions/bytes, queue length and unique IDs, no local paths on the wire, bounded fire recipe cache |
+| Fire | Emitters root on the actual card outline, animation and win colors, high-resolution rendering, champion streak/undo |
+| Focused UI walkthrough (`qa/check_radio_fire_ui.py`) | 6 radio/fire checks in English and Russian; no Python errors |
+| Native fire recipe cache | 64 KiB accounted while visible; 0 after leaving the page |
+| Arena capture, 1600 × 1050, English fixture | 13.96 ms mean / 15.33 ms p95; offscreen capture workload, not a live display FPS measurement |
+| New screenshots | Actual application captures using generated demo artwork and a temporary profile |
+
+The UI check opens only the duel and station interfaces, exercises editor add/reorder/save, host queue, guest visibility, public branding, and retention of widgets on position updates. Network access is disabled. Protocol tests use simulated peers, not real listeners or public relays. Live multi-device connectivity and hardware-specific FPS were not measured. All participants need the updated app to display station branding/queue.
+
+No full regression suite, general UI smoke walkthrough, launcher test or native-editor test was run for this release. The following section records the preceding release’s checks and memory measurements.
+
+## Русский
+
+Для этой версии выполнены только 19 тестов изменённых функций и 6 проверок интерфейса радио/огня на каждом из двух языков. Проверены независимость эфира, очередь, аватар/название, обмен состоянием, освобождение кэша и рисунок огня. Реальные соединения между компьютерами и реальный FPS экрана не измерялись; сетевые проверки используют имитацию участников. Для отображения нового профиля/очереди станции всем участникам нужна обновлённая версия. Полный набор 120+ тестов не запускался.
+
+---
+
+## Historical verification — preceding release 2026.11.01-2
+
+
 
 Verified on Windows with an isolated demonstration profile:
 
