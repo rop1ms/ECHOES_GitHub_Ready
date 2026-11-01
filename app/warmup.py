@@ -50,7 +50,8 @@ def _warm_intel(library):
 
 def start(win):
     """Запустить прогрев (вызывать один раз после показа окна)."""
-    if getattr(win, "_warmup_started", False):
+    from performance import config
+    if not config(win.settings)['warm_pages'] or getattr(win, "_warmup_started", False):
         return
     win._warmup_started = True
     idle = _Idle(win)
@@ -59,6 +60,8 @@ def start(win):
     order = ["foryou", "wave", "collection", "albums", "profile", "net", "tierlist", "duel"]
 
     def step():
+        if not config(win.settings)['warm_pages']:
+            win._warmup_started=False;return
         sh = getattr(win, "_ya", None)
         if sh is None or not order:
             return
@@ -95,6 +98,8 @@ def start(win):
 
     def keep():
         """Дальше — в простое: разделы, которые устарели (новые треки, прослушивания), собрать заранее."""
+        if not config(win.settings)['warm_pages']:
+            win._warmup_started=False;return
         sh = getattr(win, "_ya", None)
         if sh is None:
             return

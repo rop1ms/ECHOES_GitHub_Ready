@@ -68,10 +68,39 @@ Russian installer entry points are included as `УСТАНОВИТЬ ECHOES.bat`
 
 - **Echoes Duel:** two covers enter the arena; preview either track and pick a winner. Play King of the Hill or endless pairs, undo a vote, and keep a tournament across sessions.
 - Add online contenders, inspect the leaderboard, and play your winners.
+- **Duel settings:** combine genre, artist, album, playlist, liked-track, and duration filters for the next tournament.
+- **Chorus-first previews are enabled by default.** A single background worker reuses cached analysis or finds an energetic repeated section. If a chorus cannot be identified, it uses a highlight or the beginning; it never pauses the interface to analyze audio.
+- **Evolving fire aura:** emerald, blue, violet, pink, orange, and icy light mark increasing win counts. Procedural smoke, glowing filaments, and tiny embers surround the cover; a byte-bounded loop cache and frame blending keep the animation light.
 - **Music tier list:** organize tracks visually into ranked rows, adjust the board, and save/share the result.
 - Cached artwork, effects, and monitor-aware animation timing keep the duel arena economical to draw.
 
-![Echoes Duel](docs/screenshots/duel.png)
+![Echoes Duel with a win-based spectral fire aura](docs/screenshots/duel-fire.png)
+
+![Duel filters and chorus-first preview settings](docs/screenshots/duel-settings.png)
+
+### Performance — choose your balance
+
+The dedicated **Settings → Performance** section has three tabs: frames/motion, memory budgets, and effects/background work. Choose **Balanced**, **Low memory**, or **Smooth**, or tune controls individually:
+
+- Foreground and background FPS, adaptive frame pacing, motion profile, and interface transitions.
+- Separate MiB budgets for covers, a **shared** track-row cache, button rasters, Qt pixmaps, and the fire aura.
+- Hidden-page cache release, bounded photo/GIF preview resolution, aura detail, and optional duel confetti.
+- Animated avatars/GIFs, optional all-frame GIF caching, page prewarming, chorus pre-analysis, and an analysis time budget.
+- Hardware video decoding, native effects, a cache-release button, and live working-set/private-memory counters.
+
+The defaults avoid retaining every GIF frame or eagerly warming hidden pages. Chorus analysis processes FFT windows in small batches. Closed photo previews release their decoded image buffers. Lower cache limits save memory; larger budgets may improve repeat scrolling on high-resolution displays.
+
+In an isolated Windows test of **400 track-row images at 1440 × 56**, the former cache retained **123.05 MiB**; the shared cache retained **12 MiB**. Private-memory growth in that test fell from **125.39 to 14.02 MiB**. These are measurements of this cache workload, not a promise about total app RAM with every studio/model loaded. See [release verification](docs/VALIDATION.md).
+
+![Memory and rendering controls](docs/screenshots/performance-memory.png)
+
+### Private bug reports to staff
+
+Use the drawn **bug button in the top bar**, or **Report a bug** in Echoes.NET. Select a verified administrator/moderator, enter a subject, describe the issue, and optionally add reproduction steps. Friendship is not required. Reports are private to the selected recipient; logs and files are not attached automatically.
+
+Reports persist while offline. **My reports** distinguishes queued and acknowledged receipt, with an option to cancel delivery retries. Staff get an inbox and can mark reports reviewed. Both endpoints need a version supporting the report protocol; a queued report is never presented as delivered without an acknowledgment.
+
+![Private bug report composer](docs/screenshots/bug-report.png)
 
 ### Liquid glass and a theme that belongs to you
 

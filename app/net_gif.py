@@ -303,7 +303,8 @@ class GifView(QLabel):
         self._movie = QMovie(self._buf, QByteArray(), self)
         self._movie.setScaledSize(self.size())
         self.setMovie(self._movie)
-        self._movie.start()
+        from performance import configure_movie
+        configure_movie(self._movie,self)
 
     def mouseReleaseEvent(self, e):
         if e.button() == Qt.MouseButton.LeftButton:
@@ -352,7 +353,8 @@ class GifView(QLabel):
 
     def showEvent(self, e):
         if self._movie is not None:
-            self._movie.setPaused(False)
+            from performance import configure_movie
+            configure_movie(self._movie,self)
 
 
 class GifPicker(QDialog):

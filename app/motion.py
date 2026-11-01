@@ -51,13 +51,14 @@ def accent(win):
 def configure(win):
     import frameclock
     frameclock.configure(win.settings, win)
-    QPixmapCache.setCacheLimit(profile(win)[4] * 1024)
+    import performance
+    performance.configure_caches(win)
     # Bound individual image decoding, independently of the image caches.
     if hasattr(QImageReader, 'setAllocationLimit'):
         QImageReader.setAllocationLimit(128)
     try:
         import yamusic_theme
-        yamusic_theme._COVER_BUDGET = (12 if win.settings.get('motion_profile') in ('eco','reduced') else 24) * 2**20
+        yamusic_theme._COVER_BUDGET = performance.config(win.settings)['cover_mb'] * 2**20
         yamusic_theme.prune_cover_cache()
     except ImportError:
         pass

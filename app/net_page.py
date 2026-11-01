@@ -400,6 +400,9 @@ class NetPage(QWidget):
         top = QHBoxLayout()
         self.title = NetTitle()
         top.addWidget(self.title, 1)
+        from duel_settings import tr
+        self.b_bug=ghost_btn(tr(self.win,'Сообщить об ошибке','Report a bug'))
+        self.b_bug.setIcon(ya_icon('bug',16));self.b_bug.clicked.connect(self.open_bug_report);top.addWidget(self.b_bug)
         self.b_me = QLabel()
         self.b_me.setFixedSize(40, 40)
         top.addWidget(self.b_me)
@@ -484,6 +487,10 @@ class NetPage(QWidget):
 
     def running(self) -> bool:
         return bool(self.node and self.node.thread and self.node.thread.is_alive())
+
+    def open_bug_report(self, _=False, inbox=False):
+        from bug_report_ui import open_reports
+        return open_reports(self,inbox=inbox)
 
     def start_net(self):
         nd = self._ensure_node(start=False)
@@ -1882,6 +1889,9 @@ class NetPage(QWidget):
                         "ECHOES. Скрыть пост или заблокировать автора — в меню «⋯» у поста или кнопкой «Модерация» "
                         "в профиле.", "YaSub", wrap=True))
         page.v.addWidget(f)
+        from duel_settings import tr
+        inbox=ghost_btn(tr(self.win,'Баг-репорты пользователей','User bug reports'))
+        inbox.setIcon(ya_icon('bug',16));inbox.clicked.connect(lambda:self.open_bug_report(inbox=True));page.v.addWidget(inbox)
         # модераторы
         page.v.addSpacing(10)
         f, v = card()

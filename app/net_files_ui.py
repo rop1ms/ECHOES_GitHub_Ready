@@ -539,15 +539,24 @@ class _Canvas(QWidget):
         self.pm = QPixmap()
         if gif:
             self.movie = QMovie(path)
+            from performance import configure_movie,config
+            from PyQt6.QtGui import QImageReader
+            original=QImageReader(path).size();limit=config()['preview_side']
+            if original.isValid() and max(original.width(),original.height())>limit:
+                self.movie.setScaledSize(original.scaled(QSize(limit,limit),Qt.AspectRatioMode.KeepAspectRatio))
             self.movie.frameChanged.connect(lambda _: self.update())
-            self.movie.start()
+            configure_movie(self.movie,self)
             self.pm = self.movie.currentPixmap()
         else:
             from PyQt6.QtGui import QImageReader
             r = QImageReader(path)
             r.setAutoTransform(True)                         # поворот из EXIF (фото с телефона)
+            from performance import config
+            limit=config()['preview_side'];size=r.size()
+            if size.isValid() and max(size.width(),size.height())>limit:
+                r.setScaledSize(size.scaled(QSize(limit,limit),Qt.AspectRatioMode.KeepAspectRatio))
             img = r.read()
-            self.pm = QPixmap.fromImage(img) if not img.isNull() else QPixmap(path)
+            self.pm = QPixmap.fromImage(img) if not img.isNull() else QPixmap()
         self.rot = 0
         self.reset()
 
@@ -1176,6 +1185,7 @@ class MediaViewer(PreviewDialog):
 
     def done(self, r):
         self._stop_media()
+        self.canvas.pm=QPixmap();self.canvas._display_cache=None;self._surface=None
         if getattr(self, "_resume_music", False):
             self._resume_music = False
             try:

@@ -35,6 +35,7 @@ recordings/
 
 # Local audits, editor files and backups
 qa/results/
+qa/publish/
 qa_audit/
 *.log
 *.bak

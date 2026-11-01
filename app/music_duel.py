@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,
     QCheckBox,QLineEdit,QFrame,QScrollArea)
 
 def identity(t):return str(t.get('path') or t.get('url') or '')
-def compact(t):return {k:t[k] for k in ('path','url','title','artist','cover','cover_url','source','duration','id') if k in t}
+def compact(t):return {k:t[k] for k in ('path','url','title','artist','artists','album','genre','genres','cover','cover_url','source','duration','id','chorus_start','chorus_start_sec','preview_start') if k in t}
 
 class Duel:
     def __init__(self):self.roster=[];self.order=[];self.champion=None;self.cursor=0;self.history=[];self.mode='king';self.pair=[]
@@ -168,6 +168,8 @@ class Arena(QWidget):
         self.start_hover=0.0;self.level=0.0
         self.timer=FrameTimer(self);self.timer.timeout.connect(self._tick)
         self._halo_cache = {}
+        from duel_fire import FireCache
+        self.fire_cache=FireCache();self.fire_enabled=True;self.wins_by_id={}
 
     # ── геометрия ── #
     def card_size(self):
@@ -308,6 +310,8 @@ class Arena(QWidget):
 
     # ── частицы ── #
     def _burst(self,s,n=60):
+        from performance import config
+        if not config()['duel_particles']:return
         r=self.sprite_rect(s);c=r.center()
         cols=[s.color,GOLD,QColor(255,255,255),s.color.lighter(140)]
         for _ in range(n):
@@ -317,6 +321,8 @@ class Arena(QWidget):
                                    random.uniform(5,11),random.uniform(0,360),random.uniform(-720,720),random.random()<0.6])
         self._wake()
     def _rain(self,dt):
+        from performance import config
+        if not config()['duel_particles']:return
         for _ in range(int(dt*90)+(random.random()<dt*90%1)):
             self.particles.append([random.uniform(0,self.width()),-12,random.uniform(-60,60),random.uniform(120,260),
                                    random.uniform(2.5,4),random.choice([GOLD,QColor(255,90,140),QColor(90,200,255),QColor(255,255,255)]),
@@ -531,6 +537,9 @@ class Arena(QWidget):
         t.rotate(s.tilt[0],Qt.Axis.YAxis);t.rotate(s.tilt[1],Qt.Axis.XAxis);t.rotate(s.v['rot']);t.scale(sc,sc)
         p.setTransform(t,True)
         r=QRectF(-cw/2,-ch/2,cw,ch)
+        wins=self.wins_by_id.get(s.ident,0)
+        if self.fire_enabled and wins:
+            self.fire_cache.draw(p,QRectF(-cw/2-44,-ch/2-44,cw+88,ch+88),cw,ch,wins,now)
         glow=max(s.v['glow'],s.hover*0.55)
         halo = self._halo(s, glow > .01)
         if glow > .01: p.setOpacity(a * glow)
@@ -540,6 +549,13 @@ class Arena(QWidget):
         if glow>0.01:
             col=QColor(s.color).lighter(130);col.setAlphaF(min(1.0,0.35+glow*0.6));p.setPen(QPen(col,2));p.setBrush(Qt.BrushStyle.NoBrush)
             p.drawRoundedRect(r.adjusted(1,1,-1,-1),24,24)
+        if self.fire_enabled and wins and not s.leaving and cw>=240:
+            from duel_fire import COLORS
+            from duel_settings import fire_tier, tr
+            color=QColor(COLORS[fire_tier(wins)-1]);p.setPen(QPen(color,1.5));p.setBrush(QColor(9,11,17,220))
+            badge=QRectF(-cw/2+22,-ch/2+cw-74,90,24);p.drawRoundedRect(badge,12,12)
+            p.setFont(_font(11,QFont.Weight.Bold));p.setPen(color)
+            p.drawText(badge,Qt.AlignmentFlag.AlignCenter,str(wins)+tr(self.page.win,' побед',' wins'))
         pad=16;cs=cw-2*pad
         if s.hover>0.01:                                             # блик, бегущий за курсором
             sx=-cw/2+cw*(0.5+s.tilt[0]/18);g=QRadialGradient(QPointF(sx,-ch/2+ch*(0.5-s.tilt[1]/14)),cw*0.8)
@@ -574,6 +590,8 @@ class Arena(QWidget):
         if s.side==0 and self.king and not s.leaving and len([x for x in self.sprites if x.side is not None])==2 and self.streak>0:
             self._paint_crown(p,QPointF(0,-ch/2-6),0.8,now)
             txt=f'ЧЕМПИОН · {self.streak} ' + ('ПОБЕДА' if self.streak%10==1 and self.streak%100!=11 else 'ПОБЕДЫ' if 2<=self.streak%10<=4 and not 12<=self.streak%100<=14 else 'ПОБЕД')
+            from duel_settings import tr
+            txt=tr(self.page.win,txt,f'CHAMPION · {self.streak} WINS')
             p.setFont(_font(11,QFont.Weight.Black));fm=QFontMetrics(p.font());tw=fm.horizontalAdvance(txt)+22
             tr=QRectF(-tw/2,-ch/2+pad+8,tw,22);p.setPen(Qt.PenStyle.NoPen);p.setBrush(GOLD);p.drawRoundedRect(tr,11,11)
             p.setPen(INK);p.drawText(tr,Qt.AlignmentFlag.AlignCenter,txt)
@@ -769,6 +787,7 @@ class DuelPage(QScrollArea):
     def __init__(self,shell):
         super().__init__();self.shell=shell;self.win=shell.win;self.game=Duel();self.online=[];self.request=0;self.busy=False
         self._pv=None
+        self._preview_request=None;self._chorus=None
         self.setWidgetResizable(True);self.setFrameShape(QFrame.Shape.NoFrame)
         page=DuelSurface(self);self.setWidget(page)
         lay=QVBoxLayout(page);lay.setContentsMargins(30,20,30,20);lay.setSpacing(12)
@@ -784,6 +803,11 @@ class DuelPage(QScrollArea):
         self.start=QPushButton('Начать заново');self.start.setCursor(Qt.CursorShape.PointingHandCursor)
         self.start.setStyleSheet('QPushButton{background:#ffdb1a;color:#171717;border-radius:16px;padding:9px 18px;font-weight:800;} QPushButton:hover{background:#ffe85c;}')
         self.start.clicked.connect(self.begin);top.addWidget(self.start,0,Qt.AlignmentFlag.AlignVCenter);lay.addLayout(top)
+        from duel_settings import tr
+        self.settings_button=QPushButton(tr(self.win,'Настройки дуэли','Duel settings'))
+        from yamusic_theme import ya_icon
+        self.settings_button.setIcon(ya_icon('settings',18));self.settings_button.clicked.connect(self.open_settings)
+        top.insertWidget(top.count()-1,self.settings_button,0,Qt.AlignmentFlag.AlignVCenter)
         self.net_row=QWidget();net=QHBoxLayout(self.net_row);net.setContentsMargins(0,0,0,0)
         self.internet=QCheckBox('Добавить треки из интернета');net.addWidget(self.internet)
         self.query=QLineEdit();self.query.setPlaceholderText('Жанр / настроение (пусто — случайное направление)');net.addWidget(self.query,1)
@@ -811,11 +835,46 @@ class DuelPage(QScrollArea):
         pair=self._mode=='pairs';self.net_row.setVisible(pair);self.load.setEnabled(pair and not self.busy)
         if not pair:self.internet.setChecked(False)
     def save(self):self.win.settings['duel_session']=self.game.dump();self.win.save_settings()
+    def open_settings(self):
+        from duel_settings import open_settings
+        open_settings(self)
+    def options_changed(self):
+        self._preview_request=None
+        from duel_settings import options
+        self.arena.fire_enabled=options(self.win.settings)['fire'];self.arena.update();self._prepare_pair()
+    def _prepare_pair(self):
+        from duel_settings import options
+        if not self.isVisible() or not self.game.current() or not options(self.win.settings)['chorus']:return
+        from performance import config
+        if not config(self.win.settings)['chorus_prefetch'] and self._preview_request is None:return
+        if self._chorus is None:
+            from duel_chorus import ChorusAnalyzer
+            self._chorus=ChorusAnalyzer(self);self._chorus.ready.connect(self._chorus_ready)
+        self._chorus.prepare(self.game.current()[:2])
+    def _chorus_ready(self,key,result):
+        request=self._preview_request
+        if request is None:return
+        from duel_chorus import stamp
+        side,track,token=request
+        current=self.game.current()
+        if key!=stamp(track):return
+        self._preview_request=None
+        if not self.isVisible() or token!=getattr(self.win,'_stream_token',0) or side>=len(current) or identity(current[side])!=identity(track):return
+        self._start_preview(track,result[0])
+    def _start_preview(self,track,start=0):
+        import stream_core
+        item=track if track.get('path') else stream_core.make_track(track)
+        self.win._duel_preview=identity(item);self._pv=(identity(track),identity(item))
+        self.win.stream_tracks([item],playlist='⁣Echoes Duel',start_sec=start)
+        self.arena._wake()
     def begin(self):
+        self._preview_request=None
         tracks=[t for t in self.win.library if t.get('path') and not str(t['path']).startswith('stream:') and Path(t['path']).is_file()]
         if self._mode=='pairs' and self.internet.isChecked():
             if not self.online:self.fetch(start_after=True);return
             tracks+=self.online
+        from duel_settings import options, filter_tracks, liked_paths
+        tracks=filter_tracks(tracks,options(self.win.settings),playlists=self.win.playlists,liked=liked_paths(self.win),profiles=getattr(self.shell,'_profiles',None))
         try:
             self.game.start(tracks,self._mode);self.save();self.arena.set_pair(self.game.current(),'enter');self.render()
         except ValueError as e:self.status.setText(str(e))
@@ -840,16 +899,26 @@ class DuelPage(QScrollArea):
         if tracks and start_after:self.begin()
     def preview(self,side):
         current=self.game.current()
-        if side>=len(current):return
+        if side not in (0,1) or side>=len(current):return
         track=current[side]
+        if self._preview_request and identity(self._preview_request[1])==identity(track):
+            self._preview_request=None;return
+        self._preview_request=None
         if self.preview_side()==side:                             # повторный клик — пауза
             self.win.engine.pause_hard();self.win._set_playing_ui(False);return
-        import stream_core
-        item=track if track.get('path') else stream_core.make_track(track)
-        self.win._duel_preview=identity(item);self._pv=(identity(track),identity(item))
-        self.win.stream_tracks([item],playlist='⁣Echoes Duel')
+        from duel_settings import options, tr
+        if options(self.win.settings)['chorus']:
+            if self._chorus is None:
+                from duel_chorus import ChorusAnalyzer
+                self._chorus=ChorusAnalyzer(self);self._chorus.ready.connect(self._chorus_ready)
+            result=self._chorus.value(track)
+            if result is None:
+                self._preview_request=(side,dict(track),getattr(self.win,'_stream_token',0));self._chorus.prepare([track]);self.status.setText(tr(self.win,'Определяю припев в фоне…','Finding the chorus in the background…'));return
+            self._start_preview(track,result[0])
+        else:self._start_preview(track)
     def play_leaders(self,i,all_):
         """Слушать трек из «Лидеров по победам» (или весь топ подряд)."""
+        self._preview_request=None
         rows=[t for t,_w in self.leaders.rows]
         if not rows:return
         import stream_core
@@ -866,6 +935,7 @@ class DuelPage(QScrollArea):
             if identity(t)==self._pv[0]:return i
         return None
     def vote(self,side):
+        self._preview_request=None
         current=self.game.current()
         if len(current)!=2:return
         try:self.game.vote(side)
@@ -873,9 +943,11 @@ class DuelPage(QScrollArea):
         self.save();new=self.game.current()
         self.arena.animate_vote(side,new,len(new)==1,self.game.mode=='king');self.render()
     def undo(self):
+        self._preview_request=None
         if not self.game.history:return
         self.game.undo();self.save();self.arena.set_pair(self.game.current(),'drop');self.render()
     def skip_pair(self):
+        self._preview_request=None
         if self.game.mode!='pairs' or not self.game.current():return
         self.game.next_pair();self.save();self.arena.set_pair(self.game.current(),'swipe');self.render()
     def render(self):
@@ -891,10 +963,18 @@ class DuelPage(QScrollArea):
                 a.progress=0.0;a.round_text=f'Выборов сделано: {len(g.history)}'
                 self.status.setText('Каждая пара — новая история. Лидеры копятся ниже.')
         wins=g.wins()
+        from duel_settings import options
+        a.wins_by_id={identity(g.roster[i]):count for i,count in wins.items() if 0<=i<len(g.roster)}
+        a.fire_enabled=options(self.win.settings)['fire']
         rows=sorted(((g.roster[i],w) for i,w in wins.items() if 0<=i<len(g.roster)),key=lambda x:-x[1])
         self.leaders.set_rows(rows if len(g.history)>=2 else [])
         self.widget().update()
         a._wake()
+        self._prepare_pair()
     def hideEvent(self,event):
+        self._preview_request=None
+        if self._chorus is not None:self._chorus.prepare([])
         self.win._duel_preview=None
         super().hideEvent(event)
+    def showEvent(self,event):
+        super().showEvent(event);self._prepare_pair()

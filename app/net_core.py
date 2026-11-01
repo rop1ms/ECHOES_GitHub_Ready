@@ -968,6 +968,11 @@ class NetNode:
             elif now - p.last_rx > KEEPALIVE:
                 await p.send({"t": "ka"})
         self._call_tick()
+        if now-self.__dict__.get('_bugs_retry_t',0)>60:
+            self._bugs_retry_t=now
+            from net_bugs import pending_peers, deliver
+            for peer in pending_peers(self):
+                await deliver(self,peer)
         voice_peers = set(self.cur_call["parts"]) if self.cur_call else set()
         if self.room_host is not None:
             voice_peers |= set(self.room_members)
@@ -1003,7 +1008,8 @@ class NetNode:
                 asyncio.ensure_future(self._dial(onion))
 
     def _pending_dials(self):
-        return [(r["peer"], 0) for r in self.store.q("SELECT DISTINCT peer FROM outbox")]
+        from net_bugs import pending_peers
+        return list(dict.fromkeys([(r["peer"], 0) for r in self.store.q("SELECT DISTINCT peer FROM outbox")] + [(peer,0) for peer in pending_peers(self)]))
 
     def poke(self, onion=None):
         """Попробовать соединиться сейчас, не дожидаясь паузы (пользователь что-то отправил)."""
@@ -1129,6 +1135,8 @@ class NetNode:
             self._drop(p)
 
     async def _greet(self, p: Peer):
+        from net_bugs import flush
+        await flush(self,p)
         c = self.store.contact(p.onion)
         status = c["status"] if c else None
         if status == "pending_out":
@@ -1192,6 +1200,10 @@ class NetNode:
     async def _handle(self, p: Peer, m: dict):
         t = m.get("t")
         o = p.onion
+        if t in ('bug_report','bug_ack'):
+            from net_bugs import receive
+            await receive(self,p,m)
+            return
         if t in ("ka", "bye"):
             if t == "bye":
                 self._drop(p)

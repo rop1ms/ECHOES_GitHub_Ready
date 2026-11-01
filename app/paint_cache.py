@@ -13,6 +13,8 @@
 from __future__ import annotations
 
 import time
+import weakref
+from collections import OrderedDict
 
 from PyQt6.QtCore import QEvent, QObject, QPointF, Qt, QTimer
 from PyQt6.QtGui import QPainter, QPixmap
@@ -22,6 +24,36 @@ from i18n import display_text
 _FILTER = None
 SPRING = False          # пружинящие кнопки (ya_decor): при нажатии сжимаются на 4 %, отпускание — с отскоком
 _PRESS_S, _DUR = 0.955, 0.32
+_BUDGET=8*2**20
+_BYTES=0
+_ENTRIES=OrderedDict()
+
+
+def _drop(key):
+    global _BYTES
+    entry=_ENTRIES.pop(key,None)
+    if entry:
+        _BYTES-=entry[1];widget=entry[0]()
+        if widget is not None:widget.__dict__.pop('_echoes_pc',None)
+
+
+def set_budget(size):
+    global _BUDGET
+    _BUDGET=max(1,int(size))
+    while _BYTES>_BUDGET and _ENTRIES:_drop(next(iter(_ENTRIES)))
+
+
+def clear_all():
+    for key in list(_ENTRIES):_drop(key)
+
+
+def _record(widget,pixmap):
+    global _BYTES
+    key=id(widget);old=_ENTRIES.pop(key,None)
+    if old:_BYTES-=old[1]
+    size=pixmap.width()*pixmap.height()*4
+    _ENTRIES[key]=(weakref.ref(widget,lambda ref,key=key:_drop(key)),size);_BYTES+=size
+    set_budget(_BUDGET)
 
 
 def _spring_scale(b) -> float:
@@ -81,6 +113,10 @@ class _ButtonCache(QObject):
 
     def eventFilter(self, obj, ev):
         et = ev.type()
+        if et==QEvent.Type.Hide and type(obj) is QPushButton:
+            import performance
+            if performance.config()['release_hidden']:_drop(id(obj))
+            return False
         if SPRING and et in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease) and                 isinstance(obj, QPushButton) and type(obj) is QPushButton and obj.isEnabled():
             try:
                 if ev.button() == Qt.MouseButton.LeftButton:
@@ -127,6 +163,8 @@ class _ButtonCache(QObject):
                 finally:
                     painter.end()
                 obj.__dict__["_echoes_pc"] = c = (k, pm)
+                _record(obj,pm)
+            elif id(obj) in _ENTRIES:_ENTRIES.move_to_end(id(obj))
             p = QPainter(obj)
             s = _spring_scale(obj) if SPRING else 1.0
             if s != 1.0:

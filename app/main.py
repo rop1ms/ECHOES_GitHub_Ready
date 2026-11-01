@@ -637,6 +637,8 @@ class MainWindow(QMainWindow):
         try:
             import mem_trim                          # освобождённая память — обратно системе
             mem_trim.install(self)
+            import performance
+            performance.install(self)
         except Exception as e:                       # noqa: BLE001
             print("[mem]", e)
         self._really_quit = False
@@ -1463,6 +1465,12 @@ class MainWindow(QMainWindow):
             cb.toggled.connect(lambda on, k=key: self._on_perf_toggled(k, on))
             setattr(self, attr, cb)
             rv1.addWidget(cb)
+        from duel_settings import tr as _performance_text
+        performance_button=QPushButton(_performance_text(self,'Производительность — память и эффекты','Performance — memory and effects'))
+        def open_performance():
+            from performance_ui import open_dialog
+            open_dialog(self)
+        performance_button.clicked.connect(open_performance);rv1.addWidget(performance_button)
         self._fps_timer = QTimer(self)
         self._fps_timer.timeout.connect(self._update_fps_label)
         self._fps_timer.start(1000)
@@ -4560,7 +4568,7 @@ class MainWindow(QMainWindow):
         if idx >= 0:
             self._play_index(idx, "library")
 
-    def _play_index(self,idx,context="library",rebuild_shuffle=True):
+    def _play_index(self,idx,context="library",rebuild_shuffle=True,start_sec=0.0):
         """rebuild_shuffle=True — трек выбран пользователем вручную (клик по
         библиотеке/плейлисту, "трек дня" и т.п.): если включён shuffle, строим
         СОВЕРШЕННО НОВУЮ перемешанную очередь с этим треком в начале — старая
@@ -4577,7 +4585,7 @@ class MainWindow(QMainWindow):
         t=tracks[idx]
         if str(t.get("path", "")).startswith("stream:"):
             if not self.streams.cached(t["path"]):          # ссылки на поток ещё нет — достать и включить
-                self._stream_wait(idx, context, rebuild_shuffle, t)
+                self._stream_wait(idx, context, rebuild_shuffle, t, start_sec=start_sec)
                 return
             self._stream_apply_info(t)
         elif not Path(t.get("path","")).exists():
@@ -4586,7 +4594,7 @@ class MainWindow(QMainWindow):
 
         if getattr(self, "_preview", None) is not None:
             self._preview.stop(resume=False)         # превью из поиска не должно играть поверх трека
-        ok = self.engine.load(t["path"], autoplay=True, start_sec=0)
+        ok = self.engine.load(t["path"], autoplay=True, start_sec=start_sec)
         if not ok: return
         # При смене трека сбрасываем пресеты — temp файл реверба уже не актуален
         if self.engine.preset_mode is not None:
@@ -4642,7 +4650,7 @@ class MainWindow(QMainWindow):
 
     # ── стриминг (stream_core): онлайн-треки без скачивания ── #
 
-    def _stream_wait(self, idx, context, rebuild_shuffle, t):
+    def _stream_wait(self, idx, context, rebuild_shuffle, t, start_sec=0.0):
         """Ссылка на поток ещё не готова: показать «подключаю…», достать в фоне и включить трек."""
         self._stream_token += 1
         token = self._stream_token
@@ -4666,7 +4674,7 @@ class MainWindow(QMainWindow):
             if auto:
                 self._advancing = True
             try:
-                self._play_index(idx, context, rebuild_shuffle)
+                self._play_index(idx, context, rebuild_shuffle, start_sec=start_sec)
             finally:
                 self._advancing = False
         self.streams.resolve(t, done)
@@ -4715,7 +4723,7 @@ class MainWindow(QMainWindow):
                     self.engine.preload(p)
             self.streams.resolve(t, ready)
 
-    def stream_tracks(self, tracks, start=0, playlist=None, album=""):
+    def stream_tracks(self, tracks, start=0, playlist=None, album="", start_sec=0.0):
         """Включить треки во временной очереди, не создавая пользовательский плейлист."""
         import stream_core
         items = [x if str(x.get("path", "")).startswith("stream:") or x.get("path") else stream_core.make_track(x, album)
@@ -4727,7 +4735,7 @@ class MainWindow(QMainWindow):
         self.playlists[name] = {"tracks": items, "desc": f"auto: {album or 'онлайн'}", "cover": ""}
         if not str(name).startswith(HIDDEN_PL):
             save_json(PL_FILE, self.playlists)
-        self._play_index(max(0, min(start, len(items) - 1)), name)
+        self._play_index(max(0, min(start, len(items) - 1)), name, start_sec=start_sec)
 
     def stream_queue_add(self, t, next_=True):
         """Онлайн-трек в очередь «играть следующим» (потоком)."""

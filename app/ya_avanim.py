@@ -142,6 +142,6 @@ def movie(path: str, parent=None) -> QMovie | None:
     m = QMovie(path, parent=parent)
     if not m.isValid():
         return None
-    m.setCacheMode(QMovie.CacheMode.CacheAll)
-    m.start()
+    from performance import configure_movie
+    configure_movie(m,parent)
     return m

@@ -293,6 +293,18 @@ def _draw_icon(p: QPainter, name: str, col: QColor):
     if name == "search":
         p.drawEllipse(QRectF(4, 4, 12, 12))
         p.drawLine(QPointF(14.6, 14.6), QPointF(20, 20))
+    elif name == "performance":
+        p.drawArc(QRectF(3,4,18,18),0,180*16)
+        p.drawLine(QPointF(4,17),QPointF(20,17))
+        p.drawLine(QPointF(12,14),QPointF(17,8))
+        for x,y in ((5,12),(7,7),(12,5),(18,7)):p.drawPoint(QPointF(x,y))
+    elif name == "bug":
+        p.drawRoundedRect(QRectF(7,7,10,13),5,5)
+        p.drawArc(QRectF(8,3,8,8),0,180*16)
+        p.drawLine(QPointF(12,9),QPointF(12,19))
+        for y in (9,13,17):
+            p.drawLine(QPointF(3,y-1),QPointF(7,y))
+            p.drawLine(QPointF(17,y),QPointF(21,y-1))
     elif name == "wave":
         c = QPointF(12, 12)
         for i in range(12):
@@ -960,8 +972,9 @@ class TrackDelegate(QStyledItemDelegate):
         remote = bool(row.get("remote"))
         cur = self.shell.is_current(t) and not remote
         view = getattr(opt, "widget", None)
-        cache = self.__dict__.setdefault("_rows", {})
-        c = cache.get(id(row))
+        from raster_budget import ROWS
+        cache_key=(id(self),id(row))
+        c = ROWS.get(cache_key)
         cov = t.get("cover", "")
         if c is not None and c[3] == cov:                      # уже с настоящей обложкой — не декодировать заново
             cpk = c[4]
@@ -969,6 +982,9 @@ class TrackDelegate(QStyledItemDelegate):
             cpk = cover_pixmap(cov, 40, 6, seed=t.get("path", "") or t.get("title", ""),
                                lazy=view.viewport() if hasattr(view, "viewport") else view).cacheKey()
         dpr = p.device().devicePixelRatioF() if p.device() is not None else 1.0
+        viewport=view.viewport() if hasattr(view,'viewport') else view
+        if viewport is not None and ROWS.limit < viewport.width()*viewport.height()*dpr*dpr*3.6:
+            return self._paint_row(p,opt,row)
         key = (r.width(), r.height(), dpr, hover, sel, remote, bool(row.get("owned")), cur,
                cur and self.shell.is_playing(), not remote and self.shell.is_liked(t), str(row.get("dl")), str(pv),
                cpk, t.get("title"), t.get("artist"), t.get("duration"), TEXT, MUTED, YELLOW)
@@ -980,10 +996,9 @@ class TrackDelegate(QStyledItemDelegate):
             bp.translate(-r.left(), -r.top())
             self._paint_row(bp, opt, row)
             bp.end()
-            if len(cache) > 600:
-                cache.clear()
             real = bool(cov) and (cov, 40, 6, False, "") in _COVER_CACHE
-            cache[id(row)] = c = (key, buf, row, cov if real else None, cpk)   # row — чтобы id не достался другой
+            c = (key, buf, row, cov if real else None, cpk)
+            ROWS.put(cache_key,c,buf.width()*buf.height()*4)
         p.drawPixmap(r.topLeft(), c[1])
 
     def _paint_row(self, p: QPainter, opt, row):
@@ -2527,6 +2542,10 @@ class YaShell(QWidget):
         srch.setFixedSize(44, 44)
         srch.setIconSize(QSize(20, 20))
         th.addWidget(srch)
+        from duel_settings import tr as _duel_tr
+        bug=icon_button('bug',_duel_tr(win,'Сообщить об ошибке','Report a bug'),38,18)
+        bug.clicked.connect(lambda:self.pages['net'].open_bug_report())
+        th.addWidget(bug)
         th.addSpacing(10)
         prof = QWidget(); prof.setObjectName("YaSide")
         prof.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -5366,6 +5385,9 @@ class YaShell(QWidget):
         from ya_settings import SettingsHub
         hub = SettingsHub(Page, ya_icon, YELLOW)
         self.settings_hub = hub
+        from performance_ui import settings_card
+        perf=settings_card(self.win);hub.v.addWidget(perf)
+        hub.add('performance','Производительность',perf,'performance memory ram fps cache graphics animation озу память кэш нагрузка')
         # ── Оформление: своя тема Echoes Music ──
         hub.add("look", "Тема Echoes Music", self._build_skin_card(hub),
                 "цвета акцент шрифт размер текста кнопки панели скругление стиль дизайн пресеты живое оформление аура фон стекло oled пластинка винил анимации погода")

@@ -1,3 +1,23 @@
+# 2026.11.01-2
+
+## English
+
+- Chorus-first duel previews enabled by default, offline background analysis, persistent cache, and filters for genre, artist, album, playlist, favorites, and duration.
+- Win-tier spectral fire: procedural smoke, luminous contours, filaments, and embers with configurable detail and a bounded raster cache.
+- New Performance category with presets, FPS/background controls, actual cache budgets, animated-image controls, preview limits, and live RAM counters.
+- Shared byte-bounded row cache, bounded button cache, hidden-resource release, small-batch chorus FFT processing, and preview image cleanup.
+- Private reports to verified staff, including non-friends: durable offline queue, acknowledgments, retry cancellation, and a staff inbox.
+- All new controls have English and Russian text; updated screenshots, tests, and documentation.
+
+## Русский
+
+- Дуэли начинают превью с припева по умолчанию; добавлены фоновый анализ, кэш и фильтры по жанру, автору, альбому, плейлисту, избранному и длительности.
+- Аура за победы: дым, светящийся контур, волокна и искры; настройка детализации и лимита памяти.
+- Раздел «Производительность»: пресеты, FPS и фон, бюджеты кэшей, GIF, пределы предпросмотров и счётчики памяти.
+- Общий кэш строк по байтам, ограниченный кэш кнопок, освобождение скрытых ресурсов, анализ припева маленькими пачками и очистка изображений после закрытия.
+- Личные репорты подтверждённым администраторам/модераторам без дружбы: очередь, подтверждения, отмена повторов и входящие.
+- Английские и русские надписи нового интерфейса, обновлённые скриншоты, тесты и документация.
+
 # 2026.11.01-1
 
 ## English

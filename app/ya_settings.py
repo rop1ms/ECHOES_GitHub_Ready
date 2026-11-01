@@ -24,9 +24,9 @@ from PyQt6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton
 
 CATEGORIES = (("look", "Оформление", "palette"), ("sound", "Звук", "eq"), ("play", "Воспроизведение", "play"),
               ("lyrics", "Тексты песен", "lyrics"), ("library", "Медиатека", "album"),
-              ("tools", "Инструменты", "settings"), ("apps", "Сеть и интеграции", "net"), ("other", "Другое", "dots"))
+              ("performance", "Производительность", "performance"), ("tools", "Инструменты", "settings"), ("apps", "Сеть и интеграции", "net"), ("other", "Другое", "dots"))
 
-SECTION_CAT = {"оформление": "look", "язык": "look", "графика": "look", "текст песни": "lyrics",
+SECTION_CAT = {"оформление": "look", "язык": "look", "графика": "performance", "производительность":"performance", "текст песни": "lyrics",
                "воспроизведение": "play", "клипы": "play", "таймер сна": "play", "медиатека": "library",
                "настроение дня": "library", "жанры": "library", "эквалайзер": "sound", "lo-fi": "sound",
                "атмосферный шум": "sound", "мощность звука": "sound", "pomodoro": "tools", "открытия": "tools",

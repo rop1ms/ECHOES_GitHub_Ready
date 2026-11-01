@@ -60,6 +60,11 @@ CREATE TABLE IF NOT EXISTS reports (
 CREATE TABLE IF NOT EXISTS outbox (
     id INTEGER PRIMARY KEY AUTOINCREMENT, peer TEXT, payload TEXT, ts REAL
 );
+CREATE TABLE IF NOT EXISTS bug_reports (
+    id TEXT PRIMARY KEY, peer TEXT NOT NULL, direction TEXT NOT NULL, ts REAL NOT NULL,
+    payload TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'queued'
+);
+CREATE INDEX IF NOT EXISTS bug_report_peer ON bug_reports(peer, direction, state);
 """
 
 
