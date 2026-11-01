@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
-                             QListWidget, QListWidgetItem, QProgressBar)
+                             QListWidget, QListWidgetItem, QProgressBar,QFileDialog)
 
 SEC_PER_TRACK = 10      # грубая оценка до первых результатов (поиск + скачивание)
 
@@ -43,39 +43,51 @@ ST_COLOR = {"none": "#ff6b6b", "error": "#ff6b6b", "done": "#3ddc84", "have": "#
 
 class SpotifyImportDialog(QDialog):
     _fetched = pyqtSignal(object, object)            # (name, tracks) | (None, error)
-    _matched = pyqtSignal(int, object, str)          # row, track|None, state
+    _matched = pyqtSignal(int, object, str, int)          # row, track|None, state
 
-    def __init__(self, win, parent=None):
+    def __init__(self, win, parent=None, provider='spotify'):
         super().__init__(parent or win)
         self.win = win
-        self.setWindowTitle("Импорт плейлиста из Spotify")
+        from duel_settings import tr
+        self.t=lambda ru,en:tr(win,ru,en)
+        self.provider=provider
+        self.brand={'spotify':'Spotify','yandex':self.t('Яндекс Музыка','Yandex Music'),'vk':'VK Music'}[provider]
+        self.setWindowTitle(self.t('Импорт плейлиста: ','Import playlist: ')+self.brand)
         self.setMinimumSize(620, 560)
         self.tracks = []
         self.states = []
         self.pct = []
         self._running = False
+        self._generation=0
         self._cancel = threading.Event()
         self._t0 = 0.0
         self._todo0 = 0
 
-        lay = QVBoxLayout(self)
+        from echo_glass import GlassFrame,glass_controls_qss
+        self.setStyleSheet('QDialog{background:#090b10;}QLabel{color:#eef2fa;background:transparent;}QListWidget{background:#11151c;color:#eef2fa;border:1px solid #303946;border-radius:12px;}'+glass_controls_qss())
+        outer=QVBoxLayout(self);glass=GlassFrame(radius=22);outer.addWidget(glass);lay=QVBoxLayout(glass);lay.setContentsMargins(22,20,22,20)
         lay.setSpacing(10)
-        hint = QLabel("Вставьте ссылку на плейлист или альбом Spotify. Каждый трек будет найден на "
-                      "YouTube Music (если там нет — на SoundCloud) и скачан в плейлист с тем же названием.")
+        hint = QLabel(self.t('Вставьте ссылку на публичный плейлист или альбом. Треки из вашей коллекции добавятся сразу; остальные будут найдены на YouTube Music / SoundCloud.',
+                             'Paste a public playlist or album link. Tracks in your library are reused; other tracks are matched on YouTube Music / SoundCloud.'))
         hint.setWordWrap(True)
         hint.setObjectName("Sub")
         lay.addWidget(hint)
         row = QHBoxLayout()
         self.url = QLineEdit()
-        self.url.setPlaceholderText("https://open.spotify.com/playlist/…")
+        self.url.setPlaceholderText({'spotify':'https://open.spotify.com/playlist/…','yandex':'https://music.yandex.ru/playlists/…','vk':'https://vk.com/music/playlist/…'}[provider])
         self.url.returnPressed.connect(self._fetch)
         row.addWidget(self.url, 1)
-        self.btn_fetch = QPushButton("Получить треки")
+        self.btn_fetch = QPushButton(self.t('Получить треки','Get tracks'))
         self.btn_fetch.clicked.connect(self._fetch)
         row.addWidget(self.btn_fetch)
         lay.addLayout(row)
+        if provider!='spotify':
+            note=QLabel(self.t('Без токенов и входа в аккаунт. Если сервис скрывает список, загрузите TXT/M3U со строками «Исполнитель — Название». Неполный список будет отмечен.',
+                'No tokens or account login. If the service hides the list, load a TXT/M3U file with Artist — Title entries. Partial lists are marked.'))
+            note.setWordWrap(True);lay.addWidget(note)
+            file_button=QPushButton(self.t('Загрузить список из файла…','Load track list from file…'));file_button.clicked.connect(self._load_list_file);lay.addWidget(file_button)
         row = QHBoxLayout()
-        row.addWidget(QLabel("Плейлист в плеере:"))
+        row.addWidget(QLabel(self.t('Плейлист в плеере:','Playlist in ECHOES:')))
         self.pl_name = QLineEdit()
         row.addWidget(self.pl_name, 1)
         lay.addLayout(row)
@@ -88,14 +100,14 @@ class SpotifyImportDialog(QDialog):
         self.bar.setRange(0, 100)
         lay.addWidget(self.bar)
         row = QHBoxLayout()
-        self.btn_go = QPushButton("Скачать всё")
+        self.btn_go = QPushButton(self.t('Скачать всё','Download all'))
         self.btn_go.setObjectName("AccentBtn")
         self.btn_go.setEnabled(False)
         self.btn_go.clicked.connect(self._start)
-        self.btn_stop = QPushButton("Остановить поиск")
+        self.btn_stop = QPushButton(self.t('Остановить поиск','Stop matching'))
         self.btn_stop.setEnabled(False)
         self.btn_stop.clicked.connect(self._stop)
-        close = QPushButton("Закрыть")
+        close = QPushButton(self.t('Закрыть','Close'))
         close.clicked.connect(self.hide)
         row.addWidget(self.btn_go)
         row.addWidget(self.btn_stop)
@@ -108,28 +120,36 @@ class SpotifyImportDialog(QDialog):
     # ── список треков ── #
 
     def _fetch(self):
+        if self._running or getattr(self,'_fetching',False):return
         url = self.url.text().strip()
         if not url:
             return
         self.btn_fetch.setEnabled(False)
-        self.status.setText("Получаю список треков из Spotify…")
+        self._fetching=True
+        self.status.setText(self.t('Получаю список треков: ','Fetching track list: ')+self.brand+'…')
         s = self.win.settings
         cid, sec = s.get("spotify_client_id", ""), s.get("spotify_client_secret", "")
 
         def work():
             try:
                 import online_search
-                name, tracks = online_search.spotify_tracks(url, cid, sec)
+                if self.provider=='spotify':name, tracks = online_search.spotify_tracks(url, cid, sec)
+                else:
+                    from service_playlist_import import fetch
+                    name,tracks=fetch(self.provider,url,self.win.settings.get('language','en'))
                 self._fetched.emit(name, tracks)
             except Exception as e:                   # noqa: BLE001
                 self._fetched.emit(None, str(e))
         threading.Thread(target=work, daemon=True).start()
 
     def _on_fetched(self, name, tracks):
+        self._fetching=False
         self.btn_fetch.setEnabled(True)
         if name is None:
-            self.status.setText(f"Не получилось: {tracks}")
+            self.status.setText(self.t('Не получилось: ','Could not import: ')+str(tracks))
             return
+        warning=''
+        if isinstance(tracks,dict):warning=tracks.get('warning','');tracks=tracks.get('tracks',[])
         self.tracks = list(tracks)
         self.states = [""] * len(self.tracks)
         self.pct = [0.0] * len(self.tracks)
@@ -139,13 +159,24 @@ class SpotifyImportDialog(QDialog):
             it = QListWidgetItem()
             self.list.addItem(it)
             self._paint_row(i)
-        more = "" if len(self.tracks) != 100 else \
+        more = "" if len(self.tracks) != 100 or self.provider!='spotify' else \
             "  (Spotify отдал ровно 100 — возможно, это не весь плейлист; помогут ключи Spotify API в загрузчике)"
-        self.status.setText(f"«{name}»: {len(self.tracks)} треков. "
-                            f"Примерное время переноса: ~{fmt_eta(len(self.tracks) * SEC_PER_TRACK)}.{more}")
-        self.btn_go.setText("Скачать всё")
+        self.status.setText(self.t(f'«{name}»: {len(self.tracks)} треков. Примерно ~{fmt_eta(len(self.tracks)*SEC_PER_TRACK)}. {more}',
+                                  f'{name}: {len(self.tracks)} tracks. About {(len(self.tracks)*SEC_PER_TRACK+59)//60} min.')+' '+warning)
+        self.btn_go.setText(self.t('Скачать всё','Download all'))
         self.btn_go.setEnabled(bool(self.tracks))
         self.bar.setValue(0)
+
+    def _load_list_file(self):
+        if self._running or getattr(self,'_fetching',False):return
+        filename,_=QFileDialog.getOpenFileName(self,self.t('Список треков','Track list'),'','Track lists (*.txt *.m3u *.m3u8 *.echoesplaylist)')
+        if not filename:return
+        try:
+            from pathlib import Path
+            if Path(filename).stat().st_size>10*2**20:raise ValueError(self.t('Файл должен быть не больше 10 МиБ.','The file must be no larger than 10 MiB.'))
+            from playlist_share import read_playlist_file
+            name,_,tracks=read_playlist_file(filename);self._on_fetched(name,tracks)
+        except (ValueError,OSError) as error:self.status.setText(str(error))
 
     def _paint_row(self, i):
         it = self.list.item(i)
@@ -153,7 +184,8 @@ class SpotifyImportDialog(QDialog):
             return
         t = self.tracks[i]
         st = self.states[i]
-        txt = ST_TEXT.get(st, st)
+        txt = self.t(ST_TEXT.get(st, st), {'':'waiting','search':'matching…','ytm':'found on YouTube Music','yt':'found on YouTube','sc':'found on SoundCloud',
+            'none':'not found','have':'already in library','queued':'queued','progress':'downloading','done':'done','error':'error','retry':'trying another source…'}.get(st,st))
         if st == "progress":
             txt += f" {int(self.pct[i])}%"
         d = int(t.get("duration") or 0)
@@ -172,30 +204,33 @@ class SpotifyImportDialog(QDialog):
             done_now = max(0, fin - (len(self.tracks) - self._todo0))
             left = len(self.tracks) - fin
             per = (time.monotonic() - self._t0) / done_now if done_now >= 3 else SEC_PER_TRACK
-            self.status.setText(f"Перенос: {fin}/{len(self.tracks)}. Осталось примерно {fmt_eta(left * per)}")
+            self.status.setText(self.t(f"Перенос: {fin}/{len(self.tracks)}. Осталось примерно {fmt_eta(left * per)}",f"Transfer: {fin}/{len(self.tracks)}. About {int(left*per/60)+1} min left."))
         if fin == len(self.tracks) and self._running:
             self._running = False
+            self.btn_fetch.setEnabled(True);self.pl_name.setEnabled(True)
             ok = sum(1 for s in self.states if s in ("done", "have"))
             miss = sum(1 for s in self.states if s in ("none", "error"))
-            self.status.setText(f"Готово: {ok} треков в плейлисте «{self.pl_name.text().strip()}»"
-                                + (f", не удалось: {miss}" if miss else ""))
+            self.status.setText(self.t(f"Готово: {ok} треков в плейлисте «{self.pl_name.text().strip()}», не удалось: {miss}",f"Done: {ok} tracks in {self.pl_name.text().strip()}; unavailable: {miss}"))
             self.btn_stop.setEnabled(False)
             if miss:
-                self.btn_go.setText("Повторить неудачные")
+                self.btn_go.setText(self.t("Повторить неудачные","Retry failed tracks"))
                 self.btn_go.setEnabled(True)
 
     # ── поиск и скачивание ── #
 
     def _start(self):
-        name = self.pl_name.text().strip() or "Spotify"
+        name = self.pl_name.text().strip() or self.brand
         self.pl_name.setText(name)
+        self._generation+=1
+        generation=self._generation
         self._running = True
+        self.btn_fetch.setEnabled(False);self.pl_name.setEnabled(False)
         self._t0 = time.monotonic()
         self._todo0 = sum(1 for s in self.states if s not in ("done", "have"))
         self._cancel.clear()
         self.btn_go.setEnabled(False)
         self.btn_stop.setEnabled(True)
-        self.status.setText("Ищу треки на YouTube Music и SoundCloud…")
+        self.status.setText(self.t("Ищу треки на YouTube Music и SoundCloud…","Matching tracks on YouTube Music and SoundCloud…"))
         lib = list(self.win.library)
 
         def have(t):
@@ -220,9 +255,9 @@ class SpotifyImportDialog(QDialog):
             t = self.tracks[i]
             local = have(t)
             if local is not None:
-                self._matched.emit(i, local, "have")
+                self._matched.emit(i, local, "have",generation)
                 return
-            self._matched.emit(i, None, "search")
+            self._matched.emit(i, None, "search",generation)
             artist = (t.get("artist") or "").split(",")[0].strip()
             cands = []
             try:
@@ -238,7 +273,7 @@ class SpotifyImportDialog(QDialog):
                 # пусть yt-dlp сам найдёт «исполнитель — название» на YouTube/SoundCloud
                 q = f"{artist} - {t['title']}" if artist else t["title"]
                 res = {"url": f"ytsearch1:{q.replace(':', ' ')} audio", "source": "yt", "alts": []}
-            self._matched.emit(i, res, res.get("source") or "yt")
+            self._matched.emit(i, res, res.get("source") or "yt",generation)
 
         def run():
             with ThreadPoolExecutor(max_workers=3) as ex:
@@ -247,14 +282,17 @@ class SpotifyImportDialog(QDialog):
 
     def _stop(self):
         self._cancel.set()
+        self._generation+=1;self._running=False
+        self.btn_fetch.setEnabled(True);self.pl_name.setEnabled(True);self.btn_go.setEnabled(False)
         self.btn_stop.setEnabled(False)
-        self.status.setText("Поиск остановлен — уже найденное докачается.")
+        self.status.setText(self.t("Поиск остановлен — уже найденное докачается. Можно загрузить новый список.","Matching stopped; queued downloads will finish. You can load a new list."))
 
-    def _on_matched(self, i, res, state):
-        name = self.pl_name.text().strip() or "Spotify"
+    def _on_matched(self, i, res, state,generation):
+        if generation!=self._generation:return
+        name = self.pl_name.text().strip() or self.brand
         self.states[i] = state
         if state == "have" and res is not None:
-            pl = self.win.playlists.setdefault(name, {"tracks": [], "desc": "Импорт из Spotify", "cover": ""})
+            pl = self.win.playlists.setdefault(name, {"tracks": [], "desc": self.t("Импорт из ","Imported from ")+self.brand, "cover": ""})
             if not any(x.get("path") == res.get("path") for x in pl["tracks"]):
                 pl["tracks"].append(dict(res))
                 self.win._ya_save_playlists()
@@ -262,6 +300,7 @@ class SpotifyImportDialog(QDialog):
             t = self.tracks[i]
 
             def cb(st, v, i=i):
+                if generation!=self._generation:return
                 if st == "progress":
                     self.states[i], self.pct[i] = "progress", float(v)
                 elif st in ("queued", "done", "error", "retry"):
@@ -269,7 +308,7 @@ class SpotifyImportDialog(QDialog):
                     if st == "done":
                         self._drop_previews(name, self.tracks[i], v)
                     if st == "error":
-                        self.list.item(i).setToolTip(f"Не удалось: {v}") if self.list.item(i) else None
+                        self.list.item(i).setToolTip(self.t("Не удалось: ","Failed: ")+str(v)) if self.list.item(i) else None
                 self._paint_row(i)
                 self._update_bar()
             self.win._quick_download(res["url"], playlist=name, cb=cb,

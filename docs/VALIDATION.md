@@ -1,3 +1,9 @@
+# Release 2026.11.01-5 — not tested
+
+At the user's request, no automated tests, UI runs or live playlist imports were executed for this update. Changes: playback transition/pause guards and repeat restart; public Yandex/VK playlist metadata import and TXT/M3U fallback beside Spotify. Token-free retrieval depends on metadata being publicly accessible; login/CAPTCHA and partial-list responses are reported. The checks below belong to previous releases.
+
+По просьбе пользователя тесты, запуск интерфейса и пробный импорт не выполнялись. Добавлены исправления переключения/повтора, импорт публичных списков Яндекс/VK без ввода токенов и запасной импорт TXT/M3U. Ниже — проверки прошлых версий.
+
 # Release verification — 2026.11.01-4
 
 Verification was limited to the changed radio, fire-level, request and player-effect features.

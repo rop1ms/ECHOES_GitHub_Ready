@@ -1683,6 +1683,9 @@ class MainWindow(QMainWindow):
         b=QPushButton("Импорт плейлиста Spotify"); b.setObjectName("AccentBtn")
         b.setToolTip("Ссылка на плейлист Spotify → треки ищутся на YouTube Music / SoundCloud и скачиваются")
         b.clicked.connect(self._open_spotify_import); rv2.addWidget(b)
+        from duel_settings import tr
+        for provider,ru,en in [('yandex','Импорт из Яндекс Музыки','Import from Yandex Music'),('vk','Импорт из VK Музыки','Import from VK Music')]:
+            source_button=QPushButton(tr(self,ru,en));source_button.clicked.connect(lambda _=False,p=provider:self._open_service_import(p));rv2.addWidget(source_button)
         b=QPushButton("Экспорт GIF пластинки"); b.clicked.connect(self._export_vinyl_gif); rv2.addWidget(b)
         b=QPushButton("Genius token"); b.setObjectName("GhostBtn"); b.clicked.connect(self._set_token); rv2.addWidget(b)
 
@@ -4242,6 +4245,14 @@ class MainWindow(QMainWindow):
             self._spotify_dlg = dlg
         inapp.present(self, dlg, "Импорт плейлиста из Spotify")
 
+    def _open_service_import(self,provider):
+        from spotify_import import SpotifyImportDialog
+        attribute='_import_'+provider+'_dialog'
+        dialog=getattr(self,attribute,None)
+        if dialog is None:
+            dialog=SpotifyImportDialog(self,provider=provider);setattr(self,attribute,dialog)
+        inapp.present(self,dialog,dialog.windowTitle())
+
     def _online_state(self, url, state, pct):
         cbs = getattr(self, "_online_cbs", {}).get(url, [])
         for cb in list(cbs):
@@ -5600,8 +5611,7 @@ class MainWindow(QMainWindow):
         self._track_finished_guard = True
         try:
             if self.repeat_mode == 2:
-                self.engine.seek(0)
-                self.engine.play()
+                self.engine.load(self.engine.current_path, autoplay=True, start_sec=0.0)
             else:
                 self._advance(1)
         finally:

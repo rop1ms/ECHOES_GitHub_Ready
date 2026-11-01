@@ -26,7 +26,7 @@ Russian installer entry points are included as `УСТАНОВИТЬ ECHOES.bat`
 - **Local library:** artwork, tags, search, albums, artist pages, favorites, playlists, queue editing, shuffle, repeat, and playback history.
 - **My Wave:** an ongoing mix of familiar music and discoveries, with controls for mood, activity, language, and how much unfamiliar music to include. Artist and genre waves offer another route through your taste.
 - **For you:** charts, recommendations from your collection and listening history, artist suggestions, new releases, and followed artists.
-- **Online search and streaming:** discover music through supported online sources, prepare upcoming streams, and download tracks or albums from supported services. Import Spotify playlists and share playlists with other ECHOES users.
+- **Online search and streaming:** discover music through supported online sources, prepare upcoming streams, and download tracks or albums from supported services. Import playlists from Spotify, Yandex Music and VK Music, and share playlists with other ECHOES users. Yandex/VK import reads public metadata without token fields; TXT/M3U lists are supported when a service requires login or returns only part of a playlist.
 - **Library care:** tag and cover lookup, genre analysis and corrections, track tools, duplicate/cache cleanup, listening statistics, a profile, and Wrapped-style listening recaps.
 
 ### Sound and focused listening

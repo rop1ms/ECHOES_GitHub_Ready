@@ -5439,6 +5439,8 @@ class YaShell(QWidget):
             "lyrics": ("Тексты песен", (("Редактор текста", self.win._open_lyrics_editor, "lyrics"),
                                         ("Перевод и прокрутка текста", lambda: self.win._lyrics_options.open(), "lyrics"))),
             "library": ("Плейлисты и файлы", (("Импорт из Spotify", self.win._open_spotify_import, "download"),
+                                              (__import__('duel_settings').tr(self.win,'Импорт из Яндекс Музыки','Import from Yandex Music'),lambda:self.win._open_service_import('yandex'),'download'),
+                                              (__import__('duel_settings').tr(self.win,'Импорт из VK Музыки','Import from VK Music'),lambda:self.win._open_service_import('vk'),'download'),
                                               ("Плейлист из файла",
                                                lambda: getattr(self.win, "import_playlist_file", lambda *_: None)(), "download"),
                                               ("Плейлисты на телефон",

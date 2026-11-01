@@ -253,6 +253,7 @@ class AudioEngine(QObject):
         self._gl_seam_t0 = 0.0
 
         self._was_playing = False
+        self._want_playing = False
         self._last_state  = None
 
         self.timer = QTimer(self)
@@ -576,6 +577,7 @@ class AudioEngine(QObject):
     # ------------------------------------------------------------------ #
 
     def load(self, path, autoplay=True, start_sec=0.0):
+        self._want_playing = bool(autoplay)
         self._vari_pause_timer.stop()
         path = str(path)
         self.gain = self._gain_for(path)
@@ -630,6 +632,7 @@ class AudioEngine(QObject):
             media.add_option(f":start-time={float(start_sec):.3f}")
 
         self.player.set_media(media)
+        self._set_mute(self.player, False)
         self.player.set_rate(self.speed)
         self._apply_eq()
 
@@ -662,6 +665,7 @@ class AudioEngine(QObject):
         return True
 
     def play(self):
+        self._want_playing = True
         self._vari_pause_timer.stop()
         if not self.current_path:
             return False
@@ -693,7 +697,8 @@ class AudioEngine(QObject):
                 # и возвращает звук — ровно то, что вручную чинит перемотка.
                 # Небольшая задержка нужна, чтобы play() успел перевести
                 # плеер из Paused в Playing до самого seek.
-                QTimer.singleShot(60, self._nudge_resume)
+                player, path = self.player, self.current_path
+                QTimer.singleShot(60, lambda: self._nudge_resume() if self.player is player and self.current_path == path and self._want_playing else None)
             self._vis_player.play()
         return ok
 
@@ -703,6 +708,9 @@ class AudioEngine(QObject):
             self.player.set_time(t)
 
     def _startfade_step(self):
+        if not self._startfade_active:return
+        if not self._want_playing:
+            self._startfade_timer.stop();self._startfade_active=False;self._apply_loudness();return
         self._startfade_t += self._startfade_timer.interval() / 1000.0
         dur = 0.12
         t = min(1.0, self._startfade_t / dur)
@@ -712,6 +720,7 @@ class AudioEngine(QObject):
             self._startfade_active = False
 
     def pause(self):
+        self._want_playing = False
         if self.mixer is not None and self._fade_active and self._gapless_watch and self._fade_to is not None:
             # пауза перед стыком: обе деки на паузу, стык останется точным
             self.player.set_pause(1)
@@ -733,6 +742,7 @@ class AudioEngine(QObject):
         """Пауза, которая ничего не переключает. pause() у VLC — переключатель: на уже стоящем на паузе
         треке он звук ВКЛЮЧАЕТ (рестарт карты esu! из меню паузы / после провала запускал музыку
         раньше отсчёта, а потом звук прыгал в начало)."""
+        self._want_playing = False
         st = self.player.get_state()
         if st in (vlc.State.Playing, vlc.State.Opening, vlc.State.Buffering) or self.is_playing():
             if st == vlc.State.Playing:
@@ -775,6 +785,7 @@ class AudioEngine(QObject):
         """Пауза с эффектом "остановки пластинки": плавно тормозим темп и
         громкость перед реальной паузой вместо резкого обрыва звука.
         Если vinyl_pause_fx выключен (или трек не играет) — обычная пауза."""
+        self._want_playing = False
         if not self.vinyl_pause_fx or not self.is_playing():
             self.pause()
             return
@@ -798,10 +809,12 @@ class AudioEngine(QObject):
         self._spindown_timer.start()
 
     def _vari_pause_now(self):
+        if self._want_playing:return
         self.player.set_pause(1)
         self._vis_player.pause()
 
     def _spindown_step(self):
+        if not self._spindown_active:return
         # по реальному времени: тик таймера на загруженном интерфейсе опаздывает
         now = time.perf_counter()
         self._spindown_t += min(0.05, now - getattr(self, "_spin_last", now))
@@ -825,6 +838,7 @@ class AudioEngine(QObject):
         """Возобновление с эффектом "раскрутки пластинки" — плавный разгон
         скорости и громкости вместо резкого рывка звука. Возвращает True,
         если play() у libvlc успешно стартовал."""
+        self._want_playing = True
         if not self.vinyl_pause_fx:
             return self.play()
         if not self.current_path:
@@ -854,6 +868,9 @@ class AudioEngine(QObject):
         return ok
 
     def _spinup_step(self):
+        if not self._spinup_active:return
+        if not self._want_playing:
+            self._spinup_timer.stop();self._spinup_active=False;return
         now = time.perf_counter()
         self._spinup_t += min(0.05, now - getattr(self, "_spin_last", now))
         self._spin_last = now
@@ -870,6 +887,7 @@ class AudioEngine(QObject):
             self._apply_loudness()
 
     def stop(self):
+        self._want_playing = False
         self._vari_pause_timer.stop()
         self._spindown_timer.stop()
         self._spindown_active = False
@@ -1225,7 +1243,9 @@ class AudioEngine(QObject):
             return True
         # Пауза перед стартом фейда: VLC успевает открыть аудиоустройство
         # тихо, без характерного щелчка инициализации.
-        QTimer.singleShot(80, self._fade_timer.start)
+        incoming = self._fade_to
+        token = self._gl_token
+        QTimer.singleShot(80, lambda: self._fade_timer.start() if self._fade_active and not self._gapless_watch and self._fade_to is incoming and self._gl_token == token else None)
         return True
 
     def start_gapless(self, next_path: str, remain_ms: float) -> bool:
@@ -1463,6 +1483,7 @@ class AudioEngine(QObject):
         self._apply_loudness()
 
     def _fade_step(self):
+        if not self._fade_active or self._fade_to is None:return
         if getattr(self.mixer, 'native', False):
             if self.mixer.crossfade_done():
                 self._finish_crossfade()
@@ -1490,6 +1511,9 @@ class AudioEngine(QObject):
         # Меняем деки ролями: та, что "въехала", становится основной.
         self.gain = self._gain_next
         self.player, self._player_alt = self._fade_to, old_player
+        self._set_mute(self.player, False)
+        if self._want_playing and self.player.get_state() == vlc.State.Paused:
+            self.player.set_pause(0)
         self._apply_loudness()
 
         # Сбрасываем PCM-кольцо ДО перезапуска vis_player — чтобы

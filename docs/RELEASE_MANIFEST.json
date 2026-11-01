@@ -1,7 +1,7 @@
 {
-  "version": "2026.11.01-4",
-  "files": 487,
-  "total_bytes": 141879381,
+  "version": "2026.11.01-5",
+  "files": 488,
+  "total_bytes": 141898595,
   "largest_file_bytes": 36722718,
   "private_profile_included": false,
   "text_checksum": "sha256_lf normalizes CRLF to LF for Git checkouts",
@@ -17,6 +17,47 @@
       "bytes": 557,
       "sha256": "80341a6a0c9052c5a31e1725a9e329fd5fec2fd4b623aef54997af4d5a7e2da3",
       "sha256_lf": "80341a6a0c9052c5a31e1725a9e329fd5fec2fd4b623aef54997af4d5a7e2da3"
+    },
+    {
+      "path": "ECHOES Launcher.exe",
+      "bytes": 36722718,
+      "sha256": "76f6ec195de493f716773675b8c9dd58d5263e9e51dd52da2943879fe5cf7b04"
+    },
+    {
+      "path": "Install ECHOES.bat",
+      "bytes": 269,
+      "sha256": "782b22ddf81e4b8183317cf1065c647852fe1e8b46ca311aaf2c6e682c8bcb57",
+      "sha256_lf": "782b22ddf81e4b8183317cf1065c647852fe1e8b46ca311aaf2c6e682c8bcb57"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 1076,
+      "sha256": "e1dd63c2f900528ff6f1c91a60b39b061783be791fda542a04de5425bdf1e3da",
+      "sha256_lf": "e1dd63c2f900528ff6f1c91a60b39b061783be791fda542a04de5425bdf1e3da"
+    },
+    {
+      "path": "README.md",
+      "bytes": 19847,
+      "sha256": "21f5a65d6b79b7521cd3b9e573f0e5975d9c22a1daa1811e44b1c92768c9d581",
+      "sha256_lf": "5d749a195ae342c412bfc144f16190dcaf288156b527eae20092ace56d3f5ad2"
+    },
+    {
+      "path": "README.ru.md",
+      "bytes": 32615,
+      "sha256": "8d15a8c86064ac4a9f71fba76f0c3413131f8e695857b6ec8163bb0bc2c99d58",
+      "sha256_lf": "ea313aa3f9d483a7583c4be0df6413624159ba7dee916c2567fa6b55a546eba7"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "bytes": 4797,
+      "sha256": "d219dfeea39c7eee2303f6698336230ded62789285bfd8a89d6648eaa441b10d",
+      "sha256_lf": "d219dfeea39c7eee2303f6698336230ded62789285bfd8a89d6648eaa441b10d"
+    },
+    {
+      "path": "Update ECHOES.bat",
+      "bytes": 274,
+      "sha256": "07bf5b814bc620a289ca65438977792c5fe20e3cfbfd29ac7d708d5589572e65",
+      "sha256_lf": "07bf5b814bc620a289ca65438977792c5fe20e3cfbfd29ac7d708d5589572e65"
     },
     {
       "path": "app/ambience.py",
@@ -73,9 +114,9 @@
     },
     {
       "path": "app/audio_engine.py",
-      "bytes": 89001,
-      "sha256": "225e90851b83e4673988209786cbeb2eaa4457c2921b49c4408b950d23731d2a",
-      "sha256_lf": "7fd6b96c97beb12686134b7699f0f651b16cb2fc65f5e0ccb81e8220e8db2f8c"
+      "bytes": 90339,
+      "sha256": "79700f4308c29551d8f4f45a317a7bde889d113b593066a233d8b78e6e3f064e",
+      "sha256_lf": "cad4b5da4005213803c8914dc132fb6f98b93925260913cc3be31fb256d4ebc5"
     },
     {
       "path": "app/audio_native.py",
@@ -653,9 +694,9 @@
     },
     {
       "path": "app/main.py",
-      "bytes": 475985,
-      "sha256": "676037318024642e37d08f906dd97fb6e0c3a549dcedf765412a4e93593267ea",
-      "sha256_lf": "211516ea6a072cc95adf05d8f5ffe39c3fa9f454c3faac47c79c19c5edef9404"
+      "bytes": 476772,
+      "sha256": "bfeabbc608ef28ba3064c320ca9fc140099af4abd74f948277f0bf1f3406aed6",
+      "sha256_lf": "e5313b213329c651d64f86c7466213fd29eb551669921a00659689747cf92383"
     },
     {
       "path": "app/manual_search.py",
@@ -686,6 +727,31 @@
       "bytes": 48018,
       "sha256": "cc5c0b37f53f0fa4a39c1530d877914bae5ac8105f5bf65df3a46365e022bf33",
       "sha256_lf": "a2b8779b5263ca5e3216f636391b256ebe1136684e443359c3f36a73a8609ca5"
+    },
+    {
+      "path": "app/montage_native/Qt6Core.dll",
+      "bytes": 7247990,
+      "sha256": "a54f0e354ff38670df336267333333117d623f7d7a6811e98c345fd68f339b1f"
+    },
+    {
+      "path": "app/montage_native/Qt6Gui.dll",
+      "bytes": 10624898,
+      "sha256": "2b12d68d2dbd2171b9dc221884baf2e7a5769984156a42ef1572ad298d427a68"
+    },
+    {
+      "path": "app/montage_native/Qt6Network.dll",
+      "bytes": 2161005,
+      "sha256": "9ec4e2fa95d00be0348067a96793a879f238c61931b894e994984f11995671ba"
+    },
+    {
+      "path": "app/montage_native/Qt6Test.dll",
+      "bytes": 504836,
+      "sha256": "55d924cddb9bf85644cb3b6fb2f7a80b22771df8c081b29801b81649a3a365b4"
+    },
+    {
+      "path": "app/montage_native/Qt6Widgets.dll",
+      "bytes": 7823645,
+      "sha256": "d61c9cdeb0205452c09497189a0685bd58652de2b6330465ede91c44ad372a3d"
     },
     {
       "path": "app/montage_native/echoes_montage.exe",
@@ -848,6 +914,24 @@
       "sha256": "48368ab0ca622d0ec12f41ce85d91f22866bf5da92c77a69a06483564c93816c"
     },
     {
+      "path": "app/montage_native/licenses/PyInstaller/COPYING.txt",
+      "bytes": 32604,
+      "sha256": "0598064c7d2718e38d7914a7d08343b2fa008e3bea9ebba2aa7a6ffa5900dd64",
+      "sha256_lf": "0598064c7d2718e38d7914a7d08343b2fa008e3bea9ebba2aa7a6ffa5900dd64"
+    },
+    {
+      "path": "app/montage_native/licenses/PyQt6-Qt6/LICENSE",
+      "bytes": 7687,
+      "sha256": "6c671e2912ec69c0832f32066c0313cee5fdc3bbcbce237822e89f3da58edd4e",
+      "sha256_lf": "6c671e2912ec69c0832f32066c0313cee5fdc3bbcbce237822e89f3da58edd4e"
+    },
+    {
+      "path": "app/montage_native/licenses/PyQt6/LICENSE",
+      "bytes": 35147,
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+      "sha256_lf": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+    },
+    {
       "path": "app/montage_native/licenses/brotli/LICENSE",
       "bytes": 1084,
       "sha256": "3d180008e36922a4e8daec11c34c7af264fed5962d07924aea928c38e8663c94",
@@ -962,16 +1046,16 @@
       "sha256_lf": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95"
     },
     {
-      "path": "app/montage_native/licenses/libiconv/libcharset/COPYING.LIB",
-      "bytes": 26419,
-      "sha256": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95",
-      "sha256_lf": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95"
-    },
-    {
       "path": "app/montage_native/licenses/libiconv/README",
       "bytes": 5741,
       "sha256": "4ae66e61d1c6593c84c47105b368d579bcee1af566dbb959ec63a0c48425dcf4",
       "sha256_lf": "4ae66e61d1c6593c84c47105b368d579bcee1af566dbb959ec63a0c48425dcf4"
+    },
+    {
+      "path": "app/montage_native/licenses/libiconv/libcharset/COPYING.LIB",
+      "bytes": 26419,
+      "sha256": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95",
+      "sha256_lf": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95"
     },
     {
       "path": "app/montage_native/licenses/libjpeg-turbo/LICENSE.md",
@@ -1034,24 +1118,6 @@
       "sha256_lf": "b89c063b3786e28e0c0a38f1931db61fed35e69dd2a2966fbecffee0f46c8d10"
     },
     {
-      "path": "app/montage_native/licenses/PyInstaller/COPYING.txt",
-      "bytes": 32604,
-      "sha256": "0598064c7d2718e38d7914a7d08343b2fa008e3bea9ebba2aa7a6ffa5900dd64",
-      "sha256_lf": "0598064c7d2718e38d7914a7d08343b2fa008e3bea9ebba2aa7a6ffa5900dd64"
-    },
-    {
-      "path": "app/montage_native/licenses/PyQt6/LICENSE",
-      "bytes": 35147,
-      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
-      "sha256_lf": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
-    },
-    {
-      "path": "app/montage_native/licenses/PyQt6-Qt6/LICENSE",
-      "bytes": 7687,
-      "sha256": "6c671e2912ec69c0832f32066c0313cee5fdc3bbcbce237822e89f3da58edd4e",
-      "sha256_lf": "6c671e2912ec69c0832f32066c0313cee5fdc3bbcbce237822e89f3da58edd4e"
-    },
-    {
       "path": "app/montage_native/licenses/qt6-base/AFL-2.1.txt",
       "bytes": 8948,
       "sha256": "93bb4f7417aa775bab9026cc3d0af28aeb64451fc5a8ec651876785edd8eaf9b",
@@ -1062,18 +1128,6 @@
       "bytes": 10398,
       "sha256": "e3ba223bb1423f0aad8c3dfce0fe3148db48926d41e6fbc3afbbf5ff9e1c89cb",
       "sha256_lf": "e3ba223bb1423f0aad8c3dfce0fe3148db48926d41e6fbc3afbbf5ff9e1c89cb"
-    },
-    {
-      "path": "app/montage_native/licenses/qt6-base/Bitstream-Vera.txt",
-      "bytes": 8816,
-      "sha256": "7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93",
-      "sha256_lf": "7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93"
-    },
-    {
-      "path": "app/montage_native/licenses/qt6-base/blessing.txt",
-      "bytes": 244,
-      "sha256": "592db1199aab67aafe4515db9808b420db122083807c5329b2f061951e79acbe",
-      "sha256_lf": "592db1199aab67aafe4515db9808b420db122083807c5329b2f061951e79acbe"
     },
     {
       "path": "app/montage_native/licenses/qt6-base/BSD-2-Clause.txt",
@@ -1098,6 +1152,12 @@
       "bytes": 1340,
       "sha256": "3abd6471b9a9a08d65ce771143f8e278bb4c1aeb10c1c2d476935a6b049653f5",
       "sha256_lf": "3abd6471b9a9a08d65ce771143f8e278bb4c1aeb10c1c2d476935a6b049653f5"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/Bitstream-Vera.txt",
+      "bytes": 8816,
+      "sha256": "7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93",
+      "sha256_lf": "7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93"
     },
     {
       "path": "app/montage_native/licenses/qt6-base/CC0-1.0.txt",
@@ -1148,16 +1208,16 @@
       "sha256_lf": "1cb448f5e2e6d3aca60943f4eee1a04675628dc0266a074a42bc1560ebc28d61"
     },
     {
-      "path": "app/montage_native/licenses/qt6-base/Imlib2.txt",
-      "bytes": 1986,
-      "sha256": "8846f2baba1a7f4c36f7ca19a923a000d8a21afa37cf0fe006f6ce88a6058a89",
-      "sha256_lf": "8846f2baba1a7f4c36f7ca19a923a000d8a21afa37cf0fe006f6ce88a6058a89"
-    },
-    {
       "path": "app/montage_native/licenses/qt6-base/IPL-1.0.txt",
       "bytes": 11789,
       "sha256": "d5328e672fb1bff47ee18e890784541453380081cf3771bb7b3c06fc19c7d503",
       "sha256_lf": "d5328e672fb1bff47ee18e890784541453380081cf3771bb7b3c06fc19c7d503"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/Imlib2.txt",
+      "bytes": 1986,
+      "sha256": "8846f2baba1a7f4c36f7ca19a923a000d8a21afa37cf0fe006f6ce88a6058a89",
+      "sha256_lf": "8846f2baba1a7f4c36f7ca19a923a000d8a21afa37cf0fe006f6ce88a6058a89"
     },
     {
       "path": "app/montage_native/licenses/qt6-base/LGPL-2.1-or-later.txt",
@@ -1170,12 +1230,6 @@
       "bytes": 7651,
       "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768",
       "sha256_lf": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
-    },
-    {
-      "path": "app/montage_native/licenses/qt6-base/libpng-2.0.txt",
-      "bytes": 5345,
-      "sha256": "7317e078e2d3b5d7ba5a6159e650945153262b44b76f6700f8e9edb261c5143e",
-      "sha256_lf": "7317e078e2d3b5d7ba5a6159e650945153262b44b76f6700f8e9edb261c5143e"
     },
     {
       "path": "app/montage_native/licenses/qt6-base/Libpng.txt",
@@ -1280,6 +1334,18 @@
       "sha256_lf": "d7e3139972874dc8abdbbfce27ec1e6f942b28279dd7d27453630a8b4610e080"
     },
     {
+      "path": "app/montage_native/licenses/qt6-base/blessing.txt",
+      "bytes": 244,
+      "sha256": "592db1199aab67aafe4515db9808b420db122083807c5329b2f061951e79acbe",
+      "sha256_lf": "592db1199aab67aafe4515db9808b420db122083807c5329b2f061951e79acbe"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/libpng-2.0.txt",
+      "bytes": 5345,
+      "sha256": "7317e078e2d3b5d7ba5a6159e650945153262b44b76f6700f8e9edb261c5143e",
+      "sha256_lf": "7317e078e2d3b5d7ba5a6159e650945153262b44b76f6700f8e9edb261c5143e"
+    },
+    {
       "path": "app/montage_native/licenses/winpthreads/COPYING",
       "bytes": 2883,
       "sha256": "63263614cdd29f2f93cba85e992f041b31f9fc7b4033692f31269489a8a1b177",
@@ -1322,31 +1388,6 @@
       "bytes": 19,
       "sha256": "8ebdb9a03994986cffc0e62c2ce9af73547bac0e5ddc2b7535216627797d03e5",
       "sha256_lf": "e675ff9d1870d7b8447c13e771958673ea7d51c349fa2cd9f7ae34e93d320147"
-    },
-    {
-      "path": "app/montage_native/Qt6Core.dll",
-      "bytes": 7247990,
-      "sha256": "a54f0e354ff38670df336267333333117d623f7d7a6811e98c345fd68f339b1f"
-    },
-    {
-      "path": "app/montage_native/Qt6Gui.dll",
-      "bytes": 10624898,
-      "sha256": "2b12d68d2dbd2171b9dc221884baf2e7a5769984156a42ef1572ad298d427a68"
-    },
-    {
-      "path": "app/montage_native/Qt6Network.dll",
-      "bytes": 2161005,
-      "sha256": "9ec4e2fa95d00be0348067a96793a879f238c61931b894e994984f11995671ba"
-    },
-    {
-      "path": "app/montage_native/Qt6Test.dll",
-      "bytes": 504836,
-      "sha256": "55d924cddb9bf85644cb3b6fb2f7a80b22771df8c081b29801b81649a3a365b4"
-    },
-    {
-      "path": "app/montage_native/Qt6Widgets.dll",
-      "bytes": 7823645,
-      "sha256": "d61c9cdeb0205452c09497189a0685bd58652de2b6330465ede91c44ad372a3d"
     },
     {
       "path": "app/montage_native/styles/qmodernwindowsstyle.dll",
@@ -1915,6 +1956,12 @@
       "sha256_lf": "3b1894051d51bbe8d498002be2242b13524d0d32726f4cb5336a6831d036247e"
     },
     {
+      "path": "app/service_playlist_import.py",
+      "bytes": 10711,
+      "sha256": "f92cc0172e505ca0f37b8ecc0e7f41256c0a054b9b6bd0e291c1ebdb22b55a96",
+      "sha256_lf": "f92cc0172e505ca0f37b8ecc0e7f41256c0a054b9b6bd0e291c1ebdb22b55a96"
+    },
+    {
       "path": "app/single_instance.py",
       "bytes": 1776,
       "sha256": "b8faadbb22e8a9876aa63e02f45a2cb9222914fa937830cf5f176ce686ac6e9b",
@@ -1934,9 +1981,9 @@
     },
     {
       "path": "app/spotify_import.py",
-      "bytes": 14343,
-      "sha256": "c85e53813089024e55bd4e7beef839716a0f7405337fbe86f1c38b2312e3a3da",
-      "sha256_lf": "d603d43526f30ab1918c97e6a26b363bc5471006eb63a28880f822d73adbf062"
+      "bytes": 18795,
+      "sha256": "46e4347129fbc438af63c60cd76379ad916ab92a3e923ce0904a42894c5899f0",
+      "sha256_lf": "928f0c6d83a6fdceae6a84c3d296ad1520bb0f0ab2629f18fb221591faeef52e"
     },
     {
       "path": "app/stream_core.py",
@@ -2073,8 +2120,8 @@
     {
       "path": "app/version.txt",
       "bytes": 14,
-      "sha256": "7cc0b5df68e2afbccf23227564d4a3b0deb22bfc470754bc67cc6463654e027a",
-      "sha256_lf": "39ade52fcaff15f8571083520b322671dade4aa80ce37386cd449d9fa793a965"
+      "sha256": "0956ba11ba41ec14d1fc291d46fada9ad2c0713ebe4772cadf2180bf406434b4",
+      "sha256_lf": "aba443982e1b35ce59b24d3e89f1a469753ee9ce868136778ed54f94b21820a5"
     },
     {
       "path": "app/video_safety.py",
@@ -2300,9 +2347,9 @@
     },
     {
       "path": "app/yamusic_theme.py",
-      "bytes": 340931,
-      "sha256": "ad1911bdff27ad66a4852d4563ca0a8d8da3d975958cb28c7dafb311e72239db",
-      "sha256_lf": "0449d4ad75fa6c212d5c4ad55489a4cb432c92c4ca825212b63f0e0a8a85c137"
+      "bytes": 341357,
+      "sha256": "7e32e67d9fe53f37b9df9b33f4a4731211999ef640ed8fe1282132997822e963",
+      "sha256_lf": "9ede79f77becc864923b9d2c9d7f0d9f51dc01e437a618b92bda097bd1f6e4ff"
     },
     {
       "path": "docs/CHANGELOG.md",
@@ -2321,6 +2368,12 @@
       "bytes": 4323,
       "sha256": "aa3c1bd1d6a6b59f79890b8f7bc63e9fcf259c6bec0d4a9013f97a930ef7ddbe",
       "sha256_lf": "aa3c1bd1d6a6b59f79890b8f7bc63e9fcf259c6bec0d4a9013f97a930ef7ddbe"
+    },
+    {
+      "path": "docs/VALIDATION.md",
+      "bytes": 11828,
+      "sha256": "3e2080be027ce5ef6d1604f6af07a6374765d4d06d10aa90d660f4a26e2ffdd2",
+      "sha256_lf": "771c12f5471808211c05c76db3c7ee6ecaf5748c737acf1af6cc86ee3164755a"
     },
     {
       "path": "docs/screenshots/appearance.png",
@@ -2438,23 +2491,6 @@
       "sha256": "a430fca8b3a319f63f21e70a0f137de32bb199a76e32d0bd5da81ccd86db99d5"
     },
     {
-      "path": "docs/VALIDATION.md",
-      "bytes": 10933,
-      "sha256": "2c561bdd1c572600d3e1085a198360392a7f6ac3cb7be6f8bd65643dac6acd91",
-      "sha256_lf": "ce41a7d5bd43ec64d9fbe5592c97d79c9bd834afcdbd9c8043ac74ef375b1daf"
-    },
-    {
-      "path": "ECHOES Launcher.exe",
-      "bytes": 36722718,
-      "sha256": "76f6ec195de493f716773675b8c9dd58d5263e9e51dd52da2943879fe5cf7b04"
-    },
-    {
-      "path": "Install ECHOES.bat",
-      "bytes": 269,
-      "sha256": "782b22ddf81e4b8183317cf1065c647852fe1e8b46ca311aaf2c6e682c8bcb57",
-      "sha256_lf": "782b22ddf81e4b8183317cf1065c647852fe1e8b46ca311aaf2c6e682c8bcb57"
-    },
-    {
       "path": "launcher/core.py",
       "bytes": 4926,
       "sha256": "6a3ad600259f7c26a7d8175d78af8c361ab9af879cb7a5a983c13906e6044030",
@@ -2465,12 +2501,6 @@
       "bytes": 9785,
       "sha256": "382fb69fdf0ab29c05faaab8fb499e8882cace747661acf3fd6c35f20447f9a8",
       "sha256_lf": "dcc9631df21747a3026498c76cf4044c3527958107c89931c0f69f914d19fd72"
-    },
-    {
-      "path": "LICENSE",
-      "bytes": 1076,
-      "sha256": "e1dd63c2f900528ff6f1c91a60b39b061783be791fda542a04de5425bdf1e3da",
-      "sha256_lf": "e1dd63c2f900528ff6f1c91a60b39b061783be791fda542a04de5425bdf1e3da"
     },
     {
       "path": "qa/benchmark_row_memory.py",
@@ -2611,18 +2641,6 @@
       "sha256_lf": "0eeeb930ea18e4fd9c79b3c66a6bd30fab6867e6573786f34832be070c253ac8"
     },
     {
-      "path": "README.md",
-      "bytes": 19659,
-      "sha256": "94c5d44201b9d3e8bc33f98581ea0d5d40c51b52ff20675bb820818f8800fa6c",
-      "sha256_lf": "fd2f8359c98f25986b5b2dcf12bf59d97049cb759bc180159523d5861cd50311"
-    },
-    {
-      "path": "README.ru.md",
-      "bytes": 32198,
-      "sha256": "5a7a2ac4b3560ca8bd88215bac04e036c239d94da01d311af49b1dfb4807d18a",
-      "sha256_lf": "19e3f10e18f03b87fade39a5dbb4b14ed77f5256dfae6638764a2ab825476de7"
-    },
-    {
       "path": "requirements-dev.txt",
       "bytes": 43,
       "sha256": "dfd91ca9ff3ab9f2285ae6464f1e679e80b836ac29a236b209092c03bd06e8ea",
@@ -2669,12 +2687,6 @@
       "bytes": 10875,
       "sha256": "25c83fc6204df54b3e45947918cf1e1cfa9f46f66153334ab98edd70faa04384",
       "sha256_lf": "66e96fb49298fb526c56a54c14cfdb907bc9a9c2e522ed732d68ab0b14b6a042"
-    },
-    {
-      "path": "THIRD_PARTY_NOTICES.md",
-      "bytes": 4797,
-      "sha256": "d219dfeea39c7eee2303f6698336230ded62789285bfd8a89d6648eaa441b10d",
-      "sha256_lf": "d219dfeea39c7eee2303f6698336230ded62789285bfd8a89d6648eaa441b10d"
     },
     {
       "path": "tools/build_launcher.ps1",
@@ -2831,12 +2843,6 @@
       "bytes": 14422,
       "sha256": "e085d41fb0fe2959d3c5bcc5e3bbfe1f032c68f0d8e4500b614badb0c7a4ff61",
       "sha256_lf": "e085d41fb0fe2959d3c5bcc5e3bbfe1f032c68f0d8e4500b614badb0c7a4ff61"
-    },
-    {
-      "path": "Update ECHOES.bat",
-      "bytes": 274,
-      "sha256": "07bf5b814bc620a289ca65438977792c5fe20e3cfbfd29ac7d708d5589572e65",
-      "sha256_lf": "07bf5b814bc620a289ca65438977792c5fe20e3cfbfd29ac7d708d5589572e65"
     },
     {
       "path": "ОБНОВИТЬ ECHOES.bat",
