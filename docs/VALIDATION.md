@@ -1,3 +1,11 @@
+# Release 2026.11.02-1 — not tested
+
+At the user's request, no tests, compilation, application launch or performance benchmarks were run. Embedded track sections now retain document height while limiting the actual item-view viewport to the visible area plus a small overscan. Wheel scrolling uses the shared frame clock, supports horizontal motion, and stops for hidden/minimized pages. Page-transition captures are rendered directly within a pixel budget, without a full-resolution intermediate capture or global posted-event drains.
+
+Fresh profiles use the system UI language (Russian or English; unsupported system languages fall back to English). Saved language choices are retained. In-place language changes retain source captions, update existing controls and invalidate text raster caches without restarting the player. Editable text is preserved. Native editor windows are separate processes and receive the current language when next opened. Actual FPS improvements and runtime behavior have not been measured for this release.
+
+По просьбе пользователя тесты, компиляция, запуск приложения и замеры FPS не выполнялись. Списки внутри страниц рисуют видимую часть с небольшим запасом; прокрутка и снимки переходов ограничивают лишнюю работу. При первом запуске язык берётся из системы (RU/EN, для остальных — EN). Выбранный ранее язык сохраняется; смена языка обновляет существующий интерфейс без перезапуска и остановки музыки. Отдельный нативный редактор получает текущий язык при следующем открытии. Улучшение FPS этой версии не измерялось.
+
 # Release 2026.11.01-5 — not tested
 
 At the user's request, no automated tests, UI runs or live playlist imports were executed for this update. Changes: playback transition/pause guards and repeat restart; public Yandex/VK playlist metadata import and TXT/M3U fallback beside Spotify. Token-free retrieval depends on metadata being publicly accessible; login/CAPTCHA and partial-list responses are reported. The checks below belong to previous releases.

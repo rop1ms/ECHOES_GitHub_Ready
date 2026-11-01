@@ -1226,13 +1226,25 @@ class TrackListView(QListView):
             rows = [r for r in rows if pred(r["t"])]
         self.model_.set_rows(rows)
         if self._auto_height:
-            self.setFixedHeight(max(60, len(rows) * TrackDelegate.ROW_H + 6))
+            self._section.refresh()
 
     def set_auto_height(self, on=True):
         """Высота по содержимому — список внутри прокручиваемой страницы."""
         self._auto_height = on
         if on:
             self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            if not hasattr(self,'_section'):
+                from track_section import TrackSection
+                self._section=TrackSection(self,TrackDelegate.ROW_H)
+
+    def section_widget(self):
+        return getattr(self,'_section',self)
+
+    def scrollTo(self,index,hint=QAbstractItemView.ScrollHint.EnsureVisible):
+        if getattr(self,'_auto_height',False) and hasattr(self,'_section'):
+            if index.isValid():self._section.scroll_to(index.row())
+            return
+        super().scrollTo(index,hint)
 
     def wheelEvent(self, e):
         if self._auto_height:
@@ -1296,13 +1308,16 @@ class TrackListView(QListView):
                 self.setCursor(Qt.CursorShape.ClosedHandCursor)
             if self._drag_on:
                 n = self.model_.rowCount()
-                tgt = int(round((y + self.verticalScrollBar().value()) / TrackDelegate.ROW_H)) \
-                    if not self._auto_height else int(round(y / TrackDelegate.ROW_H))
+                tgt = int(round((y + self.verticalScrollBar().value()) / TrackDelegate.ROW_H))
                 self._drop_at = max(0, min(n, tgt))
-                if y < 20:
-                    self.verticalScrollBar().setValue(self.verticalScrollBar().value() - 12)
-                elif y > self.viewport().height() - 20:
-                    self.verticalScrollBar().setValue(self.verticalScrollBar().value() + 12)
+                outer=getattr(getattr(self,'_section',None),'outer',None)
+                scroll=outer.verticalScrollBar() if outer is not None else self.verticalScrollBar()
+                pointer_y=self.viewport().mapTo(outer.viewport(),e.position().toPoint()).y() if outer is not None else y
+                visible_height=outer.viewport().height() if outer is not None else self.viewport().height()
+                if pointer_y < 20:
+                    scroll.setValue(scroll.value()-12)
+                elif pointer_y > visible_height - 20:
+                    scroll.setValue(scroll.value()+12)
                 self.viewport().update()
                 return
         super().mouseMoveEvent(e)
@@ -3404,7 +3419,7 @@ class YaShell(QWidget):
         page.v.addWidget(self.s_artists)
         self.s_list = TrackListView(self)
         self.s_list.set_auto_height(True)
-        page.v.addWidget(self.s_list)
+        page.v.addWidget(self.s_list.section_widget())
         from ya_online import OnlineResults
         self.s_online = OnlineResults(self)
         page.v.addWidget(self.s_online)
@@ -3425,7 +3440,7 @@ class YaShell(QWidget):
         self.s_target.setVisible(net)
         self.s_local_row.setVisible(not net)
         self.s_title.setVisible(not net)
-        self.s_list.setVisible(not net)
+        self.s_list.section_widget().setVisible(not net)
         self.s_artists.setVisible(False)
         self.s_online.setVisible(net)
         self.search_edit.setPlaceholderText("Найти в интернете: трек или исполнитель (Enter — искать)" if net
@@ -3672,7 +3687,7 @@ class YaShell(QWidget):
             lv = TrackListView(self)
             lv.set_auto_height(True)
             lv.set_rows(self._lib_rows(old[:12]))
-            page.v.addWidget(lv)
+            page.v.addWidget(lv.section_widget())
         page.v.addStretch(1)
 
     # ── «Для вас»: тренды и рекомендации по всей медиатеке (ya_foryou) ── #
@@ -6374,7 +6389,7 @@ class ArtistPage(Page):
             lv = TrackListView(self.shell)
             lv.set_auto_height(True)
             lv.set_rows(self.shell._lib_rows(self.local))
-            bv.addWidget(lv)
+            bv.addWidget(lv.section_widget())
 
         top = d.get("top") or []
         if top:

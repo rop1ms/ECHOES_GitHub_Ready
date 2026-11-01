@@ -436,7 +436,7 @@ class MainWindow(QMainWindow):
             save_json(PL_FILE, self.playlists)
         self.profile = load_json(PROFILE_FILE, {"nickname":"user","status":"vibing","avatar":""})
         self.settings = load_json(SETTINGS_FILE, {
-            "theme":"Echoes Music", "language":"en", "crossfade":False, "crossfade_ms":1200, "gapless":False,
+            "theme":"Echoes Music", "language":__import__('i18n').system_language(), "crossfade":False, "crossfade_ms":1200, "gapless":False,
             "auto_theme":True, "auto_cover_theme":False, "genius_token":"", "volume":80, "speed":100,
             "fx_dust": True, "fx_breathe": True, "vinyl_warp": False, "vinyl_pause_fx": True,
             "owm_key": "", "owm_city": "Moscow", "play_history": {},
@@ -5866,13 +5866,8 @@ class MainWindow(QMainWindow):
             return
         self.settings["language"] = code
         save_json(SETTINGS_FILE, self.settings)
-        # язык применяется при запуске; вопрос задаём на обоих языках
-        box = QMessageBox(self)
-        box.setWindowTitle("ECHOES")
-        box.setText("Restart ECHOES now to switch the language?\nПерезапустить ECHOES сейчас, чтобы сменить язык?")
-        box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        if box.exec() == QMessageBox.StandardButton.Yes:
-            self._restart_app()
+        import i18n
+        i18n.change_language(code,self)
 
     def _restart_app(self):
         from PyQt6.QtCore import QProcess

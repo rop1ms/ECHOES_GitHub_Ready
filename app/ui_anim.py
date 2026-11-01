@@ -22,7 +22,7 @@ from PyQt6.QtCore import (QEasingCurve, QEvent, QObject, QParallelAnimationGroup
                           QRect, QSize, Qt, QTimer, QVariantAnimation, pyqtSlot)
 from PyQt6 import sip
 from PyQt6.QtGui import QColor, QLinearGradient, QPainter, QPixmap
-from PyQt6.QtWidgets import QApplication, QStackedWidget, QWidget
+from PyQt6.QtWidgets import QApplication, QScrollArea, QStackedWidget, QWidget
 
 DUR_PAGE = 230          # вкладки: новая страница наплывает
 DUR_SHEET = 330         # «Текст» / «Очередь» выезжают снизу
@@ -59,15 +59,14 @@ def _grab_area(stack: QWidget) -> QPixmap | None:
     """Снимок области стека вместе со всем, что под ним (фон окна) — непрозрачная картинка,
     поэтому старая и новая страница не просвечивают друг через друга."""
     try:
-        win = stack.window()
-        pm = win.grab(QRect(stack.mapTo(win, QPoint(0, 0)), stack.size()))
-        budget = 1024*1024 if getattr(_WIN,'settings',{}).get('motion_profile') == 'eco' else 2*1024*1024
-        pixels = pm.width()*pm.height()
-        if pixels > budget:
-            k = (budget/pixels)**.5
-            pm = pm.scaled(QSize(max(1,int(pm.width()*k)),max(1,int(pm.height()*k))),
-                           Qt.AspectRatioMode.KeepAspectRatio,Qt.TransformationMode.SmoothTransformation)
-            pm.setDevicePixelRatio(pm.width()/max(1,stack.width()))
+        budget=500_000 if getattr(_WIN,'settings',{}).get('motion_profile')=='eco' else 900_000
+        scale=min(stack.devicePixelRatioF(),(budget/max(1,stack.width()*stack.height()))**.5)
+        pm=QPixmap(max(1,round(stack.width()*scale)),max(1,round(stack.height()*scale)))
+        pm.fill(QColor('#0b0d10'))
+        painter=QPainter(pm);painter.scale(scale,scale)
+        try:stack.render(painter)
+        finally:painter.end()
+        pm.setDevicePixelRatio(pm.width()/max(1,stack.width()))
         return pm
     except Exception:                                      # noqa: BLE001
         return None
@@ -177,12 +176,12 @@ class _Transition(QWidget):
 def _settle_layout(widget: QWidget):
     """Страницу показали впервые — Qt раскладывает её позже (отложенные LayoutRequest). Снимок до этого
     выходил с недоразложенными кнопками («общен», «Друзья» обрезаны), и после анимации всё перескакивало.
-    Доделываем раскладку сейчас, до снимка (несколько проходов: вложенные раскладки цепляют друг друга)."""
-    from PyQt6.QtCore import QCoreApplication, QEvent
+    Активируем раскладку самой страницы без обработки событий всего приложения."""
     widget.ensurePolished()
-    for _ in range(3):
-        QCoreApplication.sendPostedEvents(None, QEvent.Type.LayoutRequest.value)
-        QCoreApplication.sendPostedEvents(None, QEvent.Type.Polish.value)
+    layout=widget.layout()
+    if layout is not None:layout.activate()
+    inner=widget.widget() if isinstance(widget,QScrollArea) else None
+    if inner is not None and inner.layout() is not None:inner.layout().activate()
 
 
 def switch(stack: QStackedWidget, widget: QWidget, direction: int = 0, kind: str = "slide"):

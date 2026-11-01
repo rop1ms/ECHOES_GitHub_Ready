@@ -140,7 +140,7 @@ class QueuePage(Page):
             lst = TrackListView(sh)
             lst.set_auto_height(True)
             lst.set_rows([{"t": tracks[i], "ctx": ctx, "i": i} for i in order])
-            self.v.addWidget(lst)
+            self.v.addWidget(lst.section_widget())
         elif cur is None and not w.user_queue:
             lbl = QLabel("Очередь пуста. Включите трек или добавьте его через меню «Играть следующим» / «Добавить в очередь».")
             lbl.setObjectName("YaSub")

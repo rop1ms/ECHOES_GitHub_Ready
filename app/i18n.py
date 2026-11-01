@@ -16,7 +16,7 @@ itemText() возвращают исходную строку для перев�
 Пользовательские данные (названия треков, плейлистов) не трогаются: переводится
 только то, что есть в словаре.
 
-Язык выбирается в настройках («Язык / Language») и применяется после перезапуска.
+Первый запуск следует языку системы (RU/EN); смена языка применяется сразу.
 """
 from __future__ import annotations
 
@@ -45,10 +45,26 @@ _TAG = re.compile(r"(<[^>]+>)")
 
 def read_language(settings_file) -> str:
     try:
-        lang = json.loads(Path(settings_file).read_text("utf-8")).get("language", "ru")
-        return lang if lang in dict(LANGUAGES) else "ru"
+        lang = json.loads(Path(settings_file).read_text("utf-8-sig")).get("language")
+        return lang if lang in dict(LANGUAGES) else system_language()
     except Exception:                                    # noqa: BLE001
-        return DEFAULT_LANGUAGE
+        return system_language()
+
+def system_language():
+    """Use the system UI language for a fresh profile; unsupported languages use English."""
+    import sys
+    if sys.platform=='win32':
+        try:
+            import ctypes
+            return 'ru' if ctypes.windll.kernel32.GetUserDefaultUILanguage() & 0x3ff == 0x19 else 'en'
+        except (AttributeError,OSError):pass
+    from PyQt6.QtCore import QLocale
+    language=QLocale.system().uiLanguages()
+    return 'ru' if language and language[0].split('-')[0].lower()=='ru' else 'en'
+
+def change_language(code,window=None):
+    from ui_language import apply
+    apply(code,window)
 
 
 def _load(lang):
@@ -56,8 +72,6 @@ def _load(lang):
     LANG = lang
     _EXACT.clear(); _CASEFOLD.clear(); _TEMPLATES.clear(); _CACHE.clear()
     _TEMPLATE_BUCKETS.clear(); _TEMPLATE_ANY.clear()
-    if lang != "en":
-        return
     import i18n_en
     _EXACT.update(i18n_en.EXACT)
     templates = dict(i18n_en.TEMPLATES)
@@ -173,6 +187,8 @@ def _lookup(s):
 
 def tr(s):
     """Перевод строки интерфейса (без перевода — сама строка)."""
+    pair=getattr(s,'_echoes_ui_pair',None)
+    if pair is not None:return pair[1] if LANG=='en' else pair[0]
     if LANG == "ru" or not isinstance(s, str) or not s or not _CYR.search(s):
         return s
     r = _CACHE.get(s)
@@ -213,14 +229,18 @@ def _amp(src, t):
 def _wrap_setter(cls, name, mnemonic=False):
     """setText(text) и подобные: перевести, запомнить исходник для геттера."""
     orig = getattr(cls, name)
+    from ui_language import NATIVE
+    NATIVE[(cls,name)]=orig
 
     def setter(self, text, *a):
-        if isinstance(text, str) and LANG != "ru":
+        if isinstance(text, str):
             t = tr(text)
             if mnemonic and t is not text:
                 t = _amp(text, t)
             if t is not text:
                 _remember(self, text, t)
+            from ui_language import record
+            record(self,name,text,orig,a,t)
             return orig(self, t, *a)
         return orig(self, text, *a)
     setattr(cls, name, setter)
@@ -231,6 +251,9 @@ def _wrap_getter(cls, name):
 
     def getter(self, *a):
         t = orig(self, *a)
+        from ui_language import source_text
+        source=source_text(self,'set'+name[0].upper()+name[1:],t)
+        if source is not None:return source
         try:
             if t and self.property(_DST) == t:
                 src = self.property(_SRC)
@@ -288,17 +311,17 @@ def _translate_widget(w):
         w.setProperty(_SEEN, True)
         if isinstance(w, (QLabel, QAbstractButton)):
             raw = _RAW["label" if isinstance(w, QLabel) else "button"](w)
-            if raw and _CYR.search(raw):                 # ещё не переведено (из конструктора)
+            if raw and _CYR.search(raw) and 'setText' not in getattr(w,'_echoes_lang_fields',{}):
                 w.setText(raw.replace("&&", "&") if isinstance(w, QAbstractButton) else raw)
         if isinstance(w, (QLineEdit, QTextEdit, QPlainTextEdit)):
             p = w.placeholderText()
-            if p and _CYR.search(p):
+            if p and _CYR.search(p) and 'setPlaceholderText' not in getattr(w,'_echoes_lang_fields',{}):
                 w.setPlaceholderText(p)
-        if isinstance(w, QGroupBox) and _CYR.search(w.title() or ""):
+        if isinstance(w, QGroupBox) and _CYR.search(w.title() or "") and 'setTitle' not in getattr(w,'_echoes_lang_fields',{}):
             w.setTitle(w.title())
         if isinstance(w, QTabWidget):
             for i in range(w.count()):
-                if _CYR.search(w.tabText(i) or ""):
+                if w.widget(i) not in getattr(w,'_echoes_tab_sources',{}) and _CYR.search(w.tabText(i) or ""):
                     w.setTabText(i, w.tabText(i))
         if isinstance(w, QComboBox):
             for i in range(w.count()):
@@ -308,10 +331,10 @@ def _translate_widget(w):
                         w.setItemData(i, t, _ITEM_ROLE)
                         _orig_setItemText(w, i, tr(t))
         tip = w.toolTip()
-        if tip and _CYR.search(tip):
+        if tip and _CYR.search(tip) and 'setToolTip' not in getattr(w,'_echoes_lang_fields',{}):
             w.setToolTip(tip)
         title = w.windowTitle()
-        if title and _CYR.search(title):
+        if title and _CYR.search(title) and 'setWindowTitle' not in getattr(w,'_echoes_lang_fields',{}):
             w.setWindowTitle(title)
     except RuntimeError:                                 # виджет уже удалён
         pass
@@ -319,8 +342,6 @@ def _translate_widget(w):
 
 def sweep(root=None):
     """Перевести тексты, заданные в конструкторах (обход дерева виджетов)."""
-    if LANG == "ru":
-        return
     from PyQt6.QtWidgets import QApplication, QWidget
     try:
         widgets = ([root] + root.findChildren(QWidget)) if root is not None else QApplication.allWidgets()
@@ -335,10 +356,10 @@ _INSTALLED = False
 
 
 def install(lang: str):
-    """Включить язык lang ('ru' — ничего не делать). Вызывать до создания окон."""
+    """Load the catalogue and install source-preserving UI hooks once."""
     global _orig_setItemText, _orig_action_setText, _INSTALLED
     _load(lang)
-    if LANG == "ru" or _INSTALLED:
+    if _INSTALLED:
         return
     _INSTALLED = True
     from PyQt6 import QtWidgets as W, QtGui as G
@@ -363,8 +384,7 @@ def install(lang: str):
     for cls in (W.QSpinBox, W.QDoubleSpinBox):
         _wrap_setter(cls, "setSuffix")
         _wrap_setter(cls, "setPrefix")
-    W.QAbstractSpinBox.setSpecialValueText = (lambda o: lambda self, t: o(self, tr(t)))(
-        W.QAbstractSpinBox.setSpecialValueText)
+    _wrap_setter(W.QAbstractSpinBox, "setSpecialValueText")
 
     # элементы списков: переводим только «служебные» (без UserRole) — это заглушки
     # вроде «Плейлистов пока нет»; настоящие плейлисты/треки несут данные и не трогаются
@@ -376,7 +396,7 @@ def install(lang: str):
         if isinstance(it, W.QListWidgetItem) and it.data(_Qt.ItemDataRole.UserRole) is None:
             t = it.text()
             if t in _EXACT:
-                it.setText(_EXACT[t])
+                it._i18n_list_src=t;it.setText(tr(t))
         return it
     L.addItem = lambda self, it: o_l_add(self, _fix_item(it))
     L.insertItem = lambda self, row, it: o_l_ins(self, row, _fix_item(it))
@@ -393,11 +413,11 @@ def install(lang: str):
                     a[i] = [tr(x) for x in v]
             super().__init__(*a)
             if src is not None:
-                self._i18n = {c: s for c, s in enumerate(src) if tr(s) != s}
+                self._i18n = {c: s for c, s in enumerate(src) if _CYR.search(s) or hasattr(s,'_echoes_ui_pair')}
 
         def setText(self, col, s):
             t = tr(s)
-            if t != s:
+            if t != s or _CYR.search(s) or hasattr(s,'_echoes_ui_pair'):
                 self.__dict__.setdefault("_i18n", {})[col] = s
             elif "_i18n" in self.__dict__:
                 self._i18n.pop(col, None)
@@ -417,12 +437,12 @@ def install(lang: str):
                     a[i] = tr(v)
                     break
             super().__init__(*a)
-            if src is not None and tr(src) != src:
+            if src is not None and (tr(src) != src or _CYR.search(src) or hasattr(src,'_echoes_ui_pair')):
                 self._i18n = src
 
         def setText(self, s):
             t = tr(s)
-            self.__dict__["_i18n"] = s if t != s else None
+            self.__dict__["_i18n"] = s if t != s or _CYR.search(s) or hasattr(s,'_echoes_ui_pair') else None
             super().setText(t)
 
         def text(self):
@@ -628,6 +648,8 @@ def install(lang: str):
         app._i18n_guard = guard
         QTimer.singleShot(0, lambda: sweep())
     _late_holder.append(_late)
+    import ui_language
+    ui_language.install()
 
 
 _late_holder: list = []

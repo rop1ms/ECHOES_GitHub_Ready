@@ -89,7 +89,7 @@ class AutoScroll(QObject):
         над рядом карточек вбок едет ряд, а вверх-вниз — страница, на которой он лежит."""
         va = ha = None
         while w is not None:
-            if isinstance(w, QAbstractScrollArea):
+            if isinstance(w, QAbstractScrollArea) and not getattr(w,'_auto_height',False):
                 v, h = self._bars(w)
                 if v and va is None:
                     va = w

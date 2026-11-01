@@ -39,7 +39,8 @@ def english(win=None):
 
 
 def tr(win, ru, en):
-    return en if english(win) else ru
+    from ui_language import UIText
+    return UIText(ru, en, 'en' if english(win) else 'ru')
 
 
 def _discover():

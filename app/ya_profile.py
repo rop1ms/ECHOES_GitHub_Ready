@@ -403,7 +403,7 @@ class ProfilePage(Page):
         lst = TrackListView(sh)
         lst.set_auto_height(True)
         lst.set_rows(rows)
-        bv.addWidget(lst)
+        bv.addWidget(lst.section_widget())
 
     def _load_pictures(self, cards, req):
         """Фото исполнителей, которых ещё нет в кэше, докачиваем в фоне."""

@@ -10,7 +10,7 @@
 
 Плавно, как в Spotify: щелчок колеса не перескакивает на 3 строки, а добавляет ~100 px к цели, и страница
 доезжает до неё за ~0.2 с (быстрая прокрутка складывается и разгоняется). Тачпад (точные пиксели) и
-Ctrl/Shift+колесо — как раньше.
+Ctrl+колесо — как раньше; Shift+колесо плавно листает по горизонтали.
 
 Не трогает: текст песни, список настроений «Моей волны», а также Echoes Studio и esu! — там колесо рабочий
 инструмент (масштаб, ручки, выбор песни).
@@ -47,10 +47,10 @@ class _Smooth(QObject):
         self.timer.timeout.connect(self._tick)
         self.t = 0.0
 
-    def add(self, bar, delta):
+    def add(self, bar, delta,area):
         st = self.items.get(id(bar))
         if st is None or st[0] is not bar or bar.value() != st[3]:      # полосу двигал кто-то ещё — с текущего места
-            st = [bar, float(bar.value()), float(bar.value()), bar.value()]
+            st = [bar, float(bar.value()), float(bar.value()), bar.value(),area]
         st[1] = max(bar.minimum(), min(bar.maximum(), st[1] + delta))
         self.items[id(bar)] = st
         if not self.timer.isActive():
@@ -65,6 +65,9 @@ class _Smooth(QObject):
         for k, st in list(self.items.items()):
             bar = st[0]
             try:
+                if not st[4].isVisible() or st[4].window().isMinimized():
+                    self.items.pop(k,None);continue
+                st[1]=max(bar.minimum(),min(bar.maximum(),st[1]))
                 if bar.value() != st[3]:                       # перехватили (перетащили ползунок, перестроили)
                     self.items.pop(k, None)
                     continue
@@ -87,8 +90,7 @@ _SMOOTH = None
 
 
 def _smooth_ok(area, ev) -> bool:
-    if not ev.pixelDelta().isNull() or ev.modifiers() & (Qt.KeyboardModifier.ControlModifier |
-                                                         Qt.KeyboardModifier.ShiftModifier):
+    if not ev.pixelDelta().isNull() or ev.modifiers() & Qt.KeyboardModifier.ControlModifier:
         return False                                           # тачпад / зум / вбок — как было
     if isinstance(area, QAbstractItemView) and             area.verticalScrollMode() != QAbstractItemView.ScrollMode.ScrollPerPixel:
         return False                                           # список по строкам — значения не в пикселях
@@ -101,13 +103,14 @@ def smooth_scroll(area, ev) -> bool:
     global _SMOOTH
     if not _smooth_ok(area, ev):
         return False
-    bar = area.verticalScrollBar()
-    dy = ev.angleDelta().y()
+    horizontal=bool(ev.modifiers() & Qt.KeyboardModifier.ShiftModifier) or abs(ev.angleDelta().x())>abs(ev.angleDelta().y())
+    bar = area.horizontalScrollBar() if horizontal else area.verticalScrollBar()
+    dy = (ev.angleDelta().x() or ev.angleDelta().y()) if horizontal else ev.angleDelta().y()
     if bar is None or not dy:
         return False
     if _SMOOTH is None:
         _SMOOTH = _Smooth()
-    _SMOOTH.add(bar, -dy / 120.0 * STEP_PX)
+    _SMOOTH.add(bar, -dy / 120.0 * STEP_PX,area)
     return True
 
 
@@ -139,6 +142,8 @@ class WheelGuard(QObject):
             if _value_widget(w):
                 redirect = True
             elif isinstance(w, QAbstractScrollArea) and not isinstance(w, QComboBox):
+                if getattr(w,'_auto_height',False):
+                    w=w.parentWidget();continue
                 vbar = w.verticalScrollBar()
                 if vertical and vbar is not None and vbar.maximum() > vbar.minimum():
                     if not redirect:
@@ -147,7 +152,7 @@ class WheelGuard(QObject):
                 if vertical:                               # лента только вбок — колесо вверх-вниз не её
                     redirect = True
                 elif not redirect:
-                    return False
+                    return smooth_scroll(w,ev)
             w = w.parentWidget()
         return redirect                                    # некому листать — значение не меняем
 

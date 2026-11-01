@@ -8,7 +8,8 @@ DEFAULTS = {'chorus': True, 'fire': True, 'genre': '', 'artist': '', 'album': ''
 
 
 def tr(win, ru, en):
-    return en if win.settings.get('language', 'ru') == 'en' else ru
+    from ui_language import UIText
+    return UIText(ru,en,win.settings.get('language','en'))
 
 
 def options(settings):
