@@ -1,0 +1,2264 @@
+{
+  "version": "2026.11.01-1",
+  "files": 451,
+  "total_bytes": 137999636,
+  "largest_file_bytes": 36722718,
+  "private_profile_included": false,
+  "files_manifest": [
+    {
+      "path": ".gitattributes",
+      "bytes": 221,
+      "sha256": "0c87c2839ee129163c935ed93b92710cbafd36e0abeb4df18ad1b116ec2e2986"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 545,
+      "sha256": "558f11427f95d074155f4b99e7e1fd1b3a5f4ca5031d76f1384b62d9dbb06df9"
+    },
+    {
+      "path": "app/ambience.py",
+      "bytes": 13556,
+      "sha256": "6e4b9202225ef6b2850398f256957699a5791cdd3c49c2e052d617bcd0e9bc3a"
+    },
+    {
+      "path": "app/artist_follow.py",
+      "bytes": 9955,
+      "sha256": "c411ece0641d7933385b34f2b8887febc6325ad729b183b53ce5542d1bab6bce"
+    },
+    {
+      "path": "app/artist_identity.py",
+      "bytes": 15679,
+      "sha256": "da8ebaac71375aaaab28c1e075384c261480c84b0737785002727bdac4cbd4b7"
+    },
+    {
+      "path": "app/artist_links.py",
+      "bytes": 1412,
+      "sha256": "952b01d46badae27589b273d27789cf4a42109a13c3032a4b1a2ee9db03813af"
+    },
+    {
+      "path": "app/artist_net.py",
+      "bytes": 33895,
+      "sha256": "b827ce6766f1b37fd8225d6a79778c3a51439e6e438da96e709e8edbf8e4d5c5"
+    },
+    {
+      "path": "app/artist_soundcloud.py",
+      "bytes": 5271,
+      "sha256": "c3b1a9215df8515846ff38e0aa99eb6df4d1e44242ff00ada697563feaefe512"
+    },
+    {
+      "path": "app/assets/EchoesSymbols.ttf",
+      "bytes": 5624,
+      "sha256": "8656b24cbfaece897ee5f125c6cc4236e3859afa4584c81d7980e7d95f7502b1"
+    },
+    {
+      "path": "app/assets/i18n_en_complete.json",
+      "bytes": 435941,
+      "sha256": "8ef1d9e891b205f80233558bd02fdc85242ae1eefb21282e937c3804a29678c3"
+    },
+    {
+      "path": "app/assets/i18n_native_en.json",
+      "bytes": 47060,
+      "sha256": "85da49f3c2cda3aa96741e4e57551d5540c0286b5e282f39238357b6648a5e6f"
+    },
+    {
+      "path": "app/audio_engine.py",
+      "bytes": 88897,
+      "sha256": "d46b973099ea63c8e14e677179b9e12b19344bf2830c9011981ff9499a399bcd"
+    },
+    {
+      "path": "app/audio_native.py",
+      "bytes": 8392,
+      "sha256": "f8ba5d20e297e85ee75226d951b9e3a4c8d0ea59af69614c6832fa5257f113f4"
+    },
+    {
+      "path": "app/audio_out.py",
+      "bytes": 29559,
+      "sha256": "6c7af294f4f340fd2152c422fd9086d86c2286380c23836f48f7fe79e5109b6b"
+    },
+    {
+      "path": "app/auto_tags.py",
+      "bytes": 10689,
+      "sha256": "dab4063b799d86c84b7cff3a42777daae83f629274cfa082ad1ac6ae2adc72c2"
+    },
+    {
+      "path": "app/autoscroll.py",
+      "bytes": 9020,
+      "sha256": "4e657dfe248f37f87c9e3db47b1e0df40c8bc117b2265239b8279f36c655b1a2"
+    },
+    {
+      "path": "app/autostart.py",
+      "bytes": 4337,
+      "sha256": "1c3ff4a84f4b01bd8613e1a9c6b536df4502404b7b11a84d92891459d6e5323d"
+    },
+    {
+      "path": "app/bg_remove.py",
+      "bytes": 12848,
+      "sha256": "d40f11b3619f9e32e63a9fd05f6ee8133593a4a6d7262462890aa9cbd2d4a0a8"
+    },
+    {
+      "path": "app/bgproc.py",
+      "bytes": 10367,
+      "sha256": "9e489fe7d80a1e913af68a2557b117aa0693aed4d9e4eb0d118f35e288970f50"
+    },
+    {
+      "path": "app/blur_fx.py",
+      "bytes": 11511,
+      "sha256": "4a7890af8b3a2f98a816b62069148bdac4f0a9817bf14d84fccbdd111f7b0ef8"
+    },
+    {
+      "path": "app/button_editor.py",
+      "bytes": 42228,
+      "sha256": "af5bb618b805a16ebb57795a41d9346b0f0860f7dbe7d76109964a4fa9bfae73"
+    },
+    {
+      "path": "app/cleanup.py",
+      "bytes": 41045,
+      "sha256": "fc04c62cabad08bddb232e81a7c340015b041ae06d7b048efa65c8f09442f4a7"
+    },
+    {
+      "path": "app/clip_fetch.py",
+      "bytes": 26584,
+      "sha256": "2ddd2671be295ef291673f4ac139369c05f6c48432d1e3df0c977dc3d9a489de"
+    },
+    {
+      "path": "app/clip_fx.py",
+      "bytes": 21822,
+      "sha256": "3123679a30f8d966d5aab6fc62957ac07ca97b3abbbfecc79da301bf04f9869c"
+    },
+    {
+      "path": "app/clip_mixer.py",
+      "bytes": 9539,
+      "sha256": "b623109f1492a87df01ce9e8902e2732e45da749e6141f52855e068411f29ecd"
+    },
+    {
+      "path": "app/clip_mode.py",
+      "bytes": 67948,
+      "sha256": "705a90b7a602c5ac40e43f23038a8dc2f0df5ee03452ec0cdcdf62c1081f965b"
+    },
+    {
+      "path": "app/clip_sync.py",
+      "bytes": 8001,
+      "sha256": "f373dce0b4962fe239c16d21cbe494c567cfab468aae538d86a30cfd394a899f"
+    },
+    {
+      "path": "app/cover_crate.py",
+      "bytes": 15248,
+      "sha256": "01d5a3f30313407405769f56f27f384b507f9c808e71e487dac9ca780f243349"
+    },
+    {
+      "path": "app/cover_lookup.py",
+      "bytes": 4078,
+      "sha256": "b85f72707bb98f711534308327cbac90c19464bbb4faf550132379a1d4db1f6a"
+    },
+    {
+      "path": "app/cover_mode.py",
+      "bytes": 24504,
+      "sha256": "97b485f8ca378c20f51bec3b70eb00eabebd4b926aad0d9ed48e8a54efc8b163"
+    },
+    {
+      "path": "app/daw_bot.py",
+      "bytes": 26329,
+      "sha256": "8ad0dced908ce276d12368bf13025ffe33b8cdfd2599f45bef61be4402be1efa"
+    },
+    {
+      "path": "app/daw_browser.py",
+      "bytes": 17705,
+      "sha256": "9d88333e9a63336ee7e43b8bf00c3dbbb8aa0a3250017733d5ebc18f6000b8cb"
+    },
+    {
+      "path": "app/daw_dsp.py",
+      "bytes": 25231,
+      "sha256": "ab4f687dd0268b3bb2ea558b789981f07a11e9ea3ce503a97b5aef602f751336"
+    },
+    {
+      "path": "app/daw_engine.py",
+      "bytes": 22143,
+      "sha256": "56ef6c2a6a747f76fbbf6a678c33191da7dcf7c29bc3fcbb8a1a7f778905e79c"
+    },
+    {
+      "path": "app/daw_fx.py",
+      "bytes": 81692,
+      "sha256": "20cbfd303b3d0bb978df1f1b9137b47b448de95aee04ad3ee8647fd6a5d824d6"
+    },
+    {
+      "path": "app/daw_inst.py",
+      "bytes": 38778,
+      "sha256": "f9f56074efde4efb05df8e54d49d2a81d692da32668e256fa279faba590f9b47"
+    },
+    {
+      "path": "app/daw_layers.py",
+      "bytes": 2851,
+      "sha256": "0c9ce8032ad4036a8dfaaa89c1c31707276fb54602a7f5488ea3b16a622f736b"
+    },
+    {
+      "path": "app/daw_mashup.py",
+      "bytes": 91019,
+      "sha256": "b96affa19642d1c6b2e85e1d6f65696cce3019f938c93c8dad7f26c6e3d9bfbc"
+    },
+    {
+      "path": "app/daw_meta.py",
+      "bytes": 798,
+      "sha256": "d041675135ed41cfd54c0ee9edbdf5924f90318c777c2ae89429a3ac31d15d6d"
+    },
+    {
+      "path": "app/daw_mixer.py",
+      "bytes": 16128,
+      "sha256": "7825dc33ff65396927a189336b46cf4a2096df4a21d23c92b2466ef8944014c4"
+    },
+    {
+      "path": "app/daw_playlist.py",
+      "bytes": 38771,
+      "sha256": "5610b12c208204df733ea92efab784fc0e05682d5e9e60f74ade25520136b667"
+    },
+    {
+      "path": "app/daw_plugins.py",
+      "bytes": 24103,
+      "sha256": "b9530b0d643a8976014b2bcc4865b2a3b06a548ef515c829bc3149c46d308059"
+    },
+    {
+      "path": "app/daw_project.py",
+      "bytes": 25599,
+      "sha256": "0328bd19063233680a51d64e7fed33bb561664e98e2e7639686ac2f65b106d83"
+    },
+    {
+      "path": "app/daw_rack.py",
+      "bytes": 25414,
+      "sha256": "d628a3e5b9ffe9f49983c213e3bc036a1cc0765ddcf8ff8b2072c4e53e50b0d7"
+    },
+    {
+      "path": "app/daw_roll.py",
+      "bytes": 46707,
+      "sha256": "edbe20f03216f11d51762a9d02b277fe2b7f06c1ecd34735ef55bd745d432499"
+    },
+    {
+      "path": "app/daw_samples.py",
+      "bytes": 5547,
+      "sha256": "3bc2e9086082631a3757bc09b4707d5a507e399be2ad7186b3b3a0e0f3dd734f"
+    },
+    {
+      "path": "app/daw_sep.py",
+      "bytes": 17563,
+      "sha256": "e81e04f6c5c681333c9bdf5efa1e5889fdf6d90f80b35b316a803a98fc94eead"
+    },
+    {
+      "path": "app/daw_split.py",
+      "bytes": 24227,
+      "sha256": "edf9f52411d7848de565c94e101301f1a543d563298a22fa61b8afe84f1be7b0"
+    },
+    {
+      "path": "app/daw_theme.py",
+      "bytes": 96099,
+      "sha256": "6be379f25fb76d27473c0c784900fb557da6d735d4e0307ebc96acde6b560960"
+    },
+    {
+      "path": "app/daw_ui.py",
+      "bytes": 46137,
+      "sha256": "92ab080d97d55731a3d235247ff2659ac46d497af71f34f4f63b828157e1e64d"
+    },
+    {
+      "path": "app/daw_wt.py",
+      "bytes": 24057,
+      "sha256": "bea4dbaa45ed7a5de74dd3f414a19c117a4c2e936e8de572df3f0a7aefbdf233"
+    },
+    {
+      "path": "app/discord_assets/esu.png",
+      "bytes": 32506,
+      "sha256": "3ffa06c3d22424df0b5cf0645d5f7e9d41a38cd53e7b399ca614c453de6e15d8"
+    },
+    {
+      "path": "app/discord_assets/studio.png",
+      "bytes": 53333,
+      "sha256": "0b5161582ec6a138080d063ae6e0e9da7197a6a20709230413c97d71a637b0ae"
+    },
+    {
+      "path": "app/discord_assets/theme_studio.png",
+      "bytes": 57660,
+      "sha256": "922585e41e52ff3cfe04d82ca6c45443cdbd2cf918a590ff9111de94e8b6eb28"
+    },
+    {
+      "path": "app/discord_rpc.py",
+      "bytes": 38656,
+      "sha256": "5d34552e0c4ad002dfde9db37e71d717586ad6a085fc8b74bd88cacea75faa57"
+    },
+    {
+      "path": "app/dj_mix.py",
+      "bytes": 7737,
+      "sha256": "6fe5a113effd40bba62012f6ea1b635a0bcd447102a5a44947765fc21885ae93"
+    },
+    {
+      "path": "app/downloader.py",
+      "bytes": 33322,
+      "sha256": "9a233b11a77ea01f8bcd38f40fa0496231e0c6ca4a0992527a8b200d8f39bef8"
+    },
+    {
+      "path": "app/downloader_ui.py",
+      "bytes": 14044,
+      "sha256": "9997b9035bd56a8b643fc48d439048aa3bc1617a215b0e16c3563ec79ec8917d"
+    },
+    {
+      "path": "app/dsl_blocks.py",
+      "bytes": 129592,
+      "sha256": "8e7cdfb040444b372f11796de9beea7b629d46ee06825010c3da9cdb29bc0663"
+    },
+    {
+      "path": "app/dsl_docs.py",
+      "bytes": 62374,
+      "sha256": "348f624afd1f140540fe3d5ce0ec256d4cdd2bd4144a1aa73ae8d47f58be4770"
+    },
+    {
+      "path": "app/dsl_docs_en.py",
+      "bytes": 25966,
+      "sha256": "438bb21921b702646f2c7547e472407cd03d25a483b81db96719e9a5bfd6b5cd"
+    },
+    {
+      "path": "app/dsl_lang.py",
+      "bytes": 62818,
+      "sha256": "23e4dab2a2f21c3acd8e5ceb6a3f24edf7b69236e262463f6e226a2f5ed08df7"
+    },
+    {
+      "path": "app/dsl_layout.py",
+      "bytes": 49674,
+      "sha256": "aa55109def4cf097a268ed54d79ab918fca2b4f9fa47b69d622baf5552ea5374"
+    },
+    {
+      "path": "app/dsl_lib.py",
+      "bytes": 35427,
+      "sha256": "7836ac383c034516e4fbd67771fca2669dee102ff0be8f9066fa56e4cd5bed8e"
+    },
+    {
+      "path": "app/dsl_mode.py",
+      "bytes": 13694,
+      "sha256": "4782122d78e4124a4cb643dd04a716ae4719f721562bfe5851905e6d98ac393b"
+    },
+    {
+      "path": "app/dsl_runtime.py",
+      "bytes": 162866,
+      "sha256": "b1aca5b3ca216700fb4028829320fbbdf6dc0e2b90ad0c9b5bdd1d55f3689f30"
+    },
+    {
+      "path": "app/dsl_shapes.py",
+      "bytes": 22688,
+      "sha256": "a6a5581fdee95c1a81912953e5691f71f0aa541128d7d6e530ad85eaa0e77e6d"
+    },
+    {
+      "path": "app/dsl_sound.py",
+      "bytes": 18575,
+      "sha256": "2d88f7e6c7597e435ae2d710d432637c70e63ab89bf20c298ee8175dce157277"
+    },
+    {
+      "path": "app/dsl_studio.py",
+      "bytes": 73433,
+      "sha256": "efffaf24a4e530623ae8cf49b465f2ccee6b06bca37f7d3c34f98273aa8c5663"
+    },
+    {
+      "path": "app/dsl_themes/Loom.echo",
+      "bytes": 11823,
+      "sha256": "a52f946a93d81f4599ee903b0867a44a066fb936c326fef8b30806d362c9315a"
+    },
+    {
+      "path": "app/dsp_export.py",
+      "bytes": 12952,
+      "sha256": "a6f43aae833384a5d943239e281a6cc89a4715aeb3ed5878a7e0f0cec16823b9"
+    },
+    {
+      "path": "app/echo_glass.py",
+      "bytes": 18139,
+      "sha256": "aaed6bedd6267bff0ca97c3954d79de8d81212d07d1b1836db4963a4e1cae17a"
+    },
+    {
+      "path": "app/echoes_audio.dll",
+      "bytes": 133632,
+      "sha256": "ecba929b93fb8939897964e1d2bba4ac7c7e8342785803f969f99ff901673267"
+    },
+    {
+      "path": "app/echoes_fx.dll",
+      "bytes": 237056,
+      "sha256": "bb6fbb3908e45bd47df4ce603f074f10fce307cdcd42f9ba651a3018586ab455"
+    },
+    {
+      "path": "app/echoes_fx_avx2.dll",
+      "bytes": 245760,
+      "sha256": "46e7604cc941a7fe497fdf7ad92c603e651fa1809e70c94dbea8bd790e0b2697"
+    },
+    {
+      "path": "app/echoes_hub.py",
+      "bytes": 2369,
+      "sha256": "8298b787b9e1bda631993b2220d2b73754adca54679d83c22e917c3ee6c20f3a"
+    },
+    {
+      "path": "app/emoji_pack.py",
+      "bytes": 3958,
+      "sha256": "6b4e8fcba04f6135743de2d23249baafc8ea0c1c4d8865fea3a761c408d54702"
+    },
+    {
+      "path": "app/fluid_core.py",
+      "bytes": 43857,
+      "sha256": "4ef83b31a6ed3e0200b2ae3f6cb1dabc6475b676eb2a898ad379acdf23665234"
+    },
+    {
+      "path": "app/fluid_theme.py",
+      "bytes": 47288,
+      "sha256": "a141959d000c00b8d5b9b29ee86db5a8026f9f95aa8ee22f8ed0887a83a4c83e"
+    },
+    {
+      "path": "app/frameclock.py",
+      "bytes": 19410,
+      "sha256": "41d27a64fac24d5611eb6a12017294bbff6c04e7139cdf0ba216659c77132ce0"
+    },
+    {
+      "path": "app/genre_ai.py",
+      "bytes": 54776,
+      "sha256": "7972baeddbccb8d147ac0996d95ee6f9bc52e3e7ba4e6e1a6a25e4ccb4ff7e16"
+    },
+    {
+      "path": "app/genre_correction_ui.py",
+      "bytes": 2504,
+      "sha256": "f6e3d481b55cd3a4322c189c825e73b955c00278072a9e03781924c09b292e4c"
+    },
+    {
+      "path": "app/gif_export.py",
+      "bytes": 2529,
+      "sha256": "29605e71dffab863bf9cb14b83c526796e623a7cd751739106b09be8d24add6a"
+    },
+    {
+      "path": "app/hp_eq.py",
+      "bytes": 3789,
+      "sha256": "bc37dffda89247ad8ecb81191fab9759f26ded67e32a96f8ccb92b7c6b95206c"
+    },
+    {
+      "path": "app/i18n.py",
+      "bytes": 26173,
+      "sha256": "79a361cc1d0f57eba1110830c4dc0e86cf550411a3270ca95a7f54935d49c04c"
+    },
+    {
+      "path": "app/i18n_en.py",
+      "bytes": 158215,
+      "sha256": "3f1ff3afbbbc2135ec9f97fe221c462025333fb6ee90732c58c9e28df09e3241"
+    },
+    {
+      "path": "app/i18n_en_extra.py",
+      "bytes": 646191,
+      "sha256": "2475b3fc1f787099814118888ee0f8db0c6ddcc0c9c74265f779d97b9bc7736d"
+    },
+    {
+      "path": "app/icon.ico",
+      "bytes": 66720,
+      "sha256": "a9d1437f6181fb1b99cca0fbaf638671deff6ba9886a6283d8d0d21dc3c9682e"
+    },
+    {
+      "path": "app/icon.png",
+      "bytes": 64072,
+      "sha256": "ff175e0e8e50805395754ee429fadeb2c224cbef9ad51eac2bc5d6549317739f"
+    },
+    {
+      "path": "app/img_load.py",
+      "bytes": 1794,
+      "sha256": "34626a1b41b4915d61186515c2ecb2a3e7a8b8358e603b42390cbde029e692c4"
+    },
+    {
+      "path": "app/inapp.py",
+      "bytes": 19329,
+      "sha256": "fff09c2e35d2ebc769b13f55d1dd04a6f47f6c0617dd72d9135c950f2dad534b"
+    },
+    {
+      "path": "app/intro_anim.py",
+      "bytes": 12030,
+      "sha256": "e47ab6a3f3cf3626f2737e821fac70e1c3595a0a84331522b90c551d48a4b7ed"
+    },
+    {
+      "path": "app/layer_fx.py",
+      "bytes": 106642,
+      "sha256": "c88ef823801ed2f2f0acc5e690e3b7ee348e7eb09922cf7bc9009873ab089692"
+    },
+    {
+      "path": "app/listen_stats.py",
+      "bytes": 10474,
+      "sha256": "cecaf390cb2ae2c9b21ce50e18e4850589c599726ce1ff5811514ac2b278a596"
+    },
+    {
+      "path": "app/listening_dsp.py",
+      "bytes": 2107,
+      "sha256": "79110b28be4c3ba047868e394459d9b7340d054ce98808ee54cf8132cb3e5f2e"
+    },
+    {
+      "path": "app/listening_plus.py",
+      "bytes": 13345,
+      "sha256": "ae64b5bf62e25a570f68601b5eff09e0443d7eb162024c962ad107261336312b"
+    },
+    {
+      "path": "app/listening_tools.py",
+      "bytes": 22485,
+      "sha256": "dfe1c43f63a7bd5f16f2ddc6b39e7c2b216259a371630167f0155f8c1d056504"
+    },
+    {
+      "path": "app/loudness.py",
+      "bytes": 6560,
+      "sha256": "5ae1ec7e7e04839690e13c01bd070fc605f28701a78ed8cca03815073830700c"
+    },
+    {
+      "path": "app/lyrics.py",
+      "bytes": 50267,
+      "sha256": "2187edf15cfc9abdb8b7c99e37538612212555d6e47d9aa5a9ed5b06f53aba8c"
+    },
+    {
+      "path": "app/lyrics_editor.py",
+      "bytes": 24523,
+      "sha256": "a59e285a83090e97c153c2f2c6255512898e3d6d9f397411f51d9dcc59bb6bcc"
+    },
+    {
+      "path": "app/lyrics_options.py",
+      "bytes": 10686,
+      "sha256": "72f893babfca5e27defbc5949e4acf45e83be60fd3fdb978f6dee62d570069e7"
+    },
+    {
+      "path": "app/lyrics_sync.py",
+      "bytes": 19099,
+      "sha256": "55e6617499b689195094ab04b54df7076a8d21787154a3461a44ea4a21f61b1f"
+    },
+    {
+      "path": "app/lyrics_tags.py",
+      "bytes": 14767,
+      "sha256": "f28d11ded3d21b527a8838ca98ca3a40ae810aa4c81b97fec71dda17404ed238"
+    },
+    {
+      "path": "app/lyrics_verify.py",
+      "bytes": 10613,
+      "sha256": "6aa045940ec6131ff4e7ba596c827f586ec6725ca78a54db38d05838a1621b4e"
+    },
+    {
+      "path": "app/lyrics_view.py",
+      "bytes": 85123,
+      "sha256": "99f986621d43e4bbff8f517ee8ea694bc27ca7b6e5868fdde2d2c456c58cdcce"
+    },
+    {
+      "path": "app/main.py",
+      "bytes": 475352,
+      "sha256": "3f77ed136f28e0d67fb5471205bdd546513a918e70e85dfb9ffa4e436b678202"
+    },
+    {
+      "path": "app/manual_search.py",
+      "bytes": 18281,
+      "sha256": "642a05135c31e9467020d30bbb19886a1007f5d8690f0759c5a9860fc638a10e"
+    },
+    {
+      "path": "app/media_session.py",
+      "bytes": 12168,
+      "sha256": "86459a916c7ee5470e6aad11be2bc9bce7e836698a1be4d4a6a5b4fb97151abe"
+    },
+    {
+      "path": "app/mem_trim.py",
+      "bytes": 3106,
+      "sha256": "ec2ea7d9389cfc0c406b7cae8027caad8d5f861b8f8642271dfba47b65c55178"
+    },
+    {
+      "path": "app/milk_words.py",
+      "bytes": 51944,
+      "sha256": "2e4d05471395f83de6278bc9a26edd1c591635e2cf0e3eff03770bcc053dc88c"
+    },
+    {
+      "path": "app/milkdrop_core.py",
+      "bytes": 48018,
+      "sha256": "cc5c0b37f53f0fa4a39c1530d877914bae5ac8105f5bf65df3a46365e022bf33"
+    },
+    {
+      "path": "app/montage_native/echoes_montage.exe",
+      "bytes": 2359571,
+      "sha256": "224f9180c80f653ac3a206e9d86f40db7d939397ecbba4957e00cc007b5e29be"
+    },
+    {
+      "path": "app/montage_native/generic/qtuiotouchplugin.dll",
+      "bytes": 99484,
+      "sha256": "67174a261d5c1264b3a590845700708f5b2807677b141ca83478a64102d6fc6d"
+    },
+    {
+      "path": "app/montage_native/imageformats/qgif.dll",
+      "bytes": 40406,
+      "sha256": "505f44ee88759ff5f29a40b28ef41452867950eb0bf8bd59c70839fe4323be87"
+    },
+    {
+      "path": "app/montage_native/imageformats/qico.dll",
+      "bytes": 44141,
+      "sha256": "6f4fc9dda18628a9912bf57976b4ec668b2ccb2f2434b7c963064a19a184fdb1"
+    },
+    {
+      "path": "app/montage_native/imageformats/qjpeg.dll",
+      "bytes": 66333,
+      "sha256": "ec2965dd10bde9e5253ea6496e168aac4fe69eac87b8565416661536b0bfc5d0"
+    },
+    {
+      "path": "app/montage_native/libb2-1.dll",
+      "bytes": 35323,
+      "sha256": "01bbf64090367d511f41d9fc8f34c557f61d4a227b7c9e47ce04052cbfdc3e7d"
+    },
+    {
+      "path": "app/montage_native/libbrotlicommon.dll",
+      "bytes": 144565,
+      "sha256": "c62c08223e450dfc2fff33c752cc228505ffd9d755201958ba800d5d30481a2c"
+    },
+    {
+      "path": "app/montage_native/libbrotlidec.dll",
+      "bytes": 62619,
+      "sha256": "e270b6e576594ee8ee6e33ccc54e34a54304616dd6225652e11e49d6f17ef896"
+    },
+    {
+      "path": "app/montage_native/libbz2-1.dll",
+      "bytes": 107741,
+      "sha256": "1790bf6473c9d48db14c1f0ee8124142327556d281299ea2a72ee361118ee01a"
+    },
+    {
+      "path": "app/montage_native/libdouble-conversion.dll",
+      "bytes": 78480,
+      "sha256": "aecc5a09c4657a969be2969269029664898b3d1ac037b0795614d685a7ca6c1e"
+    },
+    {
+      "path": "app/montage_native/libffi-8.dll",
+      "bytes": 39826,
+      "sha256": "f96cf79b75f33a10023d001673b564538023395c94b3c58e1db53114976a7c25"
+    },
+    {
+      "path": "app/montage_native/libfreetype-6.dll",
+      "bytes": 791593,
+      "sha256": "a3271784f8366b3c6412e0c35474884fa12899c392bacb08bc8eac00f4be7e64"
+    },
+    {
+      "path": "app/montage_native/libgcc_s_seh-1.dll",
+      "bytes": 150537,
+      "sha256": "68ca4574b331402879dec403ba4f14491c9b8fc4aa3f4a41432008714b9bc5df"
+    },
+    {
+      "path": "app/montage_native/libgio-2.0-0.dll",
+      "bytes": 1919044,
+      "sha256": "6457697b77638c9cc20baa3c19228dcecc15aeea886e72815b2079cdb0b8d941"
+    },
+    {
+      "path": "app/montage_native/libglib-2.0-0.dll",
+      "bytes": 1568604,
+      "sha256": "642d4da7a378374a84b1edc30100b9e9c7b798e53347853aadd1c86691a81468"
+    },
+    {
+      "path": "app/montage_native/libgmodule-2.0-0.dll",
+      "bytes": 23440,
+      "sha256": "4a3e1bf8b17425c58be37d0a2bda2340364e19d18320f414a6537a3069867ad4"
+    },
+    {
+      "path": "app/montage_native/libgobject-2.0-0.dll",
+      "bytes": 358171,
+      "sha256": "516bef266569d691924097224502e45ea04f6cd423bdfa23251f609007b9fb0e"
+    },
+    {
+      "path": "app/montage_native/libgraphite2.dll",
+      "bytes": 167857,
+      "sha256": "93953e4744bcfce9a7bc439b956544bc213095cb1349c3602a58370f32b25c18"
+    },
+    {
+      "path": "app/montage_native/libharfbuzz-0.dll",
+      "bytes": 1593498,
+      "sha256": "255b36d87925a4fb59f4c906ca116cb48ac336c3cefcea8612c179dd56169eab"
+    },
+    {
+      "path": "app/montage_native/libiconv-2.dll",
+      "bytes": 1141951,
+      "sha256": "94ec68fb8d342b6c91b6b48a8d95092819cdcd006a7166e0b68062f946afd08a"
+    },
+    {
+      "path": "app/montage_native/libicudt78.dll",
+      "bytes": 33121942,
+      "sha256": "29b2f925adf4531d7b3ee0edc037f3559996de499dff663819f07000a79d72fa"
+    },
+    {
+      "path": "app/montage_native/libicuin78.dll",
+      "bytes": 3179936,
+      "sha256": "cb87dfb05ae183ea96f2295174d993430094cc0f0d6ba99fd4f253d5079b0890"
+    },
+    {
+      "path": "app/montage_native/libicuuc78.dll",
+      "bytes": 1995258,
+      "sha256": "9d5fd51a4647f759067568ae82dc391b56af144966a588cd98aab77ef045835a"
+    },
+    {
+      "path": "app/montage_native/libintl-8.dll",
+      "bytes": 298164,
+      "sha256": "0e5a178731e6be6d115442a6ade3df7f03265cd1fc4338f8b6f86a8001cbf582"
+    },
+    {
+      "path": "app/montage_native/libjpeg-8.dll",
+      "bytes": 967184,
+      "sha256": "c63acd5a3231725aa96aa35444b74cd8d607a6fbdab1dd18b0e0ada7e39476d4"
+    },
+    {
+      "path": "app/montage_native/libmd4c.dll",
+      "bytes": 93595,
+      "sha256": "9331ed00963781cea1059bbb7c6102b85cf714196f2e38ec4557a05daf1129b1"
+    },
+    {
+      "path": "app/montage_native/libpcre2-16-0.dll",
+      "bytes": 646599,
+      "sha256": "5c8e23edd85dc6593120746f606eed6c0ddcf682d658422ee0d2d5a754fbca42"
+    },
+    {
+      "path": "app/montage_native/libpcre2-8-0.dll",
+      "bytes": 706022,
+      "sha256": "1f609cde2ce432efb7d2b0c7b84a14a6dbfc9622d1ac1a3cbadf51c5b0b4dada"
+    },
+    {
+      "path": "app/montage_native/libpng16-16.dll",
+      "bytes": 254777,
+      "sha256": "7f425fd2b41d83869bb31bf761b4fb315f11040d55540661f96e582e1ec79a36"
+    },
+    {
+      "path": "app/montage_native/libstdc++-6.dll",
+      "bytes": 2659194,
+      "sha256": "b30dbd914d903992acb28b38455947153886656beafbd91c465c31aa258f9c45"
+    },
+    {
+      "path": "app/montage_native/libwinpthread-1.dll",
+      "bytes": 64574,
+      "sha256": "76cc52adfcdb8c800813b2ae8da42a908934eb1ee54ce8e9744fc8d703c76ee1"
+    },
+    {
+      "path": "app/montage_native/libzstd.dll",
+      "bytes": 1217412,
+      "sha256": "48368ab0ca622d0ec12f41ce85d91f22866bf5da92c77a69a06483564c93816c"
+    },
+    {
+      "path": "app/montage_native/licenses/brotli/LICENSE",
+      "bytes": 1084,
+      "sha256": "3d180008e36922a4e8daec11c34c7af264fed5962d07924aea928c38e8663c94"
+    },
+    {
+      "path": "app/montage_native/licenses/bzip2/LICENSE",
+      "bytes": 1896,
+      "sha256": "c6dbbf828498be844a89eaa3b84adbab3199e342eb5cb2ed2f0d4ba7ec0f38a3"
+    },
+    {
+      "path": "app/montage_native/licenses/double-conversion/LICENSE",
+      "bytes": 1527,
+      "sha256": "4af93c12062c58058378de2397dc1c92bbff9ddfb1d583a01c84127557ce97ca"
+    },
+    {
+      "path": "app/montage_native/licenses/freetype/FTL.TXT",
+      "bytes": 6743,
+      "sha256": "5a5ee54c5001bbad1cdc1a57cc3dd4c42199b2da09d39c7ee41fab002d02967f"
+    },
+    {
+      "path": "app/montage_native/licenses/freetype/GPLv2.TXT",
+      "bytes": 17994,
+      "sha256": "c4120c6752c910c299e3bd9cb3a46ff262c268303ca2069b61f92f10a5656c18"
+    },
+    {
+      "path": "app/montage_native/licenses/gcc/COPYING.RUNTIME",
+      "bytes": 3324,
+      "sha256": "9d6b43ce4d8de0c878bf16b54d8e7a10d9bd42b75178153e3af6a815bdc90f74"
+    },
+    {
+      "path": "app/montage_native/licenses/gcc/COPYING3",
+      "bytes": 35147,
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+    },
+    {
+      "path": "app/montage_native/licenses/gettext-runtime/COPYING",
+      "bytes": 495,
+      "sha256": "7ef2cdfe58e0c0460657b6598b49af29d4e03c1e41cbaf0e1da1eb8ad74b95d0"
+    },
+    {
+      "path": "app/montage_native/licenses/gettext-runtime/intl/COPYING.LIB",
+      "bytes": 26419,
+      "sha256": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95"
+    },
+    {
+      "path": "app/montage_native/licenses/gettext-runtime/libasprintf/COPYING",
+      "bytes": 65,
+      "sha256": "03133addae5b99a6148c538300e6d97074453089be1423b741bd081f18e2b298"
+    },
+    {
+      "path": "app/montage_native/licenses/gettext-runtime/libasprintf/COPYING.LIB",
+      "bytes": 26419,
+      "sha256": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95"
+    },
+    {
+      "path": "app/montage_native/licenses/glib2/COPYING",
+      "bytes": 25967,
+      "sha256": "fa6f36630bb1e0c571d34b2bbdf188d08495c9dbf58f28cac112f303fc1f58fb"
+    },
+    {
+      "path": "app/montage_native/licenses/graphite2/COPYING",
+      "bytes": 1235,
+      "sha256": "2c272829ff23f182c8bf7ea12fedea69b0ae148663123ed5240c117cb129c9c1"
+    },
+    {
+      "path": "app/montage_native/licenses/graphite2/LICENSE",
+      "bytes": 29228,
+      "sha256": "cab46cd45adbfea4b1d0f14b033c70062c73074fa0b56532c2f351576ddf455e"
+    },
+    {
+      "path": "app/montage_native/licenses/harfbuzz/COPYING",
+      "bytes": 1971,
+      "sha256": "ba8f810f2455c2f08e2d56bb49b72f37fcf68f1f4fade38977cfd7372050ad64"
+    },
+    {
+      "path": "app/montage_native/licenses/libb2/LICENSE",
+      "bytes": 6556,
+      "sha256": "6a1ee543e5282cd9061881edf462e6fdab181f328da71fc2c9a6950a80e94d01"
+    },
+    {
+      "path": "app/montage_native/licenses/libffi/LICENSE",
+      "bytes": 1132,
+      "sha256": "17b64dc60f3b6897a60f971e288b973f655c2edcdf08b25f3c3dd5549857881c"
+    },
+    {
+      "path": "app/montage_native/licenses/libiconv/COPYING",
+      "bytes": 35147,
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+    },
+    {
+      "path": "app/montage_native/licenses/libiconv/COPYING.LIB",
+      "bytes": 26419,
+      "sha256": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95"
+    },
+    {
+      "path": "app/montage_native/licenses/libiconv/libcharset/COPYING.LIB",
+      "bytes": 26419,
+      "sha256": "20e50fe7aae3e56378ebf0417d9de904f55a0e61e4df315333e632a4d3555d95"
+    },
+    {
+      "path": "app/montage_native/licenses/libiconv/README",
+      "bytes": 5741,
+      "sha256": "4ae66e61d1c6593c84c47105b368d579bcee1af566dbb959ec63a0c48425dcf4"
+    },
+    {
+      "path": "app/montage_native/licenses/libjpeg-turbo/LICENSE.md",
+      "bytes": 6077,
+      "sha256": "ba6bceebcba0fdd35488477c2cca8c4632ce82c74dbfbc87d886ce6fc4433579"
+    },
+    {
+      "path": "app/montage_native/licenses/libjpeg-turbo/README.ijg",
+      "bytes": 12799,
+      "sha256": "75815e3bf6484201a3c3d17a1bbf10f2e8e3237f84df10a2357ea896db2a81d6"
+    },
+    {
+      "path": "app/montage_native/licenses/libjpeg-turbo/README.md",
+      "bytes": 17722,
+      "sha256": "a44ba17ac66c57edaf0ea7c6e4b31358f08322c780e4e6af092082abb3e20793"
+    },
+    {
+      "path": "app/montage_native/licenses/libjpeg-turbo/simd/jsimdext.inc",
+      "bytes": 15563,
+      "sha256": "68c5d236785edf75344cebe8b9bec36568bd35c96eb72cc67ffecd66c17dbd74"
+    },
+    {
+      "path": "app/montage_native/licenses/libpng/LICENSE",
+      "bytes": 5345,
+      "sha256": "bdb0a645ea18c60507d0368379b1ac5474b92255fcc2d115e07486a7672ba526"
+    },
+    {
+      "path": "app/montage_native/licenses/libwinpthread/COPYING",
+      "bytes": 2883,
+      "sha256": "63263614cdd29f2f93cba85e992f041b31f9fc7b4033692f31269489a8a1b177"
+    },
+    {
+      "path": "app/montage_native/licenses/md4c/LICENSE.md",
+      "bytes": 1096,
+      "sha256": "e547c9a66c120b19f9838a1f7c2f51137f5c71ba27b70c3611b673f2cdb4e02e"
+    },
+    {
+      "path": "app/montage_native/licenses/pcre2/COPYING",
+      "bytes": 97,
+      "sha256": "99272c55f3dcfa07a8a7e15a5c1a33096e4727de74241d65fa049fccfdd59507"
+    },
+    {
+      "path": "app/montage_native/licenses/pcre2/LICENCE.md",
+      "bytes": 4011,
+      "sha256": "197d8a73ffee0d6b09adba2f9c677b5f5aede24edf89258a68e48248d010d811"
+    },
+    {
+      "path": "app/montage_native/licenses/psutil/LICENSE",
+      "bytes": 1577,
+      "sha256": "c7adc4d5d1337a548b967421f1fbe258b93033a0417708fd6f4e38f8ecbceb80"
+    },
+    {
+      "path": "app/montage_native/licenses/PyInstaller/COPYING.txt",
+      "bytes": 32604,
+      "sha256": "0598064c7d2718e38d7914a7d08343b2fa008e3bea9ebba2aa7a6ffa5900dd64"
+    },
+    {
+      "path": "app/montage_native/licenses/PyQt6/LICENSE",
+      "bytes": 35147,
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+    },
+    {
+      "path": "app/montage_native/licenses/PyQt6-Qt6/LICENSE",
+      "bytes": 7687,
+      "sha256": "6c671e2912ec69c0832f32066c0313cee5fdc3bbcbce237822e89f3da58edd4e"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/AFL-2.1.txt",
+      "bytes": 8948,
+      "sha256": "93bb4f7417aa775bab9026cc3d0af28aeb64451fc5a8ec651876785edd8eaf9b"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/Apache-2.0.txt",
+      "bytes": 10398,
+      "sha256": "e3ba223bb1423f0aad8c3dfce0fe3148db48926d41e6fbc3afbbf5ff9e1c89cb"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/Bitstream-Vera.txt",
+      "bytes": 8816,
+      "sha256": "7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/blessing.txt",
+      "bytes": 244,
+      "sha256": "592db1199aab67aafe4515db9808b420db122083807c5329b2f061951e79acbe"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/BSD-2-Clause.txt",
+      "bytes": 1276,
+      "sha256": "8fda146749ca071ac9cdce2e24d25444676ea48d1f9dccc2b7c15c054b717db8"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/BSD-3-Clause.txt",
+      "bytes": 1469,
+      "sha256": "9f0490f18656c6f2435bd14f603ef0c96434d1825615363dce43abb42ed1dcce"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/BSD-4-Clause.txt",
+      "bytes": 1672,
+      "sha256": "83faa0d205c316ce3efeafee465b6a165914fb29595968c08dc6437021b7b6fd"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/BSL-1.0.txt",
+      "bytes": 1340,
+      "sha256": "3abd6471b9a9a08d65ce771143f8e278bb4c1aeb10c1c2d476935a6b049653f5"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/CC0-1.0.txt",
+      "bytes": 7048,
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/FTL.txt",
+      "bytes": 6743,
+      "sha256": "08c135755dd589039470f1fdbb400daaabaaa50d0b366d19cebff4d22986baa1"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/GFDL-1.3-no-invariants-only.txt",
+      "bytes": 22955,
+      "sha256": "110535522396708cea37c72a802c5e7e81391139f5f7985631c93ef242b206a4"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/GPL-2.0-only.txt",
+      "bytes": 18092,
+      "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/GPL-2.0-or-later.txt",
+      "bytes": 18092,
+      "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/GPL-3.0-only.txt",
+      "bytes": 35147,
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/HPND.txt",
+      "bytes": 1188,
+      "sha256": "67ac968431270291f5e9cd3ed76705e1169f57082ee102093b2543b28cef63cf"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/IJG.txt",
+      "bytes": 1815,
+      "sha256": "1cb448f5e2e6d3aca60943f4eee1a04675628dc0266a074a42bc1560ebc28d61"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/Imlib2.txt",
+      "bytes": 1986,
+      "sha256": "8846f2baba1a7f4c36f7ca19a923a000d8a21afa37cf0fe006f6ce88a6058a89"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/IPL-1.0.txt",
+      "bytes": 11789,
+      "sha256": "d5328e672fb1bff47ee18e890784541453380081cf3771bb7b3c06fc19c7d503"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/LGPL-2.1-or-later.txt",
+      "bytes": 25906,
+      "sha256": "1ccf09bf2f598308df4bed9cd8e9657dc5cd0973d2800318f2e241486e2edf3f"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/LGPL-3.0-only.txt",
+      "bytes": 7651,
+      "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/libpng-2.0.txt",
+      "bytes": 5345,
+      "sha256": "7317e078e2d3b5d7ba5a6159e650945153262b44b76f6700f8e9edb261c5143e"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/Libpng.txt",
+      "bytes": 4120,
+      "sha256": "58fe669792f9b4e0740bf75ecfe90b5326128bb2ce7e27e1c342abd9db4d8ea6"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/LicenseRef-BSD-3-Clause-with-PCRE2-Binary-Like-Packages-Exception.txt",
+      "bytes": 1852,
+      "sha256": "0526625fcc746a42d3f19a0ab357d3dc8479fdbe3bfd168825498f50215c7a63"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/LicenseRef-ICC-License.txt",
+      "bytes": 463,
+      "sha256": "9e34ff47b3a44814e183342e7e198d127a6740e29d20e8381fba7688dafc79dd"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/LicenseRef-Lcs-Telegraphics.txt",
+      "bytes": 139,
+      "sha256": "c10225ebbd5191bfdd761b0d7752c785f2453ab665d6c454473fb12d254668aa"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/LicenseRef-Qt-Commercial.txt",
+      "bytes": 462,
+      "sha256": "9b1f50aae6267f9d5e0ceb6775ee86450262c25ec7c0573e151fe5d3f18a4700"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/LicenseRef-SHA1-Public-Domain.txt",
+      "bytes": 144,
+      "sha256": "65d86b8ec6b1cd8b8f6e64fd8710274ba00d6a3c520e00dfdcd1c3d2071f3305"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/Linux-syscall-note.txt",
+      "bytes": 624,
+      "sha256": "3f9e477523febab58de8b716ccfbcf02e6ef1c8e7728953905e8558637abe2a9"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/MIT-Khronos-old.txt",
+      "bytes": 1306,
+      "sha256": "3c58021633974f9ed3c3d445a374240a5244fd039628f4d7f6f3e674bc8e6694"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/MIT-open-group.txt",
+      "bytes": 897,
+      "sha256": "c55d2ab72d8a4f9e9cd8fbd1379268e575e8cfa16874affa5899b75a6d754514"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/MIT.txt",
+      "bytes": 1111,
+      "sha256": "d040359701c01996a017d5c515678929cd1b0625e64cb86db44025fbb6cdf1fc"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/MPL-2.0.txt",
+      "bytes": 16726,
+      "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/Qt-GPL-exception-1.0.txt",
+      "bytes": 965,
+      "sha256": "40678d338ce53cd93f8b22b281a2ecbcaa3ee65ce60b25ffb0c462b0530846b2"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/SPL-1.0.txt",
+      "bytes": 23547,
+      "sha256": "f58f2f30909982445f97f1a61667261920a7caeab21ef5bea1b740f5b144d141"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/Unicode-3.0.txt",
+      "bytes": 1995,
+      "sha256": "80bb6294022d8764adb36a9d65ebb6bd94efb1865918a71e31e6c247607d7634"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/X11.txt",
+      "bytes": 1338,
+      "sha256": "e2936c6509784b4f0ec27bac74182393866fad9422b29a70e085ff14aba87193"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/Xerox.txt",
+      "bytes": 965,
+      "sha256": "b6bc52205d01e10cf43dbb7b8aec06dcaa3b21d1486e7c9c0bec329ee8244d8d"
+    },
+    {
+      "path": "app/montage_native/licenses/qt6-base/Zlib.txt",
+      "bytes": 1465,
+      "sha256": "d7e3139972874dc8abdbbfce27ec1e6f942b28279dd7d27453630a8b4610e080"
+    },
+    {
+      "path": "app/montage_native/licenses/winpthreads/COPYING",
+      "bytes": 2883,
+      "sha256": "63263614cdd29f2f93cba85e992f041b31f9fc7b4033692f31269489a8a1b177"
+    },
+    {
+      "path": "app/montage_native/licenses/zlib/LICENSE",
+      "bytes": 1002,
+      "sha256": "e32ff4e00d9d94930537635291da39e7e612703334bf6fde8c7f1686fe8a45a2"
+    },
+    {
+      "path": "app/montage_native/licenses/zstd/LICENSE",
+      "bytes": 1549,
+      "sha256": "7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8"
+    },
+    {
+      "path": "app/montage_native/networkinformation/qglib.dll",
+      "bytes": 26204,
+      "sha256": "4c9e10e066f2d8821ae0c5d1135b63aafaa9758e606880f01e760b19f84fbf93"
+    },
+    {
+      "path": "app/montage_native/networkinformation/qnetworklistmanager.dll",
+      "bytes": 154613,
+      "sha256": "1714ace27b094b83022019a66223fb894070eaa750d072a87dcf0a51a8f43b1b"
+    },
+    {
+      "path": "app/montage_native/platforms/qoffscreen.dll",
+      "bytes": 125534,
+      "sha256": "0e94e47d572d2eae8c82d025df31fcf34bc3c51ed52cc94dfd3988a0c7759a49"
+    },
+    {
+      "path": "app/montage_native/platforms/qwindows.dll",
+      "bytes": 1519241,
+      "sha256": "2311180514528cdf62480917757cd5f274cffaaa3045f9795a5b70db3543615c"
+    },
+    {
+      "path": "app/montage_native/qt.conf",
+      "bytes": 19,
+      "sha256": "8ebdb9a03994986cffc0e62c2ce9af73547bac0e5ddc2b7535216627797d03e5"
+    },
+    {
+      "path": "app/montage_native/Qt6Core.dll",
+      "bytes": 7247990,
+      "sha256": "a54f0e354ff38670df336267333333117d623f7d7a6811e98c345fd68f339b1f"
+    },
+    {
+      "path": "app/montage_native/Qt6Gui.dll",
+      "bytes": 10624898,
+      "sha256": "2b12d68d2dbd2171b9dc221884baf2e7a5769984156a42ef1572ad298d427a68"
+    },
+    {
+      "path": "app/montage_native/Qt6Network.dll",
+      "bytes": 2161005,
+      "sha256": "9ec4e2fa95d00be0348067a96793a879f238c61931b894e994984f11995671ba"
+    },
+    {
+      "path": "app/montage_native/Qt6Test.dll",
+      "bytes": 504836,
+      "sha256": "55d924cddb9bf85644cb3b6fb2f7a80b22771df8c081b29801b81649a3a365b4"
+    },
+    {
+      "path": "app/montage_native/Qt6Widgets.dll",
+      "bytes": 7823645,
+      "sha256": "d61c9cdeb0205452c09497189a0685bd58652de2b6330465ede91c44ad372a3d"
+    },
+    {
+      "path": "app/montage_native/styles/qmodernwindowsstyle.dll",
+      "bytes": 300981,
+      "sha256": "fbc815d1fc65660f47f2416cc5ff888059db75eecd40873d6dd53c4daf03e2ae"
+    },
+    {
+      "path": "app/montage_native/tls/qcertonlybackend.dll",
+      "bytes": 112163,
+      "sha256": "b7efb38528e44c257c7a0cd7ff4155a02c56db744de191702e067cf4581a4a3d"
+    },
+    {
+      "path": "app/montage_native/tls/qschannelbackend.dll",
+      "bytes": 312060,
+      "sha256": "65cb50dded826fd368e067649f90ff86f51e112d762574e2bdeea43d8bfc5caf"
+    },
+    {
+      "path": "app/montage_native/zlib1.dll",
+      "bytes": 127291,
+      "sha256": "11cd91171765cd65f1c3362e3df67e5f5a618a6b88c8cdec899b802eaf1c7b0d"
+    },
+    {
+      "path": "app/montage_theme.py",
+      "bytes": 7188,
+      "sha256": "139d98f7ab1c07262b87a03116e02551db1fb811667c184554485d9d2ec1eb98"
+    },
+    {
+      "path": "app/montage_transcribe.py",
+      "bytes": 3483,
+      "sha256": "bbbe8bc7340396e3764786e418b766e703de1c5f467fccf7cac4a93fa857c27f"
+    },
+    {
+      "path": "app/motion.py",
+      "bytes": 4180,
+      "sha256": "d9aaa1662893f9d016379d94935a2428e86f22ceaef4fea0b62e0781cc3c6ca9"
+    },
+    {
+      "path": "app/music_duel.py",
+      "bytes": 56422,
+      "sha256": "ce690d60cc0f4bfd9da4fed003e8f416859cd9209c64e4aa6c7baab1ea1dc2c1"
+    },
+    {
+      "path": "app/music_intel.py",
+      "bytes": 44001,
+      "sha256": "544ee8ab43ff6eb39e0dc4b04cda6ba7aab369b294945c9ea6d37edffb1e75fa"
+    },
+    {
+      "path": "app/music_tierlist.py",
+      "bytes": 32953,
+      "sha256": "eec0313b83925389089f4e3526c1e93a90988893e581fb22af7bffe606ce49ec"
+    },
+    {
+      "path": "app/native_fx.py",
+      "bytes": 43768,
+      "sha256": "bacd489e54be4e0c65796b318baf805bb19aee61ba0a5c5921ae495bed330615"
+    },
+    {
+      "path": "app/net_ach.py",
+      "bytes": 12620,
+      "sha256": "37f33e4cbef9629d0499920e236235ea994003b5dd71373997bda69669816daa"
+    },
+    {
+      "path": "app/net_call_ui.py",
+      "bytes": 34558,
+      "sha256": "7e636814c65c5b0056afbc65602f248fd003aded716f14933309f0990d81baca"
+    },
+    {
+      "path": "app/net_capsule.py",
+      "bytes": 6517,
+      "sha256": "23a9502a876fa7c37141315388953d7964d000696288430a9e9bd64040c32c31"
+    },
+    {
+      "path": "app/net_challenge.py",
+      "bytes": 10381,
+      "sha256": "d1a3fa2206687c81be70be42806e814a4d0725234cdebfac361d18aca200660b"
+    },
+    {
+      "path": "app/net_collab.py",
+      "bytes": 11509,
+      "sha256": "42c171e40f0dac45b73614b7d3a5330fc1673bfa46749e4e03bccbe0135ea15e"
+    },
+    {
+      "path": "app/net_core.py",
+      "bytes": 250553,
+      "sha256": "4664e96cb0fa7571785351ba22068e5236dfcfb11b7a8de380c8ae2ed9f941e8"
+    },
+    {
+      "path": "app/net_crypto.py",
+      "bytes": 3343,
+      "sha256": "82be3cfd4ebdfe74eec2a61a8fd3588e2223ab08fa3eff814b7ae34fa6e8c3fc"
+    },
+    {
+      "path": "app/net_devsync.py",
+      "bytes": 16693,
+      "sha256": "687f487033fad66b58aa88a8e01541a5d61e5e9846dec9f33e8a3b62f681a82c"
+    },
+    {
+      "path": "app/net_direct.py",
+      "bytes": 7414,
+      "sha256": "b9f8358c8a3c3279dd511068cd339374dbe753f481385ba9233611ffbbdd26e3"
+    },
+    {
+      "path": "app/net_files.py",
+      "bytes": 15310,
+      "sha256": "096a3fea409fbb2fbd205ba8e1840a2a8fe82fa11be706f85cf07f6a24105527"
+    },
+    {
+      "path": "app/net_files_ui.py",
+      "bytes": 55009,
+      "sha256": "96a50a06fe462bfb2d396f9ee48403c1b769f39efdae6b28f48f3b8c72e2201c"
+    },
+    {
+      "path": "app/net_frames.py",
+      "bytes": 53263,
+      "sha256": "48e0c6d0009a24dea181074ef8c96979dac638316fd5203853f72144831005df"
+    },
+    {
+      "path": "app/net_game.py",
+      "bytes": 5879,
+      "sha256": "c30d08179bcc31decafb80e4f9fabeb92e1439b9fa457bfa2fb0417132ceaccb"
+    },
+    {
+      "path": "app/net_gif.py",
+      "bytes": 25908,
+      "sha256": "0d9f16f42ab29efcb19382c3e4d5557f4179e03ba59aa3e1823816bc6304bcf5"
+    },
+    {
+      "path": "app/net_gifts.py",
+      "bytes": 16519,
+      "sha256": "8fd461bac4f60ef0d7a21c3aba21074e43f2266db0eb6b02f4e310cd5b8db03b"
+    },
+    {
+      "path": "app/net_market.py",
+      "bytes": 11277,
+      "sha256": "b0b841ed2077bda16dc49655fc8ccccf711f01770f13c1cf2f0d000afe0d2b50"
+    },
+    {
+      "path": "app/net_mirror.py",
+      "bytes": 5347,
+      "sha256": "940c4ecae073909d1f7e6fc3e13f411c0947ef6f722c75bc2e374b3144f71ca7"
+    },
+    {
+      "path": "app/net_moderation.py",
+      "bytes": 8594,
+      "sha256": "33583f2d5a6e380f5dd66eaf07d3cf1a567d63c99babb8a3d70cffca18e467d5"
+    },
+    {
+      "path": "app/net_moments.py",
+      "bytes": 8690,
+      "sha256": "d7acb1bbe129cbed3281f76b1f5995007815314e7dc77e76e6df5208ce85b6a4"
+    },
+    {
+      "path": "app/net_music.py",
+      "bytes": 23303,
+      "sha256": "414d2c7c921aba40b5e82652c990f2cb486a6d70e4fd03e62ce33f3216701718"
+    },
+    {
+      "path": "app/net_nostr.py",
+      "bytes": 17760,
+      "sha256": "1a9efbcaad7355a967941f4f471acc175ef8de11fb4cdf65085f975f426eb7a3"
+    },
+    {
+      "path": "app/net_notify.py",
+      "bytes": 20042,
+      "sha256": "dc6852955cf6e30aba07292f4a87ea9880c2e1792d328276d9b01cd19514dfe5"
+    },
+    {
+      "path": "app/net_page.py",
+      "bytes": 367271,
+      "sha256": "7d4b818aed716b216ab8a15080443cfbc802afda5f58f07f494f50c181b88c61"
+    },
+    {
+      "path": "app/net_perf.py",
+      "bytes": 1006,
+      "sha256": "42625c6f30dcb9df16f2075aaec938bca469d5b1892f09780bc2d1d112087ffd"
+    },
+    {
+      "path": "app/net_playlist_ui.py",
+      "bytes": 19232,
+      "sha256": "dd465510acc57b671d67320e468609789baf0f29dc018af2df3bfc9644d13d85"
+    },
+    {
+      "path": "app/net_pool.py",
+      "bytes": 2027,
+      "sha256": "ec529f8503d5a2b9cfe378f457214fe0b5154f60a2d2683bddab5a0ddc729f21"
+    },
+    {
+      "path": "app/net_preview_window.py",
+      "bytes": 2161,
+      "sha256": "1c6c0f5a4edc71fd6bfe0f80d58524078d1e6c9f60f41b1c381afc5be84d9b55"
+    },
+    {
+      "path": "app/net_queue.py",
+      "bytes": 9013,
+      "sha256": "fce32ee396d97b367d891a67bc0a0d2da9f68686524dd0b58b62620ec29e332f"
+    },
+    {
+      "path": "app/net_quiz_live.py",
+      "bytes": 34191,
+      "sha256": "49d20e68a8111ed75cbf6a69bd2dffc13e4dcd37994a074565e728970ebb2c19"
+    },
+    {
+      "path": "app/net_reactions.py",
+      "bytes": 6304,
+      "sha256": "3c8e5b767ce17af912a4f832bc757545f7b69eb1df7e958b18a3954fc8ec4d46"
+    },
+    {
+      "path": "app/net_showcase.py",
+      "bytes": 88599,
+      "sha256": "b0dc95405378461198639532b64e02f5cc4af8547a46311fab4c2959baceaa7f"
+    },
+    {
+      "path": "app/net_social_ui.py",
+      "bytes": 17592,
+      "sha256": "4126842234498bc4efb57ccbd60bb89b8468a73b7c282a83606b7e248dd5ac9d"
+    },
+    {
+      "path": "app/net_store.py",
+      "bytes": 17015,
+      "sha256": "b7acf82fa44bbc6f225f58d21466f6fa64d83b2da7d2bc24d2574d3baf2898e2"
+    },
+    {
+      "path": "app/net_tastemap.py",
+      "bytes": 9327,
+      "sha256": "cbf88c9a0d5270c66a93295ec2667da93c67a56ca42d12b5ed1abed8ecc44575"
+    },
+    {
+      "path": "app/net_threads.py",
+      "bytes": 30609,
+      "sha256": "e9daf19a0da0e7f5b3e44bdf2c0b84a690a333a3b4145157dacb66b391594ee6"
+    },
+    {
+      "path": "app/net_tor.py",
+      "bytes": 15770,
+      "sha256": "54a75ebc3e5ce984effb0d7e5e4d20c873db9df0057c966e98863b0224d1efb1"
+    },
+    {
+      "path": "app/net_udp.py",
+      "bytes": 12338,
+      "sha256": "eacb7647c97492626d6103654c6b84a01e816abe7897d4e1ee3fb57077e98ee8"
+    },
+    {
+      "path": "app/net_upd_xfer.py",
+      "bytes": 23121,
+      "sha256": "a8b212836e38f156f795aa4f6a0c5cec952bcffd546bf0adcfefcdf39b7d16fd"
+    },
+    {
+      "path": "app/net_update.py",
+      "bytes": 14797,
+      "sha256": "d6562079454b7c23a00e7d41d76273f82520d9843e767423155716e9da03496c"
+    },
+    {
+      "path": "app/net_voice.py",
+      "bytes": 24442,
+      "sha256": "6dbfbc492dbe616a12375bc591404b0af5fa217c0ed71f8573644517b0f0b361"
+    },
+    {
+      "path": "app/net_voicemsg.py",
+      "bytes": 12856,
+      "sha256": "f239f32549f4a85fd13e98a549b4909a119913b5e0d44baa64558c74426a720c"
+    },
+    {
+      "path": "app/net_weektop.py",
+      "bytes": 5406,
+      "sha256": "dd1c77fd53829be9ad29b167c86a3d8f3c6c9f4d991947aecc60e0fde9d137bf"
+    },
+    {
+      "path": "app/noflash.py",
+      "bytes": 5417,
+      "sha256": "1cc86defd408ef57169e8d3b7c50f9462c7d231921842e91d7152ef2943b5d7a"
+    },
+    {
+      "path": "app/online_dl.py",
+      "bytes": 24445,
+      "sha256": "787416792c083c65764a4813d00db6c6e24c70b54a12dadd424b11e222b286ab"
+    },
+    {
+      "path": "app/online_search.py",
+      "bytes": 56763,
+      "sha256": "9a67e3ae99a77c3c02dab14f1caa9bba2bfad8c8fbe8dfeb25586f8600f990cf"
+    },
+    {
+      "path": "app/osu_attempts.py",
+      "bytes": 7982,
+      "sha256": "6a001d45d3d789712c884129c4d329aa969be9a0d9015f3b9da528dcdd25e83e"
+    },
+    {
+      "path": "app/osu_beatmap.py",
+      "bytes": 42974,
+      "sha256": "712630a7edb577aa5a746688c7daaf24e8668d5ddc3afa06c4140ef5a9ba7ddd"
+    },
+    {
+      "path": "app/osu_classic.py",
+      "bytes": 69909,
+      "sha256": "cddd7015c50c3263c9297959aa848ce7bd629bced224a5bee74eb1a7b340a9ba"
+    },
+    {
+      "path": "app/osu_editor.py",
+      "bytes": 56604,
+      "sha256": "bb53a0f4c46e953632fe8090d61ef7cc5dccc8e71db5e0c95e019b4b6560f6c8"
+    },
+    {
+      "path": "app/osu_game.py",
+      "bytes": 153525,
+      "sha256": "f32ff23534c4396f709543fe528aaf5840f0601f8175254a16f9c8271146567a"
+    },
+    {
+      "path": "app/osu_gen_dialog.py",
+      "bytes": 12920,
+      "sha256": "fbcbea623c46d26e2fb7f6b6d910c2784970cd0bc71a1453b1274352b474055e"
+    },
+    {
+      "path": "app/osu_hud_layout.py",
+      "bytes": 22495,
+      "sha256": "2f25ba60e845c6fdf45101ee57bbe4ad5a17c51d02d96fa675d1143e93ac6dbc"
+    },
+    {
+      "path": "app/osu_mapgen.py",
+      "bytes": 126119,
+      "sha256": "9bb01fe90fcb95b103fff9b48237f14c025e6d875f6d0fffec4e991597ec983f"
+    },
+    {
+      "path": "app/osu_mapgen_data.py",
+      "bytes": 16467,
+      "sha256": "b4c72ae169f1845294b63fdcf8fba0e52fb5c0fa4e68ec9a25215a97d16d29c0"
+    },
+    {
+      "path": "app/osu_pause.py",
+      "bytes": 17384,
+      "sha256": "a5412ac1d0e8c0ec74a108023acbcd3c755fcbf2d7140345ba93444b0e8df23a"
+    },
+    {
+      "path": "app/osu_query.py",
+      "bytes": 1096,
+      "sha256": "fae6013b282bdabf60ca4cdbfa3175188e78f5c5584e4cee4b6281395a17bd9d"
+    },
+    {
+      "path": "app/osu_ranking.py",
+      "bytes": 16736,
+      "sha256": "e62e10e10440e998e543665f2455e138415fe8bcfd1001a686dcc85ca992fe3a"
+    },
+    {
+      "path": "app/osu_sens_convert.py",
+      "bytes": 13863,
+      "sha256": "4110a86634f03d1ab535941eb3d8e21c8667b16610e2f3acbd97d6d848b8fc9c"
+    },
+    {
+      "path": "app/osu_sfx.py",
+      "bytes": 5039,
+      "sha256": "1cb8971fa0fbb320d6fadee8f18a2a3be86e6376634034da1c1d46fd7078ced4"
+    },
+    {
+      "path": "app/osu_skin.py",
+      "bytes": 55506,
+      "sha256": "4f9b53f0955f10bb59cc4e78daa62e4e33e92cba302329d64a65b6e15b88dd88"
+    },
+    {
+      "path": "app/osu_skin_import.py",
+      "bytes": 36125,
+      "sha256": "42a28a69643e65538d1983cdd962f72c5ae7dda04875b3721a71c7a2c8cde0b2"
+    },
+    {
+      "path": "app/osu_skin_plus.py",
+      "bytes": 24764,
+      "sha256": "a375a10841ec2b99bcf2bef2e3da424563c5b17d10dc85bf3d79a08e3289fbf3"
+    },
+    {
+      "path": "app/osu_theme.py",
+      "bytes": 229020,
+      "sha256": "68704dfad66e4480fb5e4dc969650b442fdc5c93fffac06596041a2628be71db"
+    },
+    {
+      "path": "app/osu_y2k.py",
+      "bytes": 50220,
+      "sha256": "9b2d5ec792be0cd0905e08bedd1391bca8291fd9b3c3a7841c65b947915d914a"
+    },
+    {
+      "path": "app/overlay_demo.py",
+      "bytes": 46656,
+      "sha256": "d277a1b5d8b631c42aba7c3754aa228d505879f795f85a5bdb5166d848e755b3"
+    },
+    {
+      "path": "app/overlay_live.py",
+      "bytes": 25935,
+      "sha256": "c3273eae06fbe2426ed12e2070102db28de3f33af3b1a9d89e1bcd920c6f6f38"
+    },
+    {
+      "path": "app/paint_cache.py",
+      "bytes": 6760,
+      "sha256": "97bda9dba707be58ca6f9fe59fe85055acd6d1d8e340a57a5e182f219d8855a8"
+    },
+    {
+      "path": "app/player_prefs.py",
+      "bytes": 28554,
+      "sha256": "d3ea065040c59e4059af005ead2a54c2edce391a6d1cb1fcae78bb28428f773c"
+    },
+    {
+      "path": "app/playlist_share.py",
+      "bytes": 23018,
+      "sha256": "200731e279ac84256550584d763e8660b423bd2663a51eb997b010230979c76f"
+    },
+    {
+      "path": "app/playlist_view.py",
+      "bytes": 24143,
+      "sha256": "887990f97520a3385e4e6ae7f71c0dd1878772f4ee8aedc43f3f761543c26403"
+    },
+    {
+      "path": "app/preview.py",
+      "bytes": 7893,
+      "sha256": "b9ffa460e6a3b90a96238fe0e40ecf92ab414aedc76c1e17ae30c441f3638423"
+    },
+    {
+      "path": "app/profile_editor.py",
+      "bytes": 19764,
+      "sha256": "7dfe9c6f232de3e52302ac7507ec86767a4689ce406d7f5baf63fa428292944f"
+    },
+    {
+      "path": "app/requirements.txt",
+      "bytes": 1202,
+      "sha256": "acec0934f25240566a4219ac9209ad0f5553fbe45af1822a15364417d82cbcba"
+    },
+    {
+      "path": "app/search_util.py",
+      "bytes": 2971,
+      "sha256": "5a29d7dba77358d2f9809a1aab7bc9e05234338fe2c8d7d3783b7d75735cb65d"
+    },
+    {
+      "path": "app/seekbar.py",
+      "bytes": 8136,
+      "sha256": "3b1894051d51bbe8d498002be2242b13524d0d32726f4cb5336a6831d036247e"
+    },
+    {
+      "path": "app/single_instance.py",
+      "bytes": 1776,
+      "sha256": "b8faadbb22e8a9876aa63e02f45a2cb9222914fa937830cf5f176ce686ac6e9b"
+    },
+    {
+      "path": "app/smart_features.py",
+      "bytes": 28633,
+      "sha256": "fb78371bbe0f3118fb1ae6d73a0645da36afa0b1712b747f6c5e6589e52edfcf"
+    },
+    {
+      "path": "app/sounds/notify.mp3",
+      "bytes": 50991,
+      "sha256": "7a520887e33c4b594a80abae43c972358f693e44b11b0ea15eb9797843545390"
+    },
+    {
+      "path": "app/spotify_import.py",
+      "bytes": 14343,
+      "sha256": "c85e53813089024e55bd4e7beef839716a0f7405337fbe86f1c38b2312e3a3da"
+    },
+    {
+      "path": "app/stream_core.py",
+      "bytes": 10521,
+      "sha256": "ba84c5b228a7f373fa132dc1164a4bbe9211f33dcad5ebd57cb9b2cb641f0299"
+    },
+    {
+      "path": "app/stream_designer.py",
+      "bytes": 18703,
+      "sha256": "8fdb36f62bc4bff9f86cce4a5e6ff92e8b5064d20540e1888aa1eee430c504b0"
+    },
+    {
+      "path": "app/stream_widget.py",
+      "bytes": 9787,
+      "sha256": "b412ab18d6187bcf1dbe85451a5eac60cd2428cdbb522044fa850cfa3dc3450f"
+    },
+    {
+      "path": "app/studio_help.py",
+      "bytes": 37755,
+      "sha256": "7cc07aed859a91d15f6ebdaeea707df9b62f0f9f12418ce603389ca8fa656296"
+    },
+    {
+      "path": "app/studio_help_en.py",
+      "bytes": 23045,
+      "sha256": "88b7a43921ff9b7cc6fe7d9e7596070b458c5615c792ed1d18e26b5aab61fdc5"
+    },
+    {
+      "path": "app/studio_picker.py",
+      "bytes": 5118,
+      "sha256": "d7fb60fa4fd8cffd6d07d46cf6a78e460d41247fa68d7cd77c50f1270e4a7510"
+    },
+    {
+      "path": "app/tag_all.py",
+      "bytes": 11928,
+      "sha256": "8b0242d8973fb72c1b1aa88b38f0584b28e78194491a4c84ec3929dcd0dde575"
+    },
+    {
+      "path": "app/taskbar_identity.py",
+      "bytes": 3769,
+      "sha256": "47502c48742b98fe5eab0fac9adfefab870652ffdf293b3a5849f5a07668e8b7"
+    },
+    {
+      "path": "app/theme_kit.py",
+      "bytes": 59691,
+      "sha256": "c145618cc93e4712c8e556666640f91712b079cadf15a1e798d28318c371e7c5"
+    },
+    {
+      "path": "app/theme_layers.py",
+      "bytes": 148221,
+      "sha256": "d3fd6faa99ad55a7c7cc02d84d812f99d780e23e88819aceb4e9a7b5f92a7704"
+    },
+    {
+      "path": "app/theme_studio.py",
+      "bytes": 304091,
+      "sha256": "3165dfdf2eec37a0c85da58ed9be477b7244369f63eade3a9ce9a11e38664302"
+    },
+    {
+      "path": "app/themes.py",
+      "bytes": 21408,
+      "sha256": "de231ed9caa1c89f87c2d91a6d0deda3c7fcbb973f0cef575fad2ae77e44394d"
+    },
+    {
+      "path": "app/tier_store.py",
+      "bytes": 12571,
+      "sha256": "4ace438e21968288489af1a411ff7419890884a4c2bd420bc3bbd44f0fb135e8"
+    },
+    {
+      "path": "app/titlebar.py",
+      "bytes": 21740,
+      "sha256": "4edb1311a08eb370eaf7ec0d9831861dc4ac003dff2dc396b0856e5d242a9ca1"
+    },
+    {
+      "path": "app/track_identity.py",
+      "bytes": 14015,
+      "sha256": "4b5b777e245566cbce16b7a4453b92ef3d248ab6e5be2664feeee5df0ac8d0f8"
+    },
+    {
+      "path": "app/track_tools.py",
+      "bytes": 9360,
+      "sha256": "5696ceb9d8b4143823f77eb9f32c72fcdace1f89fdb947f09beb321f21470a35"
+    },
+    {
+      "path": "app/tray.py",
+      "bytes": 10976,
+      "sha256": "709c7998a081bc8ebb19bb4e24dd18a1135896ad9196aba8f42cd5f9647773e2"
+    },
+    {
+      "path": "app/ui_anim.py",
+      "bytes": 34325,
+      "sha256": "af2ea5a6b0cc3a6ff4802cdd8632bf9b6c8f22e971935b6f94072d8923c65af3"
+    },
+    {
+      "path": "app/ui_free.py",
+      "bytes": 14943,
+      "sha256": "f4be12ef3b8265985e371a760ced6522ca2070ab39e0cb68dc24edf3b99b2e13"
+    },
+    {
+      "path": "app/ui_rounding.py",
+      "bytes": 2633,
+      "sha256": "dfaad7ff031c00345c8b1900417d85e7d6fc17b0a7fb4a08dd2fc18f286bc413"
+    },
+    {
+      "path": "app/ui_scale.py",
+      "bytes": 2319,
+      "sha256": "fa50f8985afaa3a5db70d556051f04741783842f2e80bed93fa6b4d806b9f119"
+    },
+    {
+      "path": "app/ui_symbols.py",
+      "bytes": 7797,
+      "sha256": "76dcde27573b72683749f02d04cf53811439919c73202339c6f78fb66964bd58"
+    },
+    {
+      "path": "app/version.txt",
+      "bytes": 14,
+      "sha256": "5c63418dec7777b600954d6aabe4f73db38b6bca7eb7f897423c125da929e369"
+    },
+    {
+      "path": "app/video_safety.py",
+      "bytes": 3122,
+      "sha256": "092d8b03837bd7b95ff26ffd77591a0943882cd750ba40402fe8c8355604b5cb"
+    },
+    {
+      "path": "app/vinyl.py",
+      "bytes": 48509,
+      "sha256": "d70b6a08feb31b7a5a2d6328b6e8c4c73e2d6cbaf8fec3d889841229ed8453b2"
+    },
+    {
+      "path": "app/visualizer.py",
+      "bytes": 40639,
+      "sha256": "3105c41656e8659272bfd40321f666cf585aa91ab2a5bff4b15dcd79ffd167cd"
+    },
+    {
+      "path": "app/vlc_location.py",
+      "bytes": 2211,
+      "sha256": "5790eafd3010a3057fafd51b9ad6ba40dc8a006bfbd11b24ce2e8a9932a25962"
+    },
+    {
+      "path": "app/voice_audio.py",
+      "bytes": 3616,
+      "sha256": "e7f42abf1fdce248c9265ad44f2c31e28d3e8bd353d610e54f59c8a34c61d113"
+    },
+    {
+      "path": "app/voice_commands.py",
+      "bytes": 8188,
+      "sha256": "c0ecd192e498cff5fe0b640bd87b93fcdb93519cfa7546e11aed4f60a480cc69"
+    },
+    {
+      "path": "app/voice_editor.py",
+      "bytes": 18366,
+      "sha256": "58c8c0009bbcd1ab6935765f2e27c91ed7fd550c20bfae3d1b6b1fbae86080bc"
+    },
+    {
+      "path": "app/warmup.py",
+      "bytes": 5477,
+      "sha256": "bfe0ce66be754cea224a05cc0b801d9dcde8395f4ce26896d66e7463b9e7314f"
+    },
+    {
+      "path": "app/wheel_guard.py",
+      "bytes": 8812,
+      "sha256": "30bcf0ea91c6316c6a30a54d05b245525f1ba80d1b8b4e6d2bf5bac7289c4475"
+    },
+    {
+      "path": "app/win_taskbar.py",
+      "bytes": 10445,
+      "sha256": "449b9d0e27805eae8d30c0a4a28b464a3cff38681e06efa74689ad7c1c3f391f"
+    },
+    {
+      "path": "app/winamp_theme.py",
+      "bytes": 81472,
+      "sha256": "ceaf4140b555f6d9afb11ef43ecc585fa5983058003bf31c5786d2fa583fd88e"
+    },
+    {
+      "path": "app/window_corners.py",
+      "bytes": 2461,
+      "sha256": "7c47c98433fee7c4e48d589a63aadeb9c8ea1a27953a559f770b5d871203ebf4"
+    },
+    {
+      "path": "app/window_snap.py",
+      "bytes": 6339,
+      "sha256": "13cc391d0c921fcb9f686d0a29b0a30eb18413195d72d5a3f64f6cbca71387d6"
+    },
+    {
+      "path": "app/word_sync.py",
+      "bytes": 8493,
+      "sha256": "118ddf8d5dfc031ab1e0c5f3c5b61169721b12e7afa7e34c366abf1c811eb355"
+    },
+    {
+      "path": "app/ya_artist_about.py",
+      "bytes": 11502,
+      "sha256": "bf474364f36c32b7c526d1ccedadbeedd0868138015c6013d669b5065d0e4323"
+    },
+    {
+      "path": "app/ya_artist_card.py",
+      "bytes": 13706,
+      "sha256": "1f02a10ca3e0ca88616a5b126e38b0ac34163c08f1c8998a76d13109ca1c33f1"
+    },
+    {
+      "path": "app/ya_auto.py",
+      "bytes": 18350,
+      "sha256": "50d4dd461acd117c9c3fae8361bd91ea0bc9cdb0f258f5b335584d9090d83a7a"
+    },
+    {
+      "path": "app/ya_avanim.py",
+      "bytes": 5671,
+      "sha256": "b564ea39d5ced0c86fc12f83f81fd8885de5c8a54080a1b17fb4ed556f8ba5f8"
+    },
+    {
+      "path": "app/ya_backup.py",
+      "bytes": 11456,
+      "sha256": "3b5ab14a083ea67c52ed34459fabaf094edab12e52247499848efd1ab3e6dc46"
+    },
+    {
+      "path": "app/ya_decor.py",
+      "bytes": 76315,
+      "sha256": "cee61680f723775f4179d43b5593beacbf34aec0c845d2ac7957c0c5530c2d43"
+    },
+    {
+      "path": "app/ya_decor_ui.py",
+      "bytes": 15399,
+      "sha256": "2b7f00b77ef4c10d9d741bd4503778b8e5d08a119a2a28ff0b204a680c19ca27"
+    },
+    {
+      "path": "app/ya_follows.py",
+      "bytes": 9936,
+      "sha256": "393d74aa84f998dc61baee33e4d300f5c61d047be1644eb50695beff49bd2c2f"
+    },
+    {
+      "path": "app/ya_foryou.py",
+      "bytes": 15801,
+      "sha256": "4bcf79c11afc0683e2a25ee5cc95d84e594e89b83d880c5e9e7eeab41c56727c"
+    },
+    {
+      "path": "app/ya_history.py",
+      "bytes": 11477,
+      "sha256": "e429a39e44b6ac9c8a2b27512acee7dc2dff6d890c1aa64747ffe7a130372a3d"
+    },
+    {
+      "path": "app/ya_online.py",
+      "bytes": 53068,
+      "sha256": "91d47942a2621a684cfcd96a7e44f2f5332f867c504091100055ad7be5639d4a"
+    },
+    {
+      "path": "app/ya_profile.py",
+      "bytes": 21740,
+      "sha256": "db690e342c347eee70bbc5d47c9e3a0fdc93c3da115ea4f72910bb5139376193"
+    },
+    {
+      "path": "app/ya_queue.py",
+      "bytes": 6866,
+      "sha256": "cc92d538628169a9dc4047184be9e75fa5531d35dd8b76f93e623c5cf494b246"
+    },
+    {
+      "path": "app/ya_quick.py",
+      "bytes": 21367,
+      "sha256": "a1fb03ccebde6659d41591b688cac4b5f20e60a5851d7235aebcefd9463c9c7f"
+    },
+    {
+      "path": "app/ya_settings.py",
+      "bytes": 20772,
+      "sha256": "1a93f927ac2d868a39854bffe2f7027a780fa6cf53d495c60f4d8bd3c4b50ba1"
+    },
+    {
+      "path": "app/ya_skin.py",
+      "bytes": 34114,
+      "sha256": "a22e22873e6133c418bc2e6f848c29e15504e8f18f66c71dc46567002e9dcd1a"
+    },
+    {
+      "path": "app/ya_sound_panel.py",
+      "bytes": 14042,
+      "sha256": "07f32def5cd341dd76c2a6edaf6d9bd4ec89da8fdeeab848561422ff17facf5f"
+    },
+    {
+      "path": "app/ya_versions.py",
+      "bytes": 11251,
+      "sha256": "fc6d6b8c5a2a273c53ba7aec327c6d676da30575a8e0dbdc0e184e170f12c65b"
+    },
+    {
+      "path": "app/ya_voice.py",
+      "bytes": 24236,
+      "sha256": "7b8115839476e0db7fe3c44085177a6ca06094cf5ccb134c1819db5de7f20794"
+    },
+    {
+      "path": "app/ya_wave.py",
+      "bytes": 70389,
+      "sha256": "7e3294b40f12e8ffa7b939e1ee061b4dcdb4062cff80333c4318639390afaf7a"
+    },
+    {
+      "path": "app/ya_wave_tune.py",
+      "bytes": 22413,
+      "sha256": "30531f9ee61c7bd324f8d2012f472327a326d13261d07ea37bbbc141aa3d538e"
+    },
+    {
+      "path": "app/ya_weather.py",
+      "bytes": 11783,
+      "sha256": "f0d371eb3092f5fcd4a5408b6ac7a2681febc7ee2a4948de4dd9f3762fa53d2f"
+    },
+    {
+      "path": "app/ya_wrapped.py",
+      "bytes": 26824,
+      "sha256": "3990ec64be26928c5dbcbc9b2e2b9309b92dd2791c31116b9d8a1a21f577dc40"
+    },
+    {
+      "path": "app/yamusic_theme.py",
+      "bytes": 339319,
+      "sha256": "12916e2a53c3de0e6a434b6a67dafb719298a657e8eae8c1e9ddfb4a8da4d3e6"
+    },
+    {
+      "path": "docs/CHANGELOG.md",
+      "bytes": 2275,
+      "sha256": "ecce3e889544d8bc3bcd67c0fbb543c3fcf9b72a8f6bce3479d21f4988b3a035"
+    },
+    {
+      "path": "docs/PUBLISH.md",
+      "bytes": 4323,
+      "sha256": "aa3c1bd1d6a6b59f79890b8f7bc63e9fcf259c6bec0d4a9013f97a930ef7ddbe"
+    },
+    {
+      "path": "docs/screenshots/appearance.png",
+      "bytes": 180438,
+      "sha256": "e49fcedf5318cad4a57cb104bc2ab127aedcb1948d04aabe9602536a7899d918"
+    },
+    {
+      "path": "docs/screenshots/designer.png",
+      "bytes": 163860,
+      "sha256": "f76d7906ecf0f4df3189f206e3ff4fa07c86ba5ac1648ec01fbdae9930cc104c"
+    },
+    {
+      "path": "docs/screenshots/discover.png",
+      "bytes": 570539,
+      "sha256": "858041a871b0faeb14e2a3ac99e2d3e85e8b96f850137eaaf831bd4ee3b2e852"
+    },
+    {
+      "path": "docs/screenshots/duel.png",
+      "bytes": 525990,
+      "sha256": "9956e3f7170f06d62c238f8c40efbfd437f41a16cb0e76934ad4ce9b6969f5de"
+    },
+    {
+      "path": "docs/screenshots/montage.png",
+      "bytes": 100111,
+      "sha256": "686c72b08ed20e1bc4e010d0aa26187e18790cd075d604190263f39581021416"
+    },
+    {
+      "path": "docs/screenshots/music.png",
+      "bytes": 355067,
+      "sha256": "2518f863979ab4c33ae06c0133816603c839ed40aa37072a4eefe084352268c4"
+    },
+    {
+      "path": "docs/screenshots/network.png",
+      "bytes": 423202,
+      "sha256": "1300625d72516d0b5673a3f827899ea4ff96eba63c2c92bb3ba9fe1d343d7f9f"
+    },
+    {
+      "path": "docs/screenshots/studio.png",
+      "bytes": 136770,
+      "sha256": "a82f4337141b890dfacda0424e14a032fe503f9c20a21fdaa54d50250b42ae2a"
+    },
+    {
+      "path": "docs/screenshots/voice.png",
+      "bytes": 197640,
+      "sha256": "a430fca8b3a319f63f21e70a0f137de32bb199a76e32d0bd5da81ccd86db99d5"
+    },
+    {
+      "path": "docs/VALIDATION.md",
+      "bytes": 2535,
+      "sha256": "cf4f91db712640ef7eac93b710b4a2867323e68295992dcf98f515eb60018777"
+    },
+    {
+      "path": "ECHOES Launcher.exe",
+      "bytes": 36722718,
+      "sha256": "76f6ec195de493f716773675b8c9dd58d5263e9e51dd52da2943879fe5cf7b04"
+    },
+    {
+      "path": "Install ECHOES.bat",
+      "bytes": 269,
+      "sha256": "782b22ddf81e4b8183317cf1065c647852fe1e8b46ca311aaf2c6e682c8bcb57"
+    },
+    {
+      "path": "launcher/core.py",
+      "bytes": 4926,
+      "sha256": "6a3ad600259f7c26a7d8175d78af8c361ab9af879cb7a5a983c13906e6044030"
+    },
+    {
+      "path": "launcher/main.py",
+      "bytes": 9785,
+      "sha256": "382fb69fdf0ab29c05faaab8fb499e8882cace747661acf3fd6c35f20447f9a8"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 1076,
+      "sha256": "e1dd63c2f900528ff6f1c91a60b39b061783be791fda542a04de5425bdf1e3da"
+    },
+    {
+      "path": "qa/build_ui_symbols.py",
+      "bytes": 2025,
+      "sha256": "13de25bc378ae4e8b9b1efd8aa1e07dd92a78ff09de6e27c4eb772eb4e7946f8"
+    },
+    {
+      "path": "qa/make_readme_screenshots.py",
+      "bytes": 7207,
+      "sha256": "a965ae4f4049bc872a3a35d4d7d21a9c910b432fec670db3de444ac3b38941a3"
+    },
+    {
+      "path": "qa/package_github.py",
+      "bytes": 3381,
+      "sha256": "9d5fee591bc0253e974917bc44f7f506908ca82f2158a2390fcfdac177e419f2"
+    },
+    {
+      "path": "qa/test_interaction_latency.py",
+      "bytes": 3881,
+      "sha256": "6d02b901e94aa44791461422efab8d5d1666d0b439312b7fbaf790036e8021b2"
+    },
+    {
+      "path": "qa/test_language_restore.py",
+      "bytes": 3392,
+      "sha256": "1faa492947e2cdf4250f9c15fb52cdb14893c16b2d5ea76a06b034a0d22ea232"
+    },
+    {
+      "path": "qa/test_media_previews.py",
+      "bytes": 8370,
+      "sha256": "b89acf5bb101b2bc93364fe69f1b636f0b34a14745251b5ce5014547a837a93c"
+    },
+    {
+      "path": "qa/test_net_ui_performance.py",
+      "bytes": 11111,
+      "sha256": "77edb6341ea581157c22c79b1f11dcd0fa70949e5fd29157994e9fecfa9df306"
+    },
+    {
+      "path": "qa/test_overlay_memory.py",
+      "bytes": 1606,
+      "sha256": "256c42e94f2fb1ed0ca4558965192d9f093c1f1f7d598cf0b9476219714b86ef"
+    },
+    {
+      "path": "qa/test_playback_audit.py",
+      "bytes": 15759,
+      "sha256": "2ffa8095c277fcb79d68fd3303705ae3964bc462b84dbdf895069b2e581ad6ec"
+    },
+    {
+      "path": "qa/test_static_components.py",
+      "bytes": 4450,
+      "sha256": "7e8adf4c2022dae8395f252f8ab3e5d065aee2ca9aeb916b3b80acf69b7bb8f4"
+    },
+    {
+      "path": "qa/test_theme_window_duel.py",
+      "bytes": 5009,
+      "sha256": "35630f01cea2107495f398e29372a41c63a485b2f37eafe95d23a6d73cb90fa2"
+    },
+    {
+      "path": "qa/test_ui_regressions.py",
+      "bytes": 4794,
+      "sha256": "f968802becd1d4a2094f5c575d066d515c6de8e7cb5c8e4eef89e04b1951cc46"
+    },
+    {
+      "path": "qa/test_ui_symbols.py",
+      "bytes": 7738,
+      "sha256": "be9dfa16231c0912553e72e4216cd3383cc8bf640656652784f32cd8d27d4a7c"
+    },
+    {
+      "path": "qa/test_voice_commands.py",
+      "bytes": 19872,
+      "sha256": "c9106640e7a2500e5e04ef6044df02de72e5b4c3a3c096c0454a4602228f37ef"
+    },
+    {
+      "path": "qa/ui_smoke.py",
+      "bytes": 9017,
+      "sha256": "0eeeb930ea18e4fd9c79b3c66a6bd30fab6867e6573786f34832be070c253ac8"
+    },
+    {
+      "path": "README.md",
+      "bytes": 13603,
+      "sha256": "90404aacb538f7681d3daf830a3c38db4eca1e5ec2309dcbd6dfb25cc9b8878d"
+    },
+    {
+      "path": "README.ru.md",
+      "bytes": 21981,
+      "sha256": "f0db63e6b4d19d61b130652be244f231e955d2396bcd868a55d4ba6d717cde02"
+    },
+    {
+      "path": "requirements-dev.txt",
+      "bytes": 43,
+      "sha256": "dfd91ca9ff3ab9f2285ae6464f1e679e80b836ac29a236b209092c03bd06e8ea"
+    },
+    {
+      "path": "requirements.txt",
+      "bytes": 24,
+      "sha256": "06ffbed1e051e860c268c1e84b39932a7a2ddb0b325c77d15de8681e9d583b9f"
+    },
+    {
+      "path": "setup/install.en.ps1",
+      "bytes": 26767,
+      "sha256": "dfef50cdc01ac8018bdf4f60d0ca3f4c06a5816ad7f78d022510857539c5f095"
+    },
+    {
+      "path": "setup/install.ps1",
+      "bytes": 29332,
+      "sha256": "6396908d3bd476e7bb5187f37d4dee2087c080d6aa15eca4486fabf7d6e7e02d"
+    },
+    {
+      "path": "setup/uninstall.en.ps1",
+      "bytes": 3045,
+      "sha256": "054dbb00c65bbf1101889003a8cdb2eee15b9da71afd060e781e8cd04c98c4de"
+    },
+    {
+      "path": "setup/uninstall.ps1",
+      "bytes": 3328,
+      "sha256": "d226a9ed70339e00e62402ae7975c92f74d4b377e5f86636b48cf5d2fa540261"
+    },
+    {
+      "path": "setup/update.en.ps1",
+      "bytes": 10037,
+      "sha256": "40dc25bbe3edc1d229759e35e86f5188b7e82b96c5a5343fcebf831de5bfb917"
+    },
+    {
+      "path": "setup/update.ps1",
+      "bytes": 10875,
+      "sha256": "25c83fc6204df54b3e45947918cf1e1cfa9f46f66153334ab98edd70faa04384"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "bytes": 4797,
+      "sha256": "d219dfeea39c7eee2303f6698336230ded62789285bfd8a89d6648eaa441b10d"
+    },
+    {
+      "path": "tools/build_launcher.ps1",
+      "bytes": 799,
+      "sha256": "1c3694a713ade6888e9c30471f54141ee69941d8b5b122efe8dfb737db72c175"
+    },
+    {
+      "path": "tools/montage/build.ps1",
+      "bytes": 2665,
+      "sha256": "35db17ef5fa55ab8d367213e767df95b07f1c83764aa003a935b5b8705968779"
+    },
+    {
+      "path": "tools/montage/catalog.h",
+      "bytes": 11207,
+      "sha256": "1a4bf3384ce32ad88a55e47f02ee9dfdc4ad81bedc5501ba0896a6fcb6fa53f7"
+    },
+    {
+      "path": "tools/montage/editor.h",
+      "bytes": 176437,
+      "sha256": "865a7b500b1be4224c69d6b84394132a483162094671abb0c529ea41907e8278"
+    },
+    {
+      "path": "tools/montage/i18n.h",
+      "bytes": 1083,
+      "sha256": "5de2d3f87d1214f825c87f86918e2d6536ed8cce1f6b9695f38868d8a1df3971"
+    },
+    {
+      "path": "tools/montage/media_cache.h",
+      "bytes": 15464,
+      "sha256": "d3333e7695c70e09818bf3e4b129828df7634d8433cb830e98e0d2b27769c3df"
+    },
+    {
+      "path": "tools/montage/montage.cpp",
+      "bytes": 54224,
+      "sha256": "163fbd039cdd0d95bc3cc58a1e6df72b0c39e3ca371b1b36d6bbdd7c5a02f1fe"
+    },
+    {
+      "path": "tools/montage/style.h",
+      "bytes": 7392,
+      "sha256": "797e08a28bbb41648a5e35d058abcf58a45be151612a52d291ec6362a4dd8fa8"
+    },
+    {
+      "path": "tools/montage/timeline.h",
+      "bytes": 19369,
+      "sha256": "db3e99e4f2c5a72c630945d6fc0aea93bc182ff1e48363f0b5ab2c5f68726126"
+    },
+    {
+      "path": "tools/native/audio.cpp",
+      "bytes": 16825,
+      "sha256": "636b9205d39ec79333decead039b5bf74caebf0f82ae02f83a35e4710bfe8b2b"
+    },
+    {
+      "path": "tools/native/audio_probe.cpp",
+      "bytes": 1683,
+      "sha256": "c39d2d63fc0539b98952e59baeb4a76f753d65f408c5663ae74234d435877fe4"
+    },
+    {
+      "path": "tools/native/blur.cpp",
+      "bytes": 5303,
+      "sha256": "59db3818574d733341597b79059fac3edfa8222b08b88566970c15898cb7d592"
+    },
+    {
+      "path": "tools/native/body.cpp",
+      "bytes": 6323,
+      "sha256": "4e3683db56f1f2523ad5c8a9812ff28ef69ac63c7fa3a0dc9210b903e4884e8b"
+    },
+    {
+      "path": "tools/native/build.sh",
+      "bytes": 1111,
+      "sha256": "a8b822405ac72c7947041d4c3396e4ad835622a5afe0bfa64536ac725dd575a6"
+    },
+    {
+      "path": "tools/native/build_audio.ps1",
+      "bytes": 577,
+      "sha256": "3cb91cb436824d3a63a52541a2eadc04f3d74bc2f466aee9f6b84796fd5b0d3f"
+    },
+    {
+      "path": "tools/native/clipfx.cpp",
+      "bytes": 17190,
+      "sha256": "c642d01dda0da20c09578edf03258deaf3ce5cc841c30b50538c3eae189ad3f7"
+    },
+    {
+      "path": "tools/native/fluid.cpp",
+      "bytes": 13207,
+      "sha256": "f133cc439f50ea6d7a6cb6364699fd27519b5e757cbaa2804f8e4555530365ab"
+    },
+    {
+      "path": "tools/native/fx_common.cpp",
+      "bytes": 6145,
+      "sha256": "a0a0ea18fcc3b180310898dbf0bd9e4fc1e68d3dd0a51be816c8fe46bce7f806"
+    },
+    {
+      "path": "tools/native/fx_common.h",
+      "bytes": 5053,
+      "sha256": "30995f4b09e2c85b46a656ebf6738e3e52ab918a9ae2fbadeb36a22909a75552"
+    },
+    {
+      "path": "tools/native/glow.cpp",
+      "bytes": 12070,
+      "sha256": "74ff529e00649d3a790087d5a6176e06fe256102f4ebbddaf1e81095447ba60d"
+    },
+    {
+      "path": "tools/native/milk.cpp",
+      "bytes": 12031,
+      "sha256": "60c2f8ab56943da2c5bcf19a92eeb093e96ffac1aaf70e671754175d164ae077"
+    },
+    {
+      "path": "tools/native/nebula.cpp",
+      "bytes": 11501,
+      "sha256": "dbc2f117ae2383b8a269e91cb4960b52baa6b1c131864d4c7e70247271f80f9a"
+    },
+    {
+      "path": "tools/native/nothrow_stubs.cpp",
+      "bytes": 2515,
+      "sha256": "977e1b25f970a90a81834e85838c80fa3aea09eb7ff455fb8b69a010fb500a4b"
+    },
+    {
+      "path": "tools/native/sprite.cpp",
+      "bytes": 34019,
+      "sha256": "771c7970ae8eb51db1c6883841918c678f293f11bfcb69035fd515637cc55d85"
+    },
+    {
+      "path": "tools/native/studio.cpp",
+      "bytes": 4259,
+      "sha256": "7cc80a02d3dac2157f7d5acf1c971b25b7abe39b1ee9bcbd890ed66e5cd8f700"
+    },
+    {
+      "path": "tools/native/viz.cpp",
+      "bytes": 14422,
+      "sha256": "e085d41fb0fe2959d3c5bcc5e3bbfe1f032c68f0d8e4500b614badb0c7a4ff61"
+    },
+    {
+      "path": "Update ECHOES.bat",
+      "bytes": 274,
+      "sha256": "07bf5b814bc620a289ca65438977792c5fe20e3cfbfd29ac7d708d5589572e65"
+    },
+    {
+      "path": "ОБНОВИТЬ ECHOES.bat",
+      "bytes": 354,
+      "sha256": "5d6a3535c0ad019dbf55ac06145450ee7ca412deb4569648ed354f379f41b290"
+    },
+    {
+      "path": "УСТАНОВИТЬ ECHOES.bat",
+      "bytes": 485,
+      "sha256": "2dc34cb0907db285e278a28ac3857ab7007c8bfcea0db6dcfcb6cc851dbc22dd"
+    }
+  ]
+}

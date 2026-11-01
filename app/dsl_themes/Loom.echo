@@ -1,0 +1,311 @@
+// ═══════════════════════════════════════════════════════════════════════
+//  LOOM — тема-ткацкий станок для ECHOES, целиком написана на EchoScript.
+//
+//  Звук ткёт полотно:
+//   • нити основы (вертикальные) — 64 полосы спектра: качаются и светятся
+//     тем сильнее, чем громче их частота;
+//   • уток (горизонтальные стежки) переплетается «через одну» и подпрыгивает
+//     на своих частотах;
+//   • бас заставляет станок «дышать» (полотно растягивается);
+//   • на каждый удар через полотно пролетает светящийся челнок;
+//   • высокие частоты высекают искры, которые всплывают вверх.
+//  Справа — «веретено» с обложкой, нитяной прогресс, кнопки, натяжение
+//  нити (громкость) и список треков. Всё — свои виджеты на EchoScript.
+// ═══════════════════════════════════════════════════════════════════════
+
+theme {
+  name: "Loom", bg: "#0b0a14", accent: "#ffb347", accent2: "#6ae3ff", accent3: "#ff5f8f",
+  text: "#f3eee6", muted: "#8d86a3", font: "Segoe UI"
+}
+
+// ── фон: тёмная ткань с едва заметной диагональной фактурой ──
+widget Backdrop {
+  on draw {
+    nostroke()
+    fill(radial(w * 0.32, h * 0.45, max(w, h) * 0.85, [[0, "#1b1532"], [0.55, "#0f0c1c"], [1, theme.bg]]))
+    rect(0, 0, w, h)
+    stroke(with_alpha(theme.accent, 0.03), 1)
+    let x = -h
+    while x < w { line(x, 0, x + h, h); x += 22 }
+  }
+}
+
+// ── сам станок ──
+widget Loom {
+  prop warps = 38          // нитей основы
+  prop rows = 12           // рядов утка
+  state grid = []          // позиции нитей в каждом ряду (считаются в on frame)
+  state sparks = []
+  state shuttles = []
+  state breath = 0
+
+  on beat(power) {
+    push(shuttles, {row: randint(1, rows - 2), x: -60, speed: 700 + power * 1100})
+  }
+
+  on frame(dt) {
+    breath = approach(breath, audio.bass, 8, dt)
+    let top = h * (0.06 - breath * 0.04)
+    let bot = h * (0.94 + breath * 0.04)
+    grid = []
+    for r in 0..rows {
+      let y = top + r / (rows - 1) * (bot - top)
+      let xs = []
+      for i in 0..warps {
+        let b = audio.fft[floor(i / warps * 52)]
+        push(xs, (i + 0.5) / warps * w + sin(time * 1.3 + i * 0.45 + y * 0.012) * (3 + b * 24))
+      }
+      push(grid, {y: y, xs: xs})
+    }
+    if audio.high > 0.5 and rand() < audio.high and len(sparks) < 24 {
+      push(sparks, {x: rand(0, w), y: rand(0, h), vy: rand(-80, -25), life: 1})
+    }
+    let keep = []
+    for s in sparks {
+      s.life -= dt * 1.3
+      s.y += s.vy * dt
+      if s.life > 0 { push(keep, s) }
+    }
+    sparks = keep
+    let ks = []
+    for s in shuttles {
+      s.x += s.speed * dt
+      if s.x < w + 100 { push(ks, s) }
+    }
+    shuttles = ks
+  }
+
+  on draw {
+    if len(grid) < 2 { return }
+    // основа
+    for i in 0..warps {
+      let b = audio.fft[floor(i / warps * 52)]
+      let pts = []
+      for row in grid { push(pts, row.xs[i], row.y) }
+      // прозрачность — в самом цвете (alpha() для каждой нити заметно медленнее)
+      stroke(with_alpha(mix(theme.accent2, theme.accent, b), 0.3 + b * 0.7), 1 + b * 2.6)
+      poly(pts, false)
+    }
+    // уток: переплетение «через одну»
+    for r in 1..(rows - 1) {
+      let row = grid[r]
+      let lvl = avg(audio.fft, r * 3, r * 3 + 5)
+      stroke(mix("#2c2550", theme.accent3, lvl), 1.5 + lvl * 3.5)
+      let lift = sin(time * 2.2 + r * 0.7) * lvl * 7
+      let segs = []
+      let xs = row.xs
+      let i = r % 2
+      while i < warps - 1 {
+        push(segs, xs[i], row.y + lift, xs[i + 1], row.y - lift)
+        i += 2
+      }
+      lines(segs)
+    }
+    // челноки и искры светятся «на сложение»
+    blend("add")
+    nostroke()
+    for s in shuttles {
+      let y = grid[s.row].y
+      glow(s.x, y, 80, theme.accent, 0.9)
+      glow(s.x - 40, y, 50, with_alpha(theme.accent3, 0.6), 0.8)
+      fill("#ffffff")
+      circle(s.x, y, 3)
+    }
+    for s in sparks { glow(s.x, s.y, 4 + 14 * s.life, with_alpha(theme.accent2, s.life)) }
+    blend("normal")
+  }
+}
+
+// ── название темы ──
+widget Brand {
+  on draw {
+    fill(with_alpha(theme.text, 0.85))
+    text("L O O M", 0, h / 2, 15, weight: 800)
+    fill(theme.muted)
+    text("echoscript", 96, h / 2, 11)
+  }
+}
+
+// ── веретено: обложка в кольце нитей, крутится быстрее на средних ──
+widget Spindle {
+  state spin = 0
+  on frame(dt) { spin += dt * (12 + audio.mid * 90) * (player.playing ? 1 : 0.15) }
+  on draw {
+    let cx = w / 2
+    let cy = h / 2
+    let R = min(w, h) / 2 - 8
+    nostroke()
+    glow(cx, cy, R * 1.25, with_alpha(theme.accent3, 0.22 + audio.bass * 0.4))
+    for i in 0..30 {
+      let b = audio.fft[8 + i]
+      let a0 = spin + i * 12
+      stroke(mix(theme.accent2, theme.accent, b), 2 + b * 3)
+      arc(cx, cy, R - 2 - (i % 3) * 5, a0, a0 + 3 + b * 7)
+    }
+    nostroke()
+    let r = R * 0.72
+    if not image(track.cover, cx - r, cy - r, r * 2, r * 2, r) {
+      fill(linear(cx - r, cy - r, cx + r, cy + r, [theme.accent3, theme.accent2]))
+      circle(cx, cy, r)
+    }
+    fill(theme.bg)
+    circle(cx, cy, r * 0.09)
+  }
+}
+
+// ── название и исполнитель ──
+widget Info {
+  // текст перерисовывается только при смене трека (cache + cache_key)
+  on frame { cache_key = track.title + "|" + track.artist }
+  on draw {
+    fill(theme.text)
+    text(track.loaded ? track.title : "— тишина —", 0, h * 0.32, 22, weight: 800, maxw: w)
+    fill(theme.muted)
+    text(track.loaded ? track.artist : "включите трек", 0, h * 0.78, 13, maxw: w)
+  }
+}
+
+// ── прогресс: нить, дрожащая формой волны; узелок можно тянуть ──
+widget Spool {
+  state drag = false
+  state drag_pos = 0
+  on press(mx, my) { drag = true; drag_pos = clamp(mx / w) }
+  on drag(mx, my) { drag_pos = clamp(mx / w) }
+  on release { if drag { seek(drag_pos) }; drag = false }
+  on draw {
+    let p = drag ? drag_pos : track.progress
+    let y = h * 0.42
+    stroke(with_alpha("#ffffff", 0.12), 3)
+    line(0, y, w, y)
+    let pts = []
+    let n = 48
+    for i in 0..(n + 1) {
+      push(pts, i / n * w * p, y + audio.wave[floor(i / n * 127)] * 6 * (1 - i / n * 0.3))
+    }
+    stroke(theme.accent, 3)
+    curve(pts)
+    nostroke()
+    fill(theme.text)
+    circle(w * p, y, 6 + audio.bass * 3)
+    fill(theme.muted)
+    text(fmt_time(drag ? drag_pos * track.duration : track.position), 0, h * 0.86, 11)
+    text(fmt_time(track.duration), w, h * 0.86, 11, align: "right")
+  }
+}
+
+// ── кнопки ──
+widget Btn {
+  prop kind = "play"
+  state press_t = 0
+  on click {
+    if kind == "play" { toggle() } elif kind == "next" { next() } else { prev() }
+    press_t = 1
+  }
+  on frame(dt) { press_t = approach(press_t, 0, 8, dt) }
+  on draw {
+    let cx = w / 2
+    let cy = h / 2
+    let r = min(w, h) / 2 - 3
+    let big = kind == "play"
+    nostroke()
+    if big { glow(cx, cy, r * 1.8, with_alpha(theme.accent, 0.25 + audio.level * 0.35)) }
+    fill(big ? theme.accent : with_alpha("#ffffff", hover ? 0.16 : 0.07))
+    circle(cx, cy, r * (1 - press_t * 0.08))
+    fill(big ? theme.bg : theme.text)
+    let s = r * 0.42
+    if kind == "play" {
+      if player.playing {
+        rect(cx - s * 0.75, cy - s, s * 0.5, s * 2, 2)
+        rect(cx + s * 0.25, cy - s, s * 0.5, s * 2, 2)
+      } else {
+        poly([cx - s * 0.6, cy - s, cx + s, cy, cx - s * 0.6, cy + s])
+      }
+    } elif kind == "next" {
+      poly([cx - s, cy - s, cx + s * 0.4, cy, cx - s, cy + s])
+      rect(cx + s * 0.5, cy - s, s * 0.35, s * 2, 1)
+    } else {
+      poly([cx + s, cy - s, cx - s * 0.4, cy, cx + s, cy + s])
+      rect(cx - s * 0.85, cy - s, s * 0.35, s * 2, 1)
+    }
+  }
+}
+
+// ── громкость как натяжение нити: тише — нить провисает ──
+widget Tension {
+  state drag = false
+  on press(mx, my) { set_volume(clamp(mx / w)); drag = true }
+  on drag(mx, my) { set_volume(clamp(mx / w)) }
+  on release { drag = false }
+  on wheel(d) { set_volume(clamp(player.volume + d * 0.05)) }
+  on draw {
+    let v = player.volume
+    let y = h / 2
+    let sag = (1 - v) * 9
+    let pts = []
+    for i in 0..21 { push(pts, i / 20 * w, y + sin(i / 20 * PI) * sag) }
+    stroke(with_alpha("#ffffff", 0.18), 2)
+    curve(pts)
+    let pts2 = []
+    for i in 0..21 { push(pts2, i / 20 * w * v, y + sin(i / 20 * v * PI) * sag) }
+    stroke(theme.accent2, 3)
+    curve(pts2)
+    nostroke()
+    fill(theme.accent2)
+    circle(w * v, y + sin(v * PI) * sag, drag ? 7 : 5)
+    fill(theme.muted)
+    text("громкость " + floor(v * 100), w, y - 13, 10, align: "right")
+  }
+}
+
+// ── список треков текущего плейлиста: колесо — прокрутка, клик — играть ──
+widget TrackList {
+  prop row = 30
+  state scroll = 0
+  state hover_i = -1
+  fn limit() { return max(0, playlist.count * row - h) }
+  on wheel(d) { scroll = clamp(scroll - d * row * 2, 0, limit()) }
+  on move(mx, my) { hover_i = floor((my + scroll) / row) }
+  on leave { hover_i = -1 }
+  on click(mx, my) {
+    let i = floor((my + scroll) / row)
+    if i >= 0 and i < playlist.count { play_index(i) }
+  }
+  on track(t) { scroll = clamp(playlist.index * row - h / 2 + row / 2, 0, limit()) }
+  on frame { cache_key = floor(scroll) + "|" + hover_i + "|" + playlist.index + "|" + playlist.count }
+  on draw {
+    nostroke()
+    fill(with_alpha("#ffffff", 0.03))
+    rect(0, 0, w, h, 14)
+    let first = floor(scroll / row)
+    let last = min(playlist.count, first + ceil(h / row) + 1)
+    for i in first..last {
+      let t = playlist.tracks[i]
+      let y = i * row - scroll
+      if i == playlist.index {
+        fill(with_alpha(theme.accent, 0.16))
+        rect(4, y + 2, w - 8, row - 4, 9)
+      } elif i == hover_i {
+        fill(with_alpha("#ffffff", 0.06))
+        rect(4, y + 2, w - 8, row - 4, 9)
+      }
+      fill(i == playlist.index ? theme.accent : theme.text)
+      text(t.title, 14, y + row / 2, 12.5, weight: 600, maxw: w * 0.6)
+      fill(theme.muted)
+      text(t.artist, w - 12, y + row / 2, 11, align: "right", maxw: w * 0.32)
+    }
+  }
+}
+
+scene {
+  add Backdrop  { x: 0, y: 0, w: 1, h: 1, z: -10, cache: true }
+  add Loom      { x: 0.02, y: 0.08, w: 0.58, h: 0.88, clip: false, resolution: 0.55 }
+  add Brand     { x: 0.03, y: 0.02, w: 0.3, h: 0.05, z: 2 }
+  add Spindle   { x: 0.66, y: 0.04, w: 0.30, h: 0.38, z: 1, clip: false }
+  add Info      { x: 0.65, y: 0.43, w: 0.33, h: 0.09, cache: true }
+  add Spool     { x: 0.65, y: 0.53, w: 0.33, h: 0.07 }
+  add Btn       { kind: "prev", x: 0.69, y: 0.615, w: 0.06, h: 0.075 }
+  add Btn       { kind: "play", x: 0.775, y: 0.6, w: 0.075, h: 0.1, clip: false }
+  add Btn       { kind: "next", x: 0.875, y: 0.615, w: 0.06, h: 0.075 }
+  add Tension   { x: 0.65, y: 0.71, w: 0.33, h: 0.05 }
+  add TrackList { x: 0.65, y: 0.77, w: 0.33, h: 0.21, cache: true }
+}

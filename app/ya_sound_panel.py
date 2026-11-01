@@ -1,0 +1,309 @@
+# ya_sound_panel.py
+"""
+Панель «Звук» — кнопка со столбиками эквалайзера в нижнем плеере Echoes Music.
+
+  • Басс буст — прибавка к низким полосам эквалайзера (MainWindow.set_bass_boost): ваши ползунки EQ и пресеты
+    не меняются, звучит «ползунок + буст»; мини-эквалайзер сверху показывает, что реально играет;
+  • Супер громкость — тот же множитель, что «Экстремальная громкость» в настройках (100 %…10 000 %);
+  • Найткор / Словед — те же пресеты, что в настройках (Speed Up 1.25× и Slowed + Reverb 0.80×):
+    темп и тон меняются вместе, позиция в треке сохраняется.
+
+Все значения общие с настройками — меняете здесь, меняется и там.
+"""
+from __future__ import annotations
+
+from PyQt6.QtCore import QPoint, QRectF, Qt, QTimer
+from PyQt6.QtGui import QColor, QGuiApplication, QPainter, QPainterPath
+from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QSlider, QVBoxLayout, QWidget
+
+YELLOW = "#ffdb1a"
+
+QSS = """
+QFrame#SndPanel { background:transparent; border:none; border-radius:18px; }
+QLabel { background:transparent; color:#ffffff; }
+QLabel#SndH { font-size:16px; font-weight:800; }
+QLabel#SndSec { font-size:13px; font-weight:700; }
+QLabel#SndVal { font-size:12px; font-weight:700; color:#ffdb1a; }
+QLabel#SndSub { font-size:11px; color:#8a8a8a; }
+QPushButton#SndChip { background:rgba(255,255,255,0.07); color:#e6e6e6; border:none; border-radius:13px; padding:5px 10px;
+                      font-size:12px; font-weight:700; }
+QPushButton#SndChip:hover { background:rgba(255,255,255,0.13); }
+QPushButton#SndChip:checked { background:#ffdb1a; color:#111111; }
+QPushButton#SndBig { background:rgba(255,255,255,0.07); color:#ffffff; border:none; border-radius:14px; padding:10px 8px;
+                     font-size:13px; font-weight:800; text-align:center; }
+QPushButton#SndBig:hover { background:rgba(255,255,255,0.13); }
+QPushButton#SndBig:checked { background:#ffdb1a; color:#111111; }
+QPushButton#SndBig:disabled { color:#777777; }
+QPushButton#SndLink { background:transparent; color:#8a8a8a; border:none; font-size:12px; font-weight:600;
+                      text-align:left; padding:2px 0; }
+QPushButton#SndLink:hover { color:#ffffff; }
+QSlider::groove:horizontal { height:4px; background:#3a3a3a; border-radius:2px; }
+QSlider::sub-page:horizontal { background:#ffdb1a; border-radius:2px; }
+QSlider::handle:horizontal { background:#ffffff; width:14px; height:14px; margin:-5px 0; border-radius:7px; }
+"""
+
+BASS_STEPS = ((0, "Выкл"), (35, "Лёгкий"), (70, "Сильный"), (100, "Максимум"))
+
+
+class MiniEq(QWidget):
+    """10 столбиков: что реально звучит (эквалайзер + басс буст); низкие полосы буста подсвечены."""
+
+    def __init__(self, win):
+        super().__init__()
+        self.win = win
+        self.vals = [0.0] * 10
+        self.setFixedHeight(58)
+
+    def refresh(self):
+        try:
+            v = list(self.win.eq_effective())
+        except Exception:                                  # noqa: BLE001
+            v = [0.0] * 10
+        if v != self.vals:
+            self.vals = v
+            self.update()
+
+    def paintEvent(self, _):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        w, h = self.width(), self.height() - 14
+        mid = h / 2
+        p.setPen(QColor(255, 255, 255, 30))
+        p.drawLine(0, int(mid), w, int(mid))
+        n = len(self.vals)
+        bw = w / n
+        boost = self.win.bass_boost() if hasattr(self.win, "bass_boost") else 0
+        p.setPen(Qt.PenStyle.NoPen)
+        for i, g in enumerate(self.vals):
+            x = i * bw + bw * 0.22
+            hh = (g / 20.0) * (mid - 2)
+            r = QRectF(x, mid - hh if hh > 0 else mid, bw * 0.56, max(2.0, abs(hh)))
+            col = QColor(YELLOW) if (i < 4 and boost > 0) else QColor(255, 255, 255, 150)
+            p.setBrush(col)
+            p.drawRoundedRect(r, 2, 2)
+        p.setPen(QColor(138, 138, 138))
+        f = p.font()
+        f.setPixelSize(9)
+        p.setFont(f)
+        for i, lbl in enumerate(("60", "170", "310", "600", "1K", "3K", "6K", "12K", "14K", "16K")):
+            p.drawText(QRectF(i * bw, h + 2, bw, 12), Qt.AlignmentFlag.AlignCenter, lbl)
+        p.end()
+
+
+class SoundPanel(QFrame):
+    def __init__(self, shell):
+        super().__init__(shell, Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint
+                         | Qt.WindowType.NoDropShadowWindowHint)
+        self.shell, self.win = shell, shell.win
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setStyleSheet(QSS)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        from echo_glass import GlassFrame
+        body = GlassFrame(self, 18)                            # «жидкое стекло», как плеер
+        body.setObjectName("SndPanel")
+        outer.addWidget(body)
+        v = QVBoxLayout(body)
+        v.setContentsMargins(18, 14, 18, 14)
+        v.setSpacing(8)
+        h = QLabel("Звук")
+        h.setObjectName("SndH")
+        v.addWidget(h)
+        self.eq = MiniEq(self.win)
+        v.addWidget(self.eq)
+
+        # басс буст
+        v.addLayout(self._sec_row("Басс буст", "bass_val"))
+        self.bass = QSlider(Qt.Orientation.Horizontal)
+        self.bass.setRange(0, 100)
+        self.bass.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.bass.valueChanged.connect(self._bass_changed)
+        v.addWidget(self.bass)
+        row = QHBoxLayout()
+        row.setSpacing(6)
+        self.bass_btns = {}
+        for pct, name in BASS_STEPS:
+            b = self._chip(name)
+            b.clicked.connect(lambda _=False, p=pct: self.bass.setValue(p))
+            row.addWidget(b)
+            self.bass_btns[pct] = b
+        v.addLayout(row)
+
+        # наушники — поправка эквалайзера под модель (hp_eq)
+        v.addSpacing(4)
+        v.addLayout(self._sec_row("Наушники", "hp_val"))
+        from PyQt6.QtWidgets import QComboBox, QCompleter
+        import hp_eq
+        self.hp = QComboBox()
+        self.hp.setEditable(True)
+        self.hp.addItem("Без поправки", "")
+        for name in hp_eq.models():
+            self.hp.addItem(name, name)
+        self.hp.lineEdit().setPlaceholderText("Начните вводить модель…")
+        comp = self.hp.completer()
+        if comp is not None:
+            comp.setFilterMode(Qt.MatchFlag.MatchContains)
+            comp.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        cur = self.win.settings.get("hp_profile", "")
+        i = self.hp.findData(cur)
+        self.hp.setCurrentIndex(max(0, i))
+        self.hp.activated.connect(lambda i: (self.win.set_hp_profile(self.hp.itemData(i) or ""), self.sync()))
+        v.addWidget(self.hp)
+
+        # супер громкость
+        v.addSpacing(4)
+        v.addLayout(self._sec_row("Супер громкость", "loud_val"))
+        grid = QGridLayout()
+        grid.setSpacing(6)
+        self.loud_btns = {}
+        for i, pct in enumerate(getattr(self.win, "BOOST_PRESETS", (100, 200, 500, 1000, 2000, 5000, 10000))):
+            b = self._chip("Обычная" if pct == 100 else f"×{pct // 100}")
+            b.clicked.connect(lambda _=False, p=pct: self._set_loud(p))
+            grid.addWidget(b, i // 4, i % 4)
+            self.loud_btns[pct] = b
+        v.addLayout(grid)
+        self.loud_hint = QLabel("")
+        self.loud_hint.setObjectName("SndSub")
+        v.addWidget(self.loud_hint)
+
+        # найткор / словед
+        v.addSpacing(4)
+        sec = QLabel("Скорость и тон")
+        sec.setObjectName("SndSec")
+        v.addWidget(sec)
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        self.b_night = self._big("Найткор\n1.25× — быстрее и выше")
+        self.b_slow = self._big("Словед\n0.80× + реверб")
+        self.b_night.clicked.connect(lambda: self._toggle_preset("_btn_speedup", self.b_night))
+        self.b_slow.clicked.connect(lambda: self._toggle_preset("_btn_slowed", self.b_slow))
+        row.addWidget(self.b_night)
+        row.addWidget(self.b_slow)
+        v.addLayout(row)
+        self.preset_status = QLabel("")
+        self.preset_status.setObjectName("SndSub")
+        v.addWidget(self.preset_status)
+
+        more = QPushButton("Весь эквалайзер и настройки звука")
+        more.setObjectName("SndLink")
+        more.setCursor(Qt.CursorShape.PointingHandCursor)
+        more.clicked.connect(self._open_settings)
+        v.addWidget(more)
+
+        self.setFixedWidth(360)
+        self.timer = QTimer(self)
+        self.timer.setInterval(200)
+        self.timer.timeout.connect(self.sync)
+
+    # ── части ── #
+
+    def _sec_row(self, title, attr):
+        row = QHBoxLayout()
+        lbl = QLabel(title)
+        lbl.setObjectName("SndSec")
+        val = QLabel("")
+        val.setObjectName("SndVal")
+        setattr(self, attr, val)
+        row.addWidget(lbl)
+        row.addStretch(1)
+        row.addWidget(val)
+        return row
+
+    @staticmethod
+    def _chip(text):
+        b = QPushButton(text)
+        b.setObjectName("SndChip")
+        b.setCheckable(True)
+        b.setCursor(Qt.CursorShape.PointingHandCursor)
+        b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        return b
+
+    @staticmethod
+    def _big(text):
+        b = QPushButton(text)
+        b.setObjectName("SndBig")
+        b.setCheckable(True)
+        b.setCursor(Qt.CursorShape.PointingHandCursor)
+        b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        b.setMinimumHeight(56)
+        return b
+
+    # ── действия ── #
+
+    def _bass_changed(self, v):
+        self.win.set_bass_boost(v)
+        self.sync()
+
+    def _set_loud(self, pct):
+        self.win._set_boost_percent(pct)
+        self.sync()
+
+    def _toggle_preset(self, attr, mine):
+        src = getattr(self.win, attr, None)
+        if src is None:
+            return
+        if not src.isEnabled():                            # пресет ещё готовится
+            if src.isChecked():                            # повторный клик по нему — отменить подготовку
+                src.setChecked(False)
+            self.sync()
+            return
+        src.setChecked(not src.isChecked())                # тот же переключатель, что в настройках
+        self.sync()
+
+    def _open_settings(self):
+        self.hide()
+        try:
+            self.shell.show_page("settings")
+        except Exception:                                  # noqa: BLE001
+            pass
+
+    # ── состояние ── #
+
+    def sync(self):
+        w = self.win
+        bass = w.bass_boost()
+        if self.bass.value() != bass and not self.bass.isSliderDown():
+            self.bass.blockSignals(True)
+            self.bass.setValue(bass)
+            self.bass.blockSignals(False)
+        self.bass_val.setText("выкл" if bass == 0 else f"+{bass} %  ·  до +{round(12 * bass / 100)} дБ на 60 Гц")
+        hp = w.settings.get("hp_profile", "")
+        self.hp_val.setText("выровнено" if hp else "выкл")
+        for p, b in self.bass_btns.items():
+            b.setChecked(p == bass)
+        pct = w._boost_percent()
+        self.loud_val.setText(f"{pct} %")
+        for p, b in self.loud_btns.items():
+            b.setChecked(p == pct)
+        self.loud_hint.setText("Обычная громкость" if pct <= 100 else
+                               "Аномальная громкость — перегруз гарантирован" if pct >= 5000 else
+                               "Очень громко: возможен перегруз" if pct >= 1000 else
+                               f"Громче обычного в {pct / 100:g} раз")
+        for mine, attr in ((self.b_night, "_btn_speedup"), (self.b_slow, "_btn_slowed")):
+            src = getattr(w, attr, None)
+            on = bool(src is not None and src.isChecked())
+            if mine.isChecked() != on:
+                mine.setChecked(on)
+        st = getattr(w, "_preset_status_lbl", None)
+        busy = bool(st is not None and not st.isHidden() and st.text())
+        self.preset_status.setText(st.text() if busy else ("Играет как обычно" if not (self.b_night.isChecked()
+                                                          or self.b_slow.isChecked()) else ""))
+        self.eq.refresh()
+
+    def popup(self, anchor: QWidget):
+        self.sync()
+        self.adjustSize()
+        g = anchor.mapToGlobal(QPoint(anchor.width() // 2 - self.width() // 2, -self.height() - 10))
+        scr = (anchor.screen() or QGuiApplication.primaryScreen()).availableGeometry()
+        x = max(scr.left() + 8, min(g.x(), scr.right() - self.width() - 8))
+        y = max(scr.top() + 8, g.y())
+        self.move(x, y)
+        self.show()
+        self.raise_()
+        self.timer.start()
+
+    def hideEvent(self, e):
+        self.timer.stop()
+        import time
+        self.shell._sound_closed_at = time.monotonic()     # клик по кнопке, закрывший попап, не откроет его снова
+        super().hideEvent(e)
