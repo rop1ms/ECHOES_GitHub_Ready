@@ -19,7 +19,7 @@ import weakref
 import time
 
 from PyQt6.QtCore import (QEasingCurve, QEvent, QObject, QParallelAnimationGroup, QPoint, QPropertyAnimation,
-                          QRect, QSize, Qt, QTimer, QVariantAnimation, pyqtSlot)
+                          QRect, QRectF, QSize, Qt, QTimer, QVariantAnimation, pyqtSlot)
 from PyQt6 import sip
 from PyQt6.QtGui import QColor, QLinearGradient, QPainter, QPixmap
 from PyQt6.QtWidgets import QApplication, QScrollArea, QStackedWidget, QWidget
@@ -59,14 +59,19 @@ def _grab_area(stack: QWidget) -> QPixmap | None:
     """Снимок области стека вместе со всем, что под ним (фон окна) — непрозрачная картинка,
     поэтому старая и новая страница не просвечивают друг через друга."""
     try:
-        budget=500_000 if getattr(_WIN,'settings',{}).get('motion_profile')=='eco' else 900_000
-        scale=min(stack.devicePixelRatioF(),(budget/max(1,stack.width()*stack.height()))**.5)
-        pm=QPixmap(max(1,round(stack.width()*scale)),max(1,round(stack.height()*scale)))
+        if stack.width()<=0 or stack.height()<=0:return None
+        budget=900_000 if getattr(_WIN,'settings',{}).get('motion_profile')=='eco' else 2_100_000
+        # Keep normal desktop pages at logical pixel resolution: text stays
+        # sharp and most frames need only a copy, rather than resampling.
+        # Very large pages and eco mode still have a hard allocation limit.
+        scale=min(1.,(budget/max(1,stack.width()*stack.height()))**.5)
+        pm=QPixmap(max(1,int(stack.width()*scale)),max(1,int(stack.height()*scale)))
         pm.fill(QColor('#0b0d10'))
-        painter=QPainter(pm);painter.scale(scale,scale)
+        painter=QPainter(pm);painter.scale(pm.width()/stack.width(),pm.height()/stack.height())
         try:stack.render(painter)
         finally:painter.end()
-        pm.setDevicePixelRatio(pm.width()/max(1,stack.width()))
+        # A bounded raster is mapped explicitly to the logical page rectangle.
+        # Point-based drawPixmap clamps DPR below one and would shrink it.
         return pm
     except Exception:                                      # noqa: BLE001
         return None
@@ -76,7 +81,7 @@ class _Transition(QWidget):
     """Слой поверх стека на время перехода: рисует два снимка (старый и новый) — сами страницы в каждом
     кадре не перерисовываются, поэтому плавно даже на тяжёлых страницах.
 
-      slide — новая страница наплывает поверх старой со сдвигом ~24 px в сторону перехода и проявляется;
+      slide — мягкая смена страниц с небольшим сдвигом, без затемнения и изменения масштаба;
       up    — новая выезжает снизу шторкой, старая под ней чуть темнеет («Текст», «Очередь»);
       down  — открытая шторка уезжает вниз (туда, куда показывает стрелка), под ней светлеет прежняя."""
 
@@ -88,6 +93,8 @@ class _Transition(QWidget):
         self.t = 0.0
         self.stack_key=id(stack)
         self.animation=None
+        self.frame_timer=None
+        self._finished=False
         self.setGeometry(stack.rect())
         self.show()
         self.raise_()
@@ -96,7 +103,8 @@ class _Transition(QWidget):
     def eventFilter(self, obj, event):
         # A snapshot must never conceal live feedback from a new gesture.
         kind = event.type()
-        if kind in (QEvent.Type.Wheel, QEvent.Type.MouseButtonPress, QEvent.Type.KeyPress) or \
+        if (obj is self.parentWidget() and kind in (QEvent.Type.Resize,QEvent.Type.Hide,QEvent.Type.Close)) or \
+                kind in (QEvent.Type.Wheel, QEvent.Type.MouseButtonPress, QEvent.Type.KeyPress) or \
                 (kind == QEvent.Type.MouseMove and event.buttons() != Qt.MouseButton.NoButton):
             self.finish()
         return False
@@ -105,10 +113,27 @@ class _Transition(QWidget):
         self.t = float(v)
         self.update()
 
+    def start(self,duration):
+        import motion
+        from frameclock import FrameTimer
+        self._duration=motion.duration(duration,_WIN)/1000.
+        self._started=time.perf_counter()
+        self.frame_timer=FrameTimer(self)
+        self.frame_timer.setInterval(8)
+        self.frame_timer.timeout.connect(self._frame)
+        self.frame_timer.start()
+
+    def _frame(self):
+        progress=min(1.,max(0.,(time.perf_counter()-self._started)/self._duration))
+        if progress>=1.:self.finish()
+        else:self.set_t(progress)
+
     @pyqtSlot()
     def finish(self):
         # QObject-bound slot is disconnected when its receiver is destroyed.
         # A closure capturing the stack/overlay could outlive Qt's parent teardown.
+        if self._finished:return
+        self._finished=True
         QApplication.instance().removeEventFilter(self)
         if _OVERLAYS.get(self.stack_key) is self:
             _OVERLAYS.pop(self.stack_key,None)
@@ -116,6 +141,7 @@ class _Transition(QWidget):
             self.animation.stop()
             try:self.animation.finished.disconnect(self.finish)
             except (TypeError,RuntimeError):pass
+        if self.frame_timer is not None:self.frame_timer.stop()
         self.hide();self.old=self.new=QPixmap();self.deleteLater()
 
     def paintEvent(self, _):
@@ -124,43 +150,30 @@ class _Transition(QWidget):
         W, H, t = self.width(), self.height(), self.t
         if self.kind == "up":
             e = _ease_out_quint(t)
-            p.drawPixmap(0, 0, self.old)
+            self._draw(p,self.old,0,0,W,H)
             p.fillRect(self.rect(), QColor(0, 0, 0, int(110 * e)))
             y = int(round(H * (1 - e)))
             self._sheet(p, y, W)
-            p.drawPixmap(0, y, self.new)
+            self._draw(p,self.new,0,y,W,H)
         elif self.kind == "down":
             e = _ease_out(t)
-            p.drawPixmap(0, 0, self.new)
+            self._draw(p,self.new,0,0,W,H)
             p.fillRect(self.rect(), QColor(0, 0, 0, int(110 * (1 - e))))
             y = int(round(H * e))
             self._sheet(p, y, W)
-            p.drawPixmap(0, y, self.old)
+            self._draw(p,self.old,0,y,W,H)
         else:
             e = _ease_out(t)
             import motion
             amount = motion.strength(_WIN)
-            if amount > .7:
-                # A small, bounded overshoot gives navigation weight.
-                c = .9 * min(1.5, amount)
-                e = 1 + (c + 1) * (t - 1)**3 + c * (t - 1)**2
-            # без «двойной экспозиции»: старая страница быстро гаснет в тёмный фон, новая проявляется
-            # почти сразу после — одна сквозь другую не просвечивает (раньше сквозь Echoes.NET была видна «Моя волна»)
-            p.fillRect(self.rect(), QColor(13, 13, 15))
-            fade_old = 1.0 - _ease_out(min(1.0, t / 0.22))
-            if fade_old > 0.01:
-                p.setOpacity(fade_old)
-                p.drawPixmap(0, 0, self.old)
-            a = max(0.0, min(1.0, (t - 0.08) / 0.5))
-            p.setOpacity(_ease_out(a))
-            if self.dir:
-                p.drawPixmap(int(round((24 + 12 * amount) * self.dir * (1 - e))), 0, self.new)
-            else:                                                   # без направления — лёгкое «приближение»
-                k = 0.985 + 0.015 * e
-                p.translate(W * (1 - k) / 2, H * (1 - k) / 2)
-                p.scale(k, k)
-                p.drawPixmap(0, 0, self.new)
+            self._draw(p,self.old,0,0,W,H)
+            p.setOpacity(e)
+            self._draw(p,self.new,12*amount*self.dir*(1-e),0,W,H)
         p.end()
+
+    @staticmethod
+    def _draw(p,pixmap,x,y,width,height):
+        p.drawPixmap(QRectF(x,y,width,height),pixmap,QRectF(pixmap.rect()))
 
     @staticmethod
     def _sheet(p, y, W):
@@ -208,16 +221,8 @@ def switch(stack: QStackedWidget, widget: QWidget, direction: int = 0, kind: str
     if old_pm is None or new_pm is None:
         return
     ov = _Transition(stack, old_pm, new_pm, kind, 1 if direction > 0 else (-1 if direction < 0 else 0))
-    an = QVariantAnimation(ov)
-    an.setDuration({"up": DUR_SHEET, "down": DUR_SHEET_OUT}.get(kind, DUR_PAGE))
-    an.setStartValue(0.0)
-    an.setEndValue(1.0)                                  # кривая — в paintEvent (своя для каждого вида)
-    an.valueChanged.connect(ov.set_t)
-
-    ov.animation=an
-    an.finished.connect(ov.finish)
     _OVERLAYS[id(stack)] = ov
-    an.start()
+    ov.start({"up": DUR_SHEET, "down": DUR_SHEET_OUT}.get(kind, DUR_PAGE))
 
 
 def switch_index(stack: QStackedWidget, index: int, direction: int = 0, kind: str = "slide"):
@@ -603,25 +608,19 @@ def morph(target: QWidget, fn, direction: int = 0, kind: str = "slide"):
         fn()
         return
     _finish(target)
+    if len(_OVERLAYS)>=2:
+        previous=next(iter(_OVERLAYS.values()))
+        if not sip.isdeleted(previous):previous.finish()
     old_pm = _grab_area(target)
     fn()
-    try:
-        QApplication.sendPostedEvents(None, QEvent.Type.LayoutRequest.value)
-    except Exception:                                    # noqa: BLE001
-        pass
+    if sip.isdeleted(target):return
+    _settle_layout(target)
     new_pm = _grab_area(target) if old_pm is not None else None
     if old_pm is None or new_pm is None or sip.isdeleted(target):
         return
     ov = _Transition(target, old_pm, new_pm, kind, 1 if direction > 0 else (-1 if direction < 0 else 0))
-    an = QVariantAnimation(ov)
-    an.setDuration(DUR_PAGE)
-    an.setStartValue(0.0)
-    an.setEndValue(1.0)
-    an.valueChanged.connect(ov.set_t)
-    ov.animation = an
-    an.finished.connect(ov.finish)
     _OVERLAYS[id(target)] = ov
-    an.start()
+    ov.start(DUR_PAGE)
 
 
 class _ResizeSurface(QWidget):

@@ -1,7 +1,7 @@
 {
-  "version": "2026.11.02-1",
-  "files": 490,
-  "total_bytes": 141916963,
+  "version": "2026.11.02-2",
+  "files": 491,
+  "total_bytes": 141929839,
   "largest_file_bytes": 36722718,
   "private_profile_included": false,
   "text_checksum": "sha256_lf normalizes CRLF to LF for Git checkouts",
@@ -2095,9 +2095,9 @@
     },
     {
       "path": "app/ui_anim.py",
-      "bytes": 34209,
-      "sha256": "7cf5794ea76391cb1767125085d3f6d84466a996909cc235ea0cb7749d56a0e2",
-      "sha256_lf": "3d19cb9fc997a96d11a9d7c63f6cf0a3826097ca539e70d61bc0c8a69b84ee21"
+      "bytes": 33905,
+      "sha256": "940d5a8df5bf9057870890d6be662318b79fd6258d259d3cc481446b09db4409",
+      "sha256_lf": "8b9d1298424d5b182756e9a2b9bf8484ab6e36403f18328c4f1f2d449f5e2dae"
     },
     {
       "path": "app/ui_free.py",
@@ -2132,8 +2132,8 @@
     {
       "path": "app/version.txt",
       "bytes": 14,
-      "sha256": "f7f851b9e4dde881a543bb33f8b91f5d3d4a68dcffab3055ac06dc28eb82b1f8",
-      "sha256_lf": "1b8077d0cec3fb04865d15ae2fa906fb5b1fc2d386c00bfec288adc092ad0e5b"
+      "sha256": "c6f01248167931b0d075aac48f11a25b7163f3f8f252ab1471baaf66587a5bfa",
+      "sha256_lf": "29632c7d087a56062a7dffaa08eccb6eae3ed13110a3f82028474736b033a658"
     },
     {
       "path": "app/video_safety.py",
@@ -2185,9 +2185,9 @@
     },
     {
       "path": "app/wheel_guard.py",
-      "bytes": 9348,
-      "sha256": "f85fd6b9bdc96b4ca68877a81078a510e0410cbdbae78f3ad4a0bbccce3bf0db",
-      "sha256_lf": "0561b8693efe80da0e3c673feba5e8b34612e20162eab5ea6bc021f0b9ab2e58"
+      "bytes": 9582,
+      "sha256": "490189ee1f6691918b3ee0cd4e94cc0cfaac0e0e9fa279d30744b9e5269c297b",
+      "sha256_lf": "8c340f6681e118f09755fa28465bd0581b524ca545609e02259cf29410fbbe6a"
     },
     {
       "path": "app/win_taskbar.py",
@@ -2383,9 +2383,9 @@
     },
     {
       "path": "docs/VALIDATION.md",
-      "bytes": 13811,
-      "sha256": "421749cb13b7e51d320033706d5d560ccfb850cebbde11599949bfd3e10bf50a",
-      "sha256_lf": "8e12c8ca14255d4f629cd370c8c75d9788e56db5167e1bf69fba2c80506a6374"
+      "bytes": 16288,
+      "sha256": "82e3170f44e06ebdb23c73a7561bb7db054a8db38e93c9faef27c6982019d51b",
+      "sha256_lf": "9d3038a6a52db67a2c342bc6ab07639e9d85b905b2889e09d83aff20f595f7df"
     },
     {
       "path": "docs/screenshots/appearance.png",
@@ -2579,6 +2579,12 @@
       "bytes": 8370,
       "sha256": "b89acf5bb101b2bc93364fe69f1b636f0b34a14745251b5ce5014547a837a93c",
       "sha256_lf": "b89acf5bb101b2bc93364fe69f1b636f0b34a14745251b5ce5014547a837a93c"
+    },
+    {
+      "path": "qa/test_navigation_motion.py",
+      "bytes": 10469,
+      "sha256": "42020f02ce79b303b826507e4b974c76597edcbb03b41fb69b3276b1917a5672",
+      "sha256_lf": "29247b3e4303d43f87d40e36b87d992151ec489d091cb6841371f33b3b6ab956"
     },
     {
       "path": "qa/test_net_ui_performance.py",

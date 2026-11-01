@@ -51,6 +51,10 @@ class _Smooth(QObject):
         st = self.items.get(id(bar))
         if st is None or st[0] is not bar or bar.value() != st[3]:      # полосу двигал кто-то ещё — с текущего места
             st = [bar, float(bar.value()), float(bar.value()), bar.value(),area]
+        elif delta*(st[1]-st[2])<0:
+            # A reversed gesture must turn immediately, not first repay the
+            # accumulated distance from several previous wheel notches.
+            st[1]=st[2]
         st[1] = max(bar.minimum(), min(bar.maximum(), st[1] + delta))
         self.items[id(bar)] = st
         if not self.timer.isActive():
@@ -65,7 +69,7 @@ class _Smooth(QObject):
         for k, st in list(self.items.items()):
             bar = st[0]
             try:
-                if not st[4].isVisible() or st[4].window().isMinimized():
+                if bar.isSliderDown() or not st[4].isVisible() or st[4].window().isMinimized():
                     self.items.pop(k,None);continue
                 st[1]=max(bar.minimum(),min(bar.maximum(),st[1]))
                 if bar.value() != st[3]:                       # перехватили (перетащили ползунок, перестроили)
