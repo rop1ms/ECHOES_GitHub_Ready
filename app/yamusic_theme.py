@@ -656,8 +656,7 @@ def _cover_image(path: str, size: int, radius: float, circle: bool) -> QImage:
 
 
 class _CoverLoader:
-    """Обложки для списков и карточек — без рывков прокрутки: за кадр синхронно декодируется
-    не больше ~6 мс обложек, остальные — в фоновом потоке (сначала самые свежие запросы), а
+    """Обложки для списков и карточек декодируются в фоновом потоке (сначала свежие запросы), а
     пока на их месте заглушка; готовая обложка перерисовывает свой виджет."""
     BUDGET = 0.006
 
@@ -703,7 +702,7 @@ class _CoverLoader:
         except TypeError:
             ref = None
         if lst is not None:
-            if ref is not None:
+            if ref is not None and ref not in lst:
                 lst.append(ref)
             return
         self.waiting[key] = [ref] if ref is not None else []
@@ -777,17 +776,16 @@ def prune_cover_cache():
 
 def cover_pixmap(path: str, size: int, radius: float = 6, seed: str = "", circle=False, lazy=None) -> QPixmap:
     """lazy — виджет, который перерисовать, когда обложка догрузится в фоне (списки, карточки):
-    тогда в кадре декодируется не больше нескольких миллисекунд обложек, остальные — заглушка."""
+    файловая система и декодирование не задерживают отрисовку даже первой обложки."""
     key = (path or "", size, radius, circle, seed if not path else "")
     pm = _COVER_CACHE.pop(key, None)
     if pm is not None:
         _COVER_CACHE[key] = pm                       # в конец очереди — недавно показана
         return pm
     if path and key not in _NO_COVER:
-        if lazy is not None and not _LOADER.sync_ok():
-            if Path(path).exists():
-                _LOADER.request(key, path, size, radius, circle, lazy)
-                return cover_pixmap("", size, radius, seed or path, circle)
+        if lazy is not None:
+            _LOADER.request(key, path, size, radius, circle, lazy)
+            return cover_pixmap("", size, radius, seed or path, circle)
         t0 = time.perf_counter()
         img = _cover_image(path, size, radius, circle) if Path(path).exists() else QImage()
         _LOADER.spent(time.perf_counter() - t0)

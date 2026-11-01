@@ -505,6 +505,7 @@ NOSTR_PEER_IDLE = 210              # нет «сердцебиения» дру�
 NOSTR_STRANGER_IDLE = 600          # незнакомец (гость/хост публичной комнаты) без сообщений 10 мин
 NOSTR_P2P_MAX_AGE = 600            # старые (из истории релея) сообщения связи не исполняем
 PRESENCE_EVERY = 60
+PRESENCE_FUTURE_TOLERANCE = 60     # tolerate small clock drift, never replay hours of relay history as live
 NOSTR_FILE_MAX = 2 * 2 ** 20       # файлы через Nostr — до 2 МБ (фото); больше — только через Tor или напрямую
 UDP_TYPES = ("voice", "room_state", "room_chat", "room_say", "room_ka", "ping", "pong", "room_join", "room_leave",
              "vc", "call_state", "upd_req", "upd_err")              # обновления: просьбы о кусках — мимо релеев
@@ -522,6 +523,7 @@ class Peer:
         self.r, self.w = reader, writer
         self.outbound = outbound
         self.last_rx = time.time()
+        self._last_rx_mono = time.monotonic()
         self.alive = True
 
     async def send(self, obj: dict):
@@ -554,6 +556,8 @@ class NostrPeer:
         self.via = "nostr"
         self.outbound = False
         self.last_rx = time.time()
+        self._last_rx_mono = time.monotonic()
+        self._presence_confirmed = False  # an outbound relay mailbox is not proof the recipient is online
         self.alive = True
         self.r = self.w = None
         self._last = {}                                        # тип → (ключ, время, позиция) последней отправки
@@ -701,6 +705,9 @@ class NetNode:
         if self.thread and self.thread.is_alive():
             return
         self._stop = False
+        self._presence_leaving = False
+        self.__dict__.pop('_presence_npks', None)
+        self.__dict__.pop('_presence_leave_task', None)
         self.thread = threading.Thread(target=self._run, name="echoes-net", daemon=True)
         self.thread.start()
 
@@ -725,6 +732,21 @@ class NetNode:
         self._stop = True
         if self.loop:
             self.loop.call_soon_threadsafe(lambda: None)
+
+    def shutdown(self, timeout=0.75):
+        """Actual application exit: best-effort offline, with one bounded total deadline."""
+        deadline = time.monotonic()+max(0., min(2., float(timeout)))
+        loop = self.loop
+        self.stop()
+        if loop is not None and loop.is_running() and threading.current_thread() is not self.thread:
+            try:
+                task = asyncio.run_coroutine_threadsafe(self._presence_send(leaving=True), loop)
+                task.result(timeout=max(0., deadline-time.monotonic()))
+            except Exception:
+                pass  # TTL remains authoritative if the relay is unreachable or the process is killed
+        thread = self.thread
+        if thread is not None and thread is not threading.current_thread() and thread.is_alive():
+            thread.join(timeout=max(0., deadline-time.monotonic()))
 
     def call(self, fn, *args, **kw):
         """Из потока интерфейса: выполнить в сетевом цикле (корутина или обычная функция)."""
@@ -966,16 +988,17 @@ class NetNode:
         if b is not None:
             b.announce()
         for p in list(self.peers.values()):
+            elapsed = time.monotonic()-p._last_rx_mono if hasattr(p, '_last_rx_mono') else now-p.last_rx
             if p.via == "nostr":
                 idle = NOSTR_PEER_IDLE if self.is_friend(p.onion) else NOSTR_STRANGER_IDLE
-                if not p.alive or now - p.last_rx > idle:
+                if not p.alive or elapsed >= idle:
                     self._drop(p)
                 elif not self.udp_alive(p.onion) and now - getattr(p, "udp_offer_t", 0) > 180:
                     asyncio.ensure_future(self._udp_offer(p))
                 continue
-            if not p.alive or now - p.last_rx > DEAD_AFTER:
+            if not p.alive or elapsed >= DEAD_AFTER:
                 self._drop(p)
-            elif now - p.last_rx > KEEPALIVE:
+            elif elapsed > KEEPALIVE:
                 await p.send({"t": "ka"})
         self._call_tick()
         if now-self.__dict__.get('_bugs_retry_t',0)>60:
@@ -1113,6 +1136,27 @@ class NetNode:
         c = self.store.contact(onion)
         return bool(c and c["status"] == "friend")
 
+    def is_online(self, onion) -> bool:
+        """Only an authenticated live connection or unexpired inbound activity proves presence."""
+        p = self.peers.get(onion)
+        if p is None or not p.alive or (p.via == 'nostr' and not getattr(p, '_presence_confirmed', False)):
+            return False
+        idle = getattr(p, '_presence_idle', NOSTR_PEER_IDLE) if p.via == 'nostr' else DEAD_AFTER
+        elapsed = time.monotonic()-p._last_rx_mono if hasattr(p, '_last_rx_mono') else time.time()-p.last_rx
+        return 0 <= elapsed < idle
+
+    def _received(self, p, age=0.):
+        """Record inbound evidence, retaining its original age instead of renewing a relay replay."""
+        age = max(0., float(age))
+        received_at = time.time()-age
+        if age > 0 and getattr(p, '_presence_confirmed', False) and received_at <= p.last_rx:
+            return
+        p.last_rx = received_at
+        p._last_rx_mono = time.monotonic()-age
+        p._presence_confirmed = True
+        if p.via == 'nostr':
+            p._presence_idle = NOSTR_PEER_IDLE if self.is_friend(p.onion) else NOSTR_STRANGER_IDLE
+
     def _dialer(self, p: Peer) -> str:
         return self.me.onion if p.outbound else p.onion
 
@@ -1134,7 +1178,7 @@ class NetNode:
                     msg = await _read_json(p.r, DEAD_AFTER)
                 except (ValueError, UnicodeDecodeError):
                     continue
-                p.last_rx = time.time()
+                self._received(p)
                 try:
                     await self._handle(p, msg)
                 except Exception as e:                         # noqa: BLE001
@@ -1151,8 +1195,8 @@ class NetNode:
         status = c["status"] if c else None
         if status == "pending_out":
             await p.send({"t": "friend_req", "name": self._name(), "note": clip(c.get("note"), 200)})
-        if status in ("friend", "pending_out"):
-            self.store.upsert_contact(p.onion, last_seen=time.time())
+        if status in ("friend", "pending_out") and self.is_online(p.onion):
+            self.store.upsert_contact(p.onion, last_seen=p.last_rx)
         for oid, payload in self.store.outbox(p.onion):       # сначала friend_ok и отложенное — потом остальное
             await p.send(payload)
             self.store.outbox_done(oid)
@@ -1227,6 +1271,7 @@ class NetNode:
             return
         if t in ("ka", "bye"):
             if t == "bye":
+                self.__dict__.setdefault('_pres_offline_ts', {})[o] = time.time()
                 self._drop(p)
             return
         if t == "friend_req":
@@ -1291,7 +1336,8 @@ class NetNode:
             self.store.upsert_contact(o, name=clip(m.get("name"), MAX_NAME), bio=clip(m.get("bio"), 300),
                                       now=json.dumps(now, ensure_ascii=False) if now else "",
                                       room=json.dumps(room, ensure_ascii=False) if room else "",
-                                      game=clip(m.get("game"), 60), last_seen=time.time())
+                                      game=clip(m.get("game"), 60),
+                                      last_seen=p.last_rx if self.is_online(o) else (self.store.contact(o) or {}).get("last_seen", 0))
             if taste is not None:
                 self.store.upsert_contact(o, taste=json.dumps(taste, ensure_ascii=False))
             dc = []
@@ -2893,8 +2939,11 @@ class NetNode:
             m = obj.get("m")
             if not isinstance(m, dict):
                 return
-            p = self._nostr_attach(src, str(ev.get("pubkey") or ""))
-            p.last_rx = time.time()
+            event_ts = float(ev.get("created_at") or 0)
+            age = time.time()-event_ts
+            offline_ts = self.__dict__.get('_pres_offline_ts', {}).get(src, 0)
+            live = -PRESENCE_FUTURE_TOLERANCE <= age < NOSTR_PEER_IDLE and event_ts > offline_ts
+            p = self._nostr_attach(src, str(ev.get("pubkey") or ""), received=live, age=max(0., age))
             asyncio.ensure_future(self._handle_safe(p, m))
             return
         if obj.get("t") != "msg" or not self.is_friend(src):
@@ -3009,17 +3058,18 @@ class NetNode:
         npk = (self.store.contact(onion) or {}).get("npk") or self.__dict__.get("_npk_map", {}).get(onion, "")
         return npk if npk_ok(npk) else ""
 
-    def _nostr_attach(self, onion, npk):
+    def _nostr_attach(self, onion, npk, received=False, age=0.):
         """Связь через Nostr с этим собеседником (если лучшей нет). Возвращает текущее соединение."""
         p = self.peers.get(onion)
         if p is not None and p.alive:
             if p.via == "nostr":
-                p.last_rx = time.time()
+                if received:self._received(p, age)
                 if npk_ok(npk):
                     p.npk = npk
             return p
         npk = npk if npk_ok(npk) else self._npk_for(onion)
         p = NostrPeer(self, onion, npk)
+        if received:self._received(p, age)
         self.peers[onion] = p
         if npk and self.store.contact(onion) and (self.store.contact(onion).get("npk") or "") != npk:
             self.store.upsert_contact(onion, npk=npk)
@@ -3054,7 +3104,7 @@ class NetNode:
             if not npk:
                 return
             p = self._nostr_attach(onion, npk)
-        p.last_rx = time.time()
+        self._received(p)
         asyncio.ensure_future(self._handle_safe(p, obj))
 
     def udp_alive(self, onion) -> bool:
@@ -3881,6 +3931,20 @@ class NetNode:
                 await asyncio.sleep(1)
 
     async def _presence_send(self, leaving=False):
+        if not leaving and (self._stop or self.__dict__.get('_presence_leaving')):
+            return
+        if leaving:
+            self._presence_leaving = True
+            task = self.__dict__.get('_presence_leave_task')
+            if task is None:
+                task = asyncio.create_task(self._presence_publish(leaving=True))
+                self._presence_leave_task = task
+            return await asyncio.shield(task)
+        return await self._presence_publish()
+
+    async def _presence_publish(self, leaving=False):
+        nos = getattr(self, 'nostr', None)
+        if nos is None or not nos.up_count or nos.closed:return
         room = None
         if self.room_host is not None and not leaving:
             room = {"title": clip(self.room_host.get("title"), 80), "n": len(self.room_members) + 1,
@@ -3891,6 +3955,8 @@ class NetNode:
         content = {"v": PROTO, "on": not leaving, "room": room, "now": now, "name": self._name()}
         ev = await self._nostr_sign(30078, json.dumps(content, ensure_ascii=False),
                                     [["d", "echoes-presence"], self._link_tag()])
+        if not leaving and (self._stop or self.__dict__.get('_presence_leaving')):
+            return  # a regular heartbeat signed before exit must not follow the offline announcement
         await self.nostr.publish(ev, urgent=leaving)
 
     def _nostr_presence(self, ev):
@@ -3899,50 +3965,62 @@ class NetNode:
         onion = self.linked_onion(ev)
         if not onion or onion == self.me.onion:
             return
-        self.__dict__.setdefault("_npk_map", {})[onion] = ev["pubkey"]
-        try:
-            data = json.loads(ev.get("content") or "{}")
-        except ValueError:
-            data = {}
-        ts = float(ev.get("created_at") or 0)
-        seen_ts = self.__dict__.setdefault("_pres_ts", {})
-        prev = seen_ts.get(onion)
-        seen_ts[onion] = max(prev or 0, ts)
-        skew = time.time() - ts
-        # часы у друга могут отставать/спешить на минуты: новое «сердцебиение» (позже прежнего) — значит, он тут
-        newer = prev is not None and ts > prev and abs(skew) < PRESENCE_SKEW
-        fresh = (abs(skew) < NOSTR_PEER_IDLE or newer) and data.get("on", True)
-        if newer:
-            self.__dict__.setdefault("_skew", {})[onion] = skew if abs(skew) >= 60 else 0.0
-        if newer and abs(skew) >= NOSTR_PEER_IDLE and not self.__dict__.setdefault("_skew_logged", {}).get(onion):
-            self._skew_logged[onion] = True
-            self.log(f"[net] presence {onion[:8]}: часы расходятся на {int(skew)} с — учитываю")
         c = self.store.contact(onion)
         if not c or c["status"] not in ("friend", "pending_out", "pending_in"):
             return
+        try:
+            data = json.loads(ev.get("content") or "{}")
+            ts = float(ev.get("created_at") or 0)
+        except (ValueError, TypeError, OverflowError):
+            return
+        if not isinstance(data, dict) or not isinstance(data.get('on'), bool):
+            return
+        now = time.time()
+        age = now-ts
+        # Replayed history is not a heartbeat. Inferring clock skew from an
+        # increasing sequence of historical events resurrected offline friends.
+        if not -PRESENCE_FUTURE_TOLERANCE <= age <= PRESENCE_SKEW:
+            return
+        seen_ts = self.__dict__.setdefault("_pres_ts", {})
+        seen_on = self.__dict__.setdefault("_pres_on", {})
+        previous = seen_ts.get(onion)
+        online = data['on']
+        if online and ts <= self.__dict__.get('_pres_offline_ts', {}).get(onion, 0):
+            return
+        if previous is not None and (ts < previous or (ts == previous and (online or not seen_on.get(onion, True)))):
+            return
+        # Offline wins a timestamp tie (closing immediately after a heartbeat).
+        seen_ts[onion] = ts
+        seen_on[onion] = online
+        self.__dict__.setdefault("_npk_map", {})[onion] = ev["pubkey"]
         upd = {"npk": ev["pubkey"]}
+        was = self.is_online(onion)
+        fresh = online and age < NOSTR_PEER_IDLE
         if fresh:
-            upd["last_seen"] = time.time()
-            now = clean_track(data.get("now"))
-            if data.get("now") is not None or "now" in data:
-                upd["now"] = json.dumps(now, ensure_ascii=False) if now else ""
+            upd['last_seen'] = min(now, ts)
+            track = clean_track(data.get("now"))
+            upd["now"] = json.dumps(track, ensure_ascii=False) if track else ""
             room = data.get("room") if isinstance(data.get("room"), dict) else None
             if room and room.get('radio'):
                 from net_radio_auth import accept
-                if not isinstance(room['radio'],dict) or not accept(self,onion,room['radio'].get('permit')):room=None
+                if not isinstance(room['radio'], dict) or not accept(self,onion,room['radio'].get('permit')):
+                    room = None
             upd["room"] = json.dumps(self._clean_room_summary(room), ensure_ascii=False) if room else ""
+            self._nostr_attach(onion, ev["pubkey"], received=True, age=max(0., age))
+        elif not online:
+            self.__dict__.setdefault('_pres_offline_ts', {})[onion] = ts
+            peer = self.peers.get(onion)
+            # An authenticated direct channel is stronger evidence than relay
+            # history; an offline relay announcement closes only that mailbox.
+            if peer is not None and peer.via == 'nostr' and (not getattr(peer, '_presence_confirmed', False) or peer.last_rx <= ts):
+                self._drop(peer)
+            if not self.is_online(onion):
+                upd.update(now='', room='')
         self.store.upsert_contact(onion, **upd)
-        was = onion in self.peers
-        if fresh:
-            self._nostr_attach(onion, ev["pubkey"])
-        else:
-            p = self.peers.get(onion)
-            if p is not None and p.via == "nostr" and not data.get("on", True):
-                self._drop(p)                                  # друг вышел из сети
-        key = (onion in self.peers, upd.get("now"), upd.get("room"))
+        key = (self.is_online(onion), upd.get("now"), upd.get("room"))
         seen = self.__dict__.setdefault("_pres_seen", {})
-        if seen.get(onion) != key or was != (onion in self.peers):
-            seen[onion] = key                                  # интерфейс перерисуем, только если что-то изменилось
+        if seen.get(onion) != key or was != self.is_online(onion):
+            seen[onion] = key
             self.emit("presence", onion)
 
     async def _nostr_mail(self, dest, payload) -> bool:

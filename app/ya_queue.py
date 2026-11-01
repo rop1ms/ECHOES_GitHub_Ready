@@ -5,6 +5,7 @@
 плейлиста/библиотеки — с учётом режима «вперемешку».
 """
 from __future__ import annotations
+from itertools import islice
 
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QFont
@@ -83,20 +84,38 @@ class QueuePage(Page):
     # что менялось с прошлой перерисовки (shell._tick сравнивает и зовёт refresh)
     def signature(self):
         w = self.shell.win
-        return (w.current_index, w.queue_context, len(w.user_queue), w._shuffle_pos, w._queued_now,
-                bool(w.shuffle), len(w.library))
+        ctx, cur_i, sq, sp = self._context_view()
+        tracks = w.library if ctx == "library" else w.playlists.get(ctx, {}).get("tracks", [])
+        # Compare the rows actually displayed, rather than library contents or
+        # just queue length. Reorders and metadata edits must still refresh.
+        def track(t):
+            return tuple(t.get(k) for k in ("path", "title", "artist", "cover", "duration")) if t else None
+        return (w.current_index, w.queue_context, bool(w._queued_now), bool(w.shuffle),
+                track(self.shell.current_track()), tuple(track(t) for t in w.user_queue),
+                ctx, cur_i, sp, len(tracks),
+                tuple((i, track(tracks[i])) for i in self._upcoming(tracks, cur_i, sq, sp)))
 
     def _context_view(self):
         """(контекст, индекс, shuffle-очередь, позиция в ней), от которых считать «дальше»."""
         w = self.shell.win
         if w._queued_now and w._saved_ctx:
             return w._saved_ctx
-        return (w.queue_context, w.current_index, list(w._shuffle_queue), w._shuffle_pos)
+        return (w.queue_context, w.current_index, w._shuffle_queue, w._shuffle_pos)
 
-    def refresh(self):
+    def _upcoming(self, tracks, cur_i, sq, sp):
+        if self.shell.win.shuffle and sq and len(sq) == len(tracks):
+            order = (sq[k] for k in range(sp + 1, len(sq)))
+        else:
+            order = range(cur_i + 1, len(tracks)) if cur_i >= 0 else ()
+        return list(islice((i for i in order if 0 <= i < len(tracks)), UPCOMING_MAX))
+
+    def refresh(self, force=False):
         sh = self.shell
         w = sh.win
-        self.sig = self.signature()
+        sig = self.signature()
+        if not force and sig == self.sig and self.v.count():
+            return False
+        self.sig = sig
         vbar = self.verticalScrollBar().value()
         self.clear()
 
@@ -128,11 +147,7 @@ class QueuePage(Page):
 
         ctx, cur_i, sq, sp = self._context_view()
         tracks = w.library if ctx == "library" else w.playlists.get(ctx, {}).get("tracks", [])
-        if w.shuffle and sq and len(sq) == len(tracks):
-            order = [sq[k] for k in range(sp + 1, len(sq))]
-        else:
-            order = list(range(cur_i + 1, len(tracks))) if cur_i >= 0 else []
-        order = [i for i in order if 0 <= i < len(tracks)][:UPCOMING_MAX]
+        order = self._upcoming(tracks, cur_i, sq, sp)
         name = w.ctx_title(ctx) if hasattr(w, "ctx_title") else ("Библиотека" if ctx == "library" else ctx)
         mode = " · вперемешку" if w.shuffle else ""
         if order:
@@ -154,3 +169,4 @@ class QueuePage(Page):
             self.v.addWidget(lbl)
         self.v.addStretch(1)
         self.verticalScrollBar().setValue(vbar)
+        return True

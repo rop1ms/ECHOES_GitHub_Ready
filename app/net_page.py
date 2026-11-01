@@ -478,6 +478,8 @@ class NetPage(QWidget):
             from net_core import NetNode
             nd = NetNode(DATA_DIR, log=_net_log)
             self.win._net_node = nd
+            from PyQt6.QtWidgets import QApplication
+            QApplication.instance().aboutToQuit.connect(nd.shutdown)
         nd.on_event = lambda k, d: self.bridge.ev.emit(k, d)
         nd.set_library_lookup(self._lib_path)
         if not nd.settings.get("name"):                        # имя в сети по умолчанию — ник профиля плеера
@@ -999,6 +1001,9 @@ class NetPage(QWidget):
         now = time.time()
         off_since = self.__dict__.setdefault("_off_since", {})
         last_alert = self.__dict__.setdefault("_online_alerted", {})
+        if was is None:
+            for c in self.node.store.contacts('friend'):
+                if c['onion'] not in online:off_since.setdefault(c['onion'], now)
         if was is not None:
             for o in was - online:
                 off_since.setdefault(o, now)                   # пропал — запомнить, с какого момента
@@ -1006,7 +1011,8 @@ class NetPage(QWidget):
             for o in online - was:
                 # связь у друга «мигает» (переподключения) — это не «появился в сети»: зовём, только если его
                 # не было хотя бы 10 минут подряд, и не чаще раза в полчаса на человека
-                gone = now - off_since.get(o, now - 10 ** 6)
+                gone_since = off_since.get(o)
+                gone = now-gone_since if gone_since is not None else 0
                 if gone >= ONLINE_GONE_MIN and now - last_alert.get(o, 0) >= ONLINE_ALERT_EVERY:
                     last_alert[o] = now
                     self.alert("online", self._name(o), "теперь в сети", onion=o)
@@ -1057,7 +1063,7 @@ class NetPage(QWidget):
         return (c and c["name"]) or (onion or "")[:8]
 
     def _online(self, onion) -> bool:
-        return bool(self.node and onion in self.node.peers)
+        return bool(self.node and self.node.is_online(onion))
 
     # ── воспроизведение треков из сети ── #
 

@@ -1,0 +1,34 @@
+{
+  "scope": "Queue reuse and real YaShell page navigation only; not a full player scenario",
+  "fixture": {
+    "platform": "Windows, Qt offscreen",
+    "window_size": [1440, 950],
+    "stack_size": [1174, 734],
+    "synthetic_library_tracks": 2500,
+    "user_queue_tracks": 20,
+    "profile": "isolated temporary profile",
+    "network": "socket connections blocked",
+    "audio": "not played",
+    "background": "clear glass with synthetic aura colors"
+  },
+  "method": {
+    "queue_pair": "12 warmed collection-to-queue pairs per condition, processEvents after each pair; animations disabled to isolate rebuild cost",
+    "baseline": "same current code with queue.refresh(force=True), representing unconditional widget rebuilding",
+    "optimized": "queue.refresh() reuses unchanged widgets and scroll position",
+    "rapid": "16 alternating collection/queue requests without event-loop drains; final incoming snapshot then prepared",
+    "background": "two empty stack-area pixels compared between a real window grab crop and the new ancestor-aware transition capture"
+  },
+  "results": {
+    "forced_rebuild": {"median_ms": 107.294, "max_ms": 110.376},
+    "reuse": {"median_ms": 24.560, "max_ms": 27.762},
+    "median_ratio": 4.3686,
+    "rapid": {"switches": 16, "input_burst_ms": 155.964, "active_overlays": 1, "prepared_extent": [1174, 734]},
+    "background": [
+      {"point": [1142, 702], "window_crop": "#101112", "capture": "#101112", "max_channel_delta": 0},
+      {"point": [587, 694], "window_crop": "#0c0d0d", "capture": "#0c0d0d", "max_channel_delta": 0}
+    ]
+  },
+  "focused_tests": {"file": "qa/test_queue_navigation.py", "passed": 6},
+  "cleanup_recheck": {"mode": "--cleanup-only", "result": "CLEANUP_OK", "exit_code": 0},
+  "limitations": "Offscreen elapsed navigation timings, not live display FPS or a Spotify comparison. Original measurement completed, then its cleanup attempted to access the closed page's node; cleanup was corrected separately without repeating navigation."
+}

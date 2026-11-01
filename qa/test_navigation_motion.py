@@ -13,7 +13,7 @@ from PyQt6 import sip
 from PyQt6.QtCore import QPoint, QPointF, Qt
 from PyQt6.QtGui import QColor, QPainter, QWheelEvent
 from PyQt6.QtTest import QTest
-from PyQt6.QtWidgets import QApplication, QStackedWidget, QWidget, QScrollArea, QVBoxLayout, QLabel
+from PyQt6.QtWidgets import QApplication, QStackedWidget, QWidget, QScrollArea, QVBoxLayout, QLabel, QPushButton
 import ui_anim
 import wheel_guard
 
@@ -121,6 +121,7 @@ class NavigationMotion(unittest.TestCase):
     def test_shared_frame_clock_finishes_after_elapsed_duration(self):
         stack,a,b = self.stack(); ui_anim.switch(stack,b)
         overlay = ui_anim._OVERLAYS[id(stack)]
+        overlay._prepare()
         timer = overlay.frame_timer
         start = overlay._started; duration = overlay._duration
         with patch.object(ui_anim.time,'perf_counter',return_value=start+duration*.4):
@@ -149,6 +150,7 @@ class NavigationMotion(unittest.TestCase):
         page = self.page()
         ui_anim.morph(page,lambda:setattr(page,'color','#84512a'))
         overlay = ui_anim._OVERLAYS[id(page)]
+        overlay._prepare()
         overlay.set_t(1.); image = overlay.grab().toImage()
         self.assertEqual(color_at(image,1700,50),page.color)
         self.assertEqual(color_at(image,1750,950),'#f23867')
@@ -161,9 +163,54 @@ class NavigationMotion(unittest.TestCase):
         label.setMinimumHeight(45); layout.addStretch(1)
         target.setWidgetResizable(True); target.setWidget(body); stack.addWidget(target)
         ui_anim.switch(stack,target)
+        ui_anim._OVERLAYS[id(stack)]._prepare()
         self.assertGreater(label.width(),800)
         overlay = ui_anim._OVERLAYS[id(stack)]
         self.assertEqual(overlay.size(),stack.size())
+
+    def test_transparent_pages_capture_ancestor_glass_without_siblings(self):
+        root = self.page(1000,700)
+        parent = QWidget(root); parent.setGeometry(50,40,900,600)
+        stack = QStackedWidget(parent); stack.setGeometry(60,60,700,450)
+        stack.addWidget(QWidget()); stack.addWidget(QWidget())
+        class Sibling(Page):
+            paints=0
+            def paintEvent(self,event):
+                self.paints+=1;super().paintEvent(event)
+        sibling=Sibling(parent);sibling.setGeometry(780,0,100,100)
+        parent.show();sibling.show();stack.show();APP.processEvents()
+        sibling.paints=0
+        pm=ui_anim._grab_area(stack)
+        self.assertEqual(pm.toImage().pixelColor(10,10).name(),root.color)
+        self.assertEqual(sibling.paints,0)
+        ui_anim.switch(stack,stack.widget(1));overlay=ui_anim._OVERLAYS[id(stack)]
+        self.assertEqual(color_at(overlay.grab().toImage(),10,10),root.color)
+        overlay._prepare();overlay.set_t(.5)
+        self.assertEqual(color_at(overlay.grab().toImage(),10,10),root.color)
+
+    def test_fast_event_burst_captures_only_final_incoming_page(self):
+        stack,a,b=self.stack()
+        with patch.object(ui_anim,'_grab_area',wraps=ui_anim._grab_area) as capture:
+            for index in range(30):ui_anim.switch(stack,b if index%2==0 else a)
+            self.assertEqual(capture.call_count,1)
+            overlay=ui_anim._OVERLAYS[id(stack)]
+            self.assertIsNone(overlay.new)
+            overlay._prepare()
+            self.assertEqual(capture.call_count,2)
+            self.assertEqual(overlay.new.toImage().pixelColor(500,200).name(),a.color)
+
+    def test_external_navigation_click_preserves_visible_transition_until_switch(self):
+        stack,a,b=self.stack();ui_anim.switch(stack,b)
+        overlay=ui_anim._OVERLAYS[id(stack)];overlay._prepare();overlay.set_t(.4)
+        before=overlay.grab().toImage()
+        button=QPushButton('Next');self.widgets.append(button);button.show()
+        QTest.mousePress(button,Qt.MouseButton.LeftButton)
+        self.assertFalse(overlay._finished)
+        ui_anim.switch(stack,a)
+        current=ui_anim._OVERLAYS[id(stack)]
+        self.assertEqual(current.old.toImage().pixelColor(500,200).name(),color_at(before,500,200))
+        self.assertTrue(overlay._finished)
+        QTest.mouseRelease(button,Qt.MouseButton.LeftButton)
 
     def scroll_area(self):
         area = QScrollArea(); body = QWidget(); body.resize(1800,6000)

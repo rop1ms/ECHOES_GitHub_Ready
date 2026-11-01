@@ -21,7 +21,7 @@ import time
 from PyQt6.QtCore import (QEasingCurve, QEvent, QObject, QParallelAnimationGroup, QPoint, QPropertyAnimation,
                           QRect, QRectF, QSize, Qt, QTimer, QVariantAnimation, pyqtSlot)
 from PyQt6 import sip
-from PyQt6.QtGui import QColor, QLinearGradient, QPainter, QPixmap
+from PyQt6.QtGui import QColor, QLinearGradient, QPainter, QPixmap, QRegion
 from PyQt6.QtWidgets import QApplication, QScrollArea, QStackedWidget, QWidget
 
 DUR_PAGE = 230          # вкладки: новая страница наплывает
@@ -55,7 +55,7 @@ def _ease_out_quint(t: float) -> float:
     return 1 - (1 - t) ** 5
 
 
-def _grab_area(stack: QWidget) -> QPixmap | None:
+def _grab_area(stack: QWidget, backdrop=True) -> QPixmap | None:
     """Снимок области стека вместе со всем, что под ним (фон окна) — непрозрачная картинка,
     поэтому старая и новая страница не просвечивают друг через друга."""
     try:
@@ -68,7 +68,18 @@ def _grab_area(stack: QWidget) -> QPixmap | None:
         pm=QPixmap(max(1,int(stack.width()*scale)),max(1,int(stack.height()*scale)))
         pm.fill(QColor('#0b0d10'))
         painter=QPainter(pm);painter.scale(pm.width()/stack.width(),pm.height()/stack.height())
-        try:stack.render(painter)
+        try:
+            if backdrop:
+                # Transparent pages inherit custom-painted glass from their
+                # ancestors. Render only the cropped ancestor backgrounds;
+                # rendering the whole window would also repaint every sibling.
+                parents=[];parent=stack.parentWidget()
+                while parent is not None:
+                    parents.append(parent);parent=parent.parentWidget()
+                for parent in reversed(parents):
+                    origin=stack.mapTo(parent,QPoint())
+                    parent.render(painter,QPoint(),QRegion(QRect(origin,stack.size())),QWidget.RenderFlag(0))
+            stack.render(painter,QPoint(),QRegion(),QWidget.RenderFlag.DrawChildren)
         finally:painter.end()
         # A bounded raster is mapped explicitly to the logical page rectangle.
         # Point-based drawPixmap clamps DPR below one and would shrink it.
@@ -103,9 +114,10 @@ class _Transition(QWidget):
     def eventFilter(self, obj, event):
         # A snapshot must never conceal live feedback from a new gesture.
         kind = event.type()
+        inside=isinstance(obj,QWidget) and (obj is self.parentWidget() or self.parentWidget().isAncestorOf(obj))
         if (obj is self.parentWidget() and kind in (QEvent.Type.Resize,QEvent.Type.Hide,QEvent.Type.Close)) or \
-                kind in (QEvent.Type.Wheel, QEvent.Type.MouseButtonPress, QEvent.Type.KeyPress) or \
-                (kind == QEvent.Type.MouseMove and event.buttons() != Qt.MouseButton.NoButton):
+                (inside and (kind in (QEvent.Type.Wheel,QEvent.Type.MouseButtonPress,QEvent.Type.KeyPress) or
+                (kind==QEvent.Type.MouseMove and event.buttons()!=Qt.MouseButton.NoButton))):
             self.finish()
         return False
 
@@ -124,9 +136,23 @@ class _Transition(QWidget):
         self.frame_timer.start()
 
     def _frame(self):
+        if self.new is None:
+            self._prepare()
+            if self._finished:return
         progress=min(1.,max(0.,(time.perf_counter()-self._started)/self._duration))
         if progress>=1.:self.finish()
         else:self.set_t(progress)
+
+    def _prepare(self):
+        """One incoming capture per event burst, after the final page is laid out."""
+        if self.new is not None or self._finished:return
+        target=self.parentWidget()
+        _settle_layout(target.currentWidget() if isinstance(target,QStackedWidget) else target)
+        self.hide()
+        snapshot=_grab_area(target)
+        self.new=snapshot if snapshot is not None else self.old
+        self._started=time.perf_counter()
+        self.show();self.raise_()
 
     @pyqtSlot()
     def finish(self):
@@ -148,6 +174,8 @@ class _Transition(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
         W, H, t = self.width(), self.height(), self.t
+        if self.new is None:
+            self._draw(p,self.old,0,0,W,H);p.end();return
         if self.kind == "up":
             e = _ease_out_quint(t)
             self._draw(p,self.old,0,0,W,H)
@@ -197,6 +225,16 @@ def _settle_layout(widget: QWidget):
     if inner is not None and inner.layout() is not None:inner.layout().activate()
 
 
+def _outgoing_snapshot(target):
+    previous=_OVERLAYS.get(id(target))
+    if previous is None:return _grab_area(target)
+    # Continue from the currently visible blend; an unprepared transition
+    # already has exactly the right outgoing image and needs no extra render.
+    snapshot=previous.old if previous.new is None else _grab_area(previous,backdrop=False)
+    previous.finish()
+    return snapshot
+
+
 def switch(stack: QStackedWidget, widget: QWidget, direction: int = 0, kind: str = "slide"):
     """Показать widget в stack с анимацией. direction: 1 — вперёд (новая приезжает справа), -1 — назад,
     0 — без сдвига. kind: "slide" | "up" (шторка снизу) | "down" (шторка уезжает вниз)."""
@@ -209,18 +247,15 @@ def switch(stack: QStackedWidget, widget: QWidget, direction: int = 0, kind: str
     if old is widget or old is None or not enabled() or not stack.isVisible() or stack.width() < 20:
         stack.setCurrentWidget(widget)
         return
-    _finish(stack)                                       # прошлая анимация ещё идёт — завершить мгновенно
+    old_pm=_outgoing_snapshot(stack)
     if len(_OVERLAYS) >= 2:
         previous = next(iter(_OVERLAYS.values()))
         if not sip.isdeleted(previous):
             _finish(previous.parentWidget())
-    old_pm = _grab_area(stack)
     stack.setCurrentWidget(widget)
-    _settle_layout(widget)
-    new_pm = _grab_area(stack) if old_pm is not None else None
-    if old_pm is None or new_pm is None:
+    if old_pm is None:
         return
-    ov = _Transition(stack, old_pm, new_pm, kind, 1 if direction > 0 else (-1 if direction < 0 else 0))
+    ov = _Transition(stack, old_pm, None, kind, 1 if direction > 0 else (-1 if direction < 0 else 0))
     _OVERLAYS[id(stack)] = ov
     ov.start({"up": DUR_SHEET, "down": DUR_SHEET_OUT}.get(kind, DUR_PAGE))
 
@@ -607,18 +642,15 @@ def morph(target: QWidget, fn, direction: int = 0, kind: str = "slide"):
     if not enabled() or not target.isVisible() or target.width() < 20 or target.height() < 20:
         fn()
         return
-    _finish(target)
+    old_pm=_outgoing_snapshot(target)
     if len(_OVERLAYS)>=2:
         previous=next(iter(_OVERLAYS.values()))
         if not sip.isdeleted(previous):previous.finish()
-    old_pm = _grab_area(target)
     fn()
     if sip.isdeleted(target):return
-    _settle_layout(target)
-    new_pm = _grab_area(target) if old_pm is not None else None
-    if old_pm is None or new_pm is None or sip.isdeleted(target):
+    if old_pm is None:
         return
-    ov = _Transition(target, old_pm, new_pm, kind, 1 if direction > 0 else (-1 if direction < 0 else 0))
+    ov = _Transition(target, old_pm, None, kind, 1 if direction > 0 else (-1 if direction < 0 else 0))
     _OVERLAYS[id(target)] = ov
     ov.start(DUR_PAGE)
 
