@@ -287,6 +287,11 @@ class VoiceEngine:
         self._ns = Denoiser(self.ns_level)
         self._agc = _Agc()
         self.last_heard: dict[str, float] = {}
+        self.radio_fx_active=False
+        self._radio_rack=None;self._radio_config=None
+        self._clip=None;self._clip_pos=0
+        self._tail_frames=0
+        self._wake_audio=threading.Event()
 
     # ── настройки ── #
 
@@ -308,19 +313,25 @@ class VoiceEngine:
         import sounddevice as sd
         if self._mic is not None:
             return
+        self._tail_frames=0
 
         def cb(indata, frames, t, status):
             self._inq.append(indata[:, 0].copy())
+            self._wake_audio.set()
         self._mic = sd.InputStream(samplerate=RATE, channels=1, dtype="float32", blocksize=FRAME,
                                    device=self._dev("voice_in"), latency="low", callback=cb)
         self._mic.start()
+        self._start_worker()
+
+    def _start_worker(self):
         self._run = True
+        self._wake_audio.set()
         if self._work is None or not self._work.is_alive():
             self._work = threading.Thread(target=self._worker, name="echoes-voice", daemon=True)
             self._work.start()
 
     def mic_off(self):
-        self._run = False
+        was_open=self._mic is not None
         if self._mic is not None:
             try:
                 self._mic.stop()
@@ -331,23 +342,49 @@ class VoiceEngine:
         self._inq.clear()
         self.level = 0.0
         self.talking = False
+        if was_open and self.radio_fx_active:
+            self._tail_frames=10;self._wake_audio.set()
 
     @property
     def mic_active(self) -> bool:
         return self._mic is not None
 
     def _worker(self):
+        deadline=time.monotonic()
         while self._run:
-            if not self._inq:
-                time.sleep(0.004)
+            if not self._inq and self._clip is None and not self._tail_frames:
+                self._wake_audio.wait(.1);self._wake_audio.clear()
                 continue
-            x = self._inq.popleft().astype(np.float64) * float(self.settings.get("voice_in_vol", 1.0))
+            if (not self._inq or self._mic is None) and time.monotonic()<deadline:
+                time.sleep(min(.004,deadline-time.monotonic()));continue
+            x = self._inq.popleft().astype(np.float64) if self._inq else np.zeros(FRAME)
+            x *= float(self.settings.get("voice_in_vol", 1.0))
+            deadline=time.monotonic()+FRAME/RATE
+            clip=None
+            tail=self._tail_frames>0 and self._mic is None
+            if tail:self._tail_frames-=1
+            with self.lock:
+                if self._clip is not None:
+                    clip=self._clip[self._clip_pos:self._clip_pos+FRAME].copy();self._clip_pos+=FRAME
+                    if self._clip_pos>=len(self._clip):self._clip=None;self._clip_pos=0
             try:
-                self._process(x)
+                self._process(x,clip,tail)
             except Exception as e:                             # noqa: BLE001
                 print("[voice]", e)
 
-    def _process(self, x):
+    def play_clip(self,samples):
+        samples=np.asarray(samples,dtype=np.float32).reshape(-1)
+        if not 0<len(samples)<=RATE*30:raise ValueError('Invalid radio clip length')
+        with self.lock:
+            self._clip=np.concatenate((samples,np.zeros(FRAME*3,np.float32)));self._clip_pos=0
+        self._start_worker()
+
+    def stop_clip(self):
+        with self.lock:
+            self._clip=None;self._clip_pos=0;self.srcs.pop('__radio_clip__',None)
+            getattr(self,'_pend',{}).pop('__radio_clip__',None)
+
+    def _process(self, x, clip=None, force=False):
         y = self._hp(x)
         y = self._ns(y)
         rms = float(np.sqrt(np.mean(y * y)) + 1e-9)
@@ -364,8 +401,22 @@ class VoiceEngine:
                 voiced = self._ns.snr > 3.0 and rms > max(0.003, nf * 1.6)
         self._hold = HANGOVER if voiced else max(0, self._hold - 1)
         y = self._agc(y, voiced) if self.settings.get("voice_agc", True) else y
+        if self.radio_fx_active:
+            from radio_audio import options,VoiceRack
+            config=options(self.settings.get('radio_voice_fx'))
+            if config!=self._radio_config:
+                if not config['enabled']:self._radio_rack=None
+                elif self._radio_rack is not None:self._radio_rack.update(config)
+                else:self._radio_rack=VoiceRack(config)
+                self._radio_config=config
+            if self._radio_rack is not None:y=self._radio_rack.process(y)
+        if clip is not None:
+            y=np.clip(y+np.pad(clip,(0,max(0,len(y)-len(clip))))[:len(y)]*float(self.settings.get('radio_sound_gain',.7)),-.98,.98)
+            if not self.loopback:
+                try:self._play_local('__radio_clip__',np.pad(clip,(0,max(0,len(y)-len(clip))))[:len(y)].astype(np.float32)*float(self.settings.get('radio_sound_gain',.7)))
+                except Exception:pass
         self.level = min(1.0, float(np.sqrt(np.mean(y * y))) * 6)
-        self.talking = self._hold > 0 and not self.muted
+        self.talking = (self._hold > 0 or clip is not None or force) and not self.muted
         if self.loopback:
             self._play_local("__me__", y.astype(np.float32))
         if not self.talking:
@@ -508,7 +559,11 @@ class VoiceEngine:
         self.last_heard.pop(src, None)
 
     def close(self):
+        self._run=False;self._wake_audio.set()
+        self.stop_clip()
         self.mic_off()
+        self._tail_frames=0
+        self._radio_rack=None;self._radio_config=None
         if self._out is not None:
             try:
                 self._out.stop()

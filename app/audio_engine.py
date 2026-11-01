@@ -1073,12 +1073,13 @@ class AudioEngine(QObject):
         ir /= max(1e-9, float(np.sqrt(np.sum(ir * ir))))      # единичная энергия
         return ir
 
-    def _apply_reverb_to_audio(self, audio: np.ndarray, sr: int) -> np.ndarray:
+    def _apply_reverb_to_audio(self, audio: np.ndarray, sr: int, wet_amount=None) -> np.ndarray:
         """Свёртка с IR (отдельный IR на каждый канал). Мокрый сигнал
         выравнивается по громкости к сухому по RMS — реверб не «утаскивает»
         громкость и не перегружает. Без tanh-лимитера (он добавлял грязь)."""
         if scipy_signal is None:
             return audio
+        mix_amount=self._REVERB_WET if wet_amount is None else max(0.,min(.95,float(wet_amount)))
         stereo = audio.ndim == 2
         chans = [audio[:, c] for c in range(audio.shape[1])] if stereo else [audio]
         out = []
@@ -1088,7 +1089,7 @@ class AudioEngine(QObject):
             dry_rms = float(np.sqrt(np.mean(ch * ch))) + 1e-9
             wet_rms = float(np.sqrt(np.mean(wet * wet))) + 1e-9
             wet *= dry_rms / wet_rms
-            out.append(ch * (1.0 - self._REVERB_WET * 0.6) + wet * self._REVERB_WET)
+            out.append(ch * (1.0 - mix_amount * 0.6) + wet * mix_amount)
         res = np.stack(out, axis=1) if stereo else out[0]
         return res.astype(np.float32)
 

@@ -58,12 +58,12 @@ class DuelOptions(unittest.TestCase):
         wins={game.roster[i]['path']:n for i,n in game.wins().items()};self.assertEqual(wins[champion],2)
         restored=Duel();self.assertTrue(restored.restore(game.dump()));restored.undo()
         self.assertEqual(sum(restored.wins().values()),1)
-        self.assertEqual([fire_tier(n) for n in [0,1,2,3,5,10,20,35]],[0,1,1,2,3,4,5,6])
+        self.assertEqual([fire_tier(n) for n in [0,1,2,3,5,10,20,35]],[0,0,0,0,1,2,3,4])
 
     def test_fire_cache_is_bounded_and_colors_change(self):
-        cache=FireCache();first=cache.frame(300,412,1,1.)
-        self.assertIs(first,cache.frame(300,412,1,1.))
-        self.assertNotEqual(first,cache.frame(300,412,20,1.))
+        cache=FireCache();first=cache.frame(300,412,5,1.)
+        self.assertIs(first,cache.frame(300,412,5,1.))
+        self.assertNotEqual(first,cache.frame(300,412,50,1.))
         for n in range(100):cache.frame(300,412,1+n%40,n/12)
         self.assertLessEqual(len(cache.frames),36)
 

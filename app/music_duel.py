@@ -539,7 +539,9 @@ class Arena(QWidget):
         p.setTransform(t,True)
         r=QRectF(-cw/2,-ch/2,cw,ch)
         wins=self.wins_by_id.get(s.ident,0)
-        if self.fire_enabled and wins:
+        from duel_settings import fire_tier
+        tier=fire_tier(wins)
+        if self.fire_enabled and tier:
             self.fire_cache.draw(p,QRectF(-cw/2-44,-ch/2-44,cw+88,ch+88),cw,ch,wins,now)
         glow=max(s.v['glow'],s.hover*0.55)
         halo = self._halo(s, glow > .01)
@@ -550,13 +552,13 @@ class Arena(QWidget):
         if glow>0.01:
             col=QColor(s.color).lighter(130);col.setAlphaF(min(1.0,0.35+glow*0.6));p.setPen(QPen(col,2));p.setBrush(Qt.BrushStyle.NoBrush)
             p.drawRoundedRect(r.adjusted(1,1,-1,-1),24,24)
-        if self.fire_enabled and wins and not s.leaving and cw>=240:
+        if self.fire_enabled and tier and not s.leaving and cw>=240:
             from duel_fire import COLORS
             from duel_settings import fire_tier, tr
             color=QColor(COLORS[fire_tier(wins)-1]);p.setPen(QPen(color,1.5));p.setBrush(QColor(9,11,17,220))
-            badge=QRectF(-cw/2+22,-ch/2+cw-74,90,24);p.drawRoundedRect(badge,12,12)
+            badge=QRectF(-cw/2+22,-ch/2+cw-74,142,24);p.drawRoundedRect(badge,12,12)
             p.setFont(_font(11,QFont.Weight.Bold));p.setPen(color)
-            p.drawText(badge,Qt.AlignmentFlag.AlignCenter,str(wins)+tr(self.page.win,' побед',' wins'))
+            p.drawText(badge,Qt.AlignmentFlag.AlignCenter,tr(self.page.win,'Ур. ','Lv. ')+str(tier)+' · '+str(wins)+tr(self.page.win,' побед',' wins'))
         pad=16;cs=cw-2*pad
         if s.hover>0.01:                                             # блик, бегущий за курсором
             sx=-cw/2+cw*(0.5+s.tilt[0]/18);g=QRadialGradient(QPointF(sx,-ch/2+ch*(0.5-s.tilt[1]/14)),cw*0.8)

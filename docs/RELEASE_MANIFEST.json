@@ -1,7 +1,7 @@
 {
-  "version": "2026.11.01-3",
-  "files": 476,
-  "total_bytes": 140351778,
+  "version": "2026.11.01-4",
+  "files": 487,
+  "total_bytes": 141879381,
   "largest_file_bytes": 36722718,
   "private_profile_included": false,
   "text_checksum": "sha256_lf normalizes CRLF to LF for Git checkouts",
@@ -73,9 +73,9 @@
     },
     {
       "path": "app/audio_engine.py",
-      "bytes": 88897,
-      "sha256": "d46b973099ea63c8e14e677179b9e12b19344bf2830c9011981ff9499a399bcd",
-      "sha256_lf": "c7ade68ec916d6cf4c2cb9a952f02c48cca6c350d48113c6f01883316f21f744"
+      "bytes": 89001,
+      "sha256": "225e90851b83e4673988209786cbeb2eaa4457c2921b49c4408b950d23731d2a",
+      "sha256_lf": "7fd6b96c97beb12686134b7699f0f651b16cb2fc65f5e0ccb81e8220e8db2f8c"
     },
     {
       "path": "app/audio_native.py",
@@ -127,9 +127,9 @@
     },
     {
       "path": "app/bug_report_ui.py",
-      "bytes": 10168,
-      "sha256": "403060f81eb388ca8a9bd517d380601d433d57811924ed60bfdd35d37d1a8e8e",
-      "sha256_lf": "403060f81eb388ca8a9bd517d380601d433d57811924ed60bfdd35d37d1a8e8e"
+      "bytes": 14060,
+      "sha256": "b9ca1f0aaae120f69867064b90ecaae5830f0f4674f821fbcd3c1731b17e49ac",
+      "sha256_lf": "792aad4cdaac2d607217bb2cbf6927a7fd4a0f086d2b835b5f62941e7b63dd82"
     },
     {
       "path": "app/button_editor.py",
@@ -430,9 +430,9 @@
     },
     {
       "path": "app/dsp_export.py",
-      "bytes": 12952,
-      "sha256": "a6f43aae833384a5d943239e281a6cc89a4715aeb3ed5878a7e0f0cec16823b9",
-      "sha256_lf": "a6f43aae833384a5d943239e281a6cc89a4715aeb3ed5878a7e0f0cec16823b9"
+      "bytes": 17210,
+      "sha256": "e113c8a25c30a8e009b46ea1c91be8f9a11b84ca3ec0b418f82e6b01b7d6956c",
+      "sha256_lf": "66570ba7802d884ef9cb64471e1e19aae001a58d5f834f8bdbcfc9f785971fd6"
     },
     {
       "path": "app/duel_chorus.py",
@@ -448,9 +448,9 @@
     },
     {
       "path": "app/duel_settings.py",
-      "bytes": 9944,
-      "sha256": "136a2147be7ac2235503e3886c727b4d788b90997cf7204c6f8f11245c9df67d",
-      "sha256_lf": "136a2147be7ac2235503e3886c727b4d788b90997cf7204c6f8f11245c9df67d"
+      "bytes": 10055,
+      "sha256": "df807ac92100cfa28195ba9e54099fc5d1fce360e6499fc564e776cbc9955556",
+      "sha256_lf": "df807ac92100cfa28195ba9e54099fc5d1fce360e6499fc564e776cbc9955556"
     },
     {
       "path": "app/echo_glass.py",
@@ -1388,9 +1388,9 @@
     },
     {
       "path": "app/music_duel.py",
-      "bytes": 61408,
-      "sha256": "c992cd258ad98135bb41f9ded5c0452213f03a0ee82073200255abc7e947b3d4",
-      "sha256_lf": "4c6e581efd8009d30952d1d26c856a58b9257fdd8ed3261d7b1e2da55f051951"
+      "bytes": 61535,
+      "sha256": "338e55995e5d87338b6fa82d21fc071d9ed489a56a22d67b4a4040483f0ec056",
+      "sha256_lf": "8785d2ec84ba1faa94c1a436d904f78cea3aa8fa83bb2d0a86d19af118490cf0"
     },
     {
       "path": "app/music_intel.py",
@@ -1418,9 +1418,9 @@
     },
     {
       "path": "app/net_bugs.py",
-      "bytes": 4908,
-      "sha256": "2ac322302172f6ee74f7a069bc870fd1ce73a482876c82e30b1e63372e1f719c",
-      "sha256_lf": "2ac322302172f6ee74f7a069bc870fd1ce73a482876c82e30b1e63372e1f719c"
+      "bytes": 8243,
+      "sha256": "3ed2d0161c1b2997c0fffa686b623a6427de9180baaafd012cbb0ba52d48d49b",
+      "sha256_lf": "c5150d07f348c79bfcd6854f0f473241fb77d2ddb42e24e28e3892194a7090f8"
     },
     {
       "path": "app/net_call_ui.py",
@@ -1448,9 +1448,9 @@
     },
     {
       "path": "app/net_core.py",
-      "bytes": 256268,
-      "sha256": "c6399ccf0c15ad19ca61804a2be22a3eb809ca0c7cd743a3fa64a1b5ca4bf2aa",
-      "sha256_lf": "1d38a99114d69b1cc0926bf22e455b577cdad1d68d7cd287ddab7a1faeac75dc"
+      "bytes": 261920,
+      "sha256": "1f413d15515a0bc6a189f5fe7d5e032e8218831708d6677566eaf3ee28a87b0c",
+      "sha256_lf": "7ada819dd1cbc19b8f686290527112080c8713dfca44ac54da254473ef9e51b9"
     },
     {
       "path": "app/net_crypto.py",
@@ -1550,9 +1550,9 @@
     },
     {
       "path": "app/net_page.py",
-      "bytes": 370988,
-      "sha256": "86a5fae28ca459c84c09fb74c7f3c2ee77f41138b626c83a9774d64aca73d287",
-      "sha256_lf": "4df478065bac44dd6adb4a7c5aa7e67e78e5f801b5b47bbff70b9e7b51ab8b42"
+      "bytes": 374740,
+      "sha256": "eb3d09d523d3578ccb8d70cc50287bb9e4d29f582016daf39c1136f3319d7efd",
+      "sha256_lf": "b9738d05fa449b4808b702bf37713f4a80fd5d3ccac951409542cc8a30a29d95"
     },
     {
       "path": "app/net_perf.py",
@@ -1589,6 +1589,12 @@
       "bytes": 34191,
       "sha256": "49d20e68a8111ed75cbf6a69bd2dffc13e4dcd37994a074565e728970ebb2c19",
       "sha256_lf": "c36a26f3f0b45d91df436244af1b84c9f2710f5eafd3415218a8ee54b0f79f50"
+    },
+    {
+      "path": "app/net_radio_auth.py",
+      "bytes": 2993,
+      "sha256": "dfeff0132e842c632b9226cce5fc36b4a827d3220d24abd4ac1889c7778c9fa7",
+      "sha256_lf": "dfeff0132e842c632b9226cce5fc36b4a827d3220d24abd4ac1889c7778c9fa7"
     },
     {
       "path": "app/net_reactions.py",
@@ -1652,9 +1658,9 @@
     },
     {
       "path": "app/net_voice.py",
-      "bytes": 24442,
-      "sha256": "6dbfbc492dbe616a12375bc591404b0af5fa217c0ed71f8573644517b0f0b361",
-      "sha256_lf": "a03d0dfdb5cd72f435d89d3f4ae39f0c1119c38814d6d088a983ca212a91189d"
+      "bytes": 27382,
+      "sha256": "68b8c0d5b24aa1765e236a4d230dff76e6fc9053ed607bdb593dd0454af1dd38",
+      "sha256_lf": "ad0233a82e30ddc64a829dab34367240fe97f7c5ccf671662de43ddd1767a65d"
     },
     {
       "path": "app/net_voicemsg.py",
@@ -1861,10 +1867,22 @@
       "sha256_lf": "28ff7eff3b908e7a2df798720a0b532c617491c455cbb91bda0efd641cd848f3"
     },
     {
+      "path": "app/radio_audio.py",
+      "bytes": 6473,
+      "sha256": "07706bed5fd95500580961da67f4d408a11328c1546917605c5a6e86f095473c",
+      "sha256_lf": "a03dd55b4a65d3f78a8d155a28bb353512b03f279bae6974a5cb2a14f77c92ec"
+    },
+    {
+      "path": "app/radio_console.py",
+      "bytes": 12148,
+      "sha256": "598ac3ee55fcd8382028076df87e9ce6459489cc012d979902ff660bec8c92e3",
+      "sha256_lf": "598ac3ee55fcd8382028076df87e9ce6459489cc012d979902ff660bec8c92e3"
+    },
+    {
       "path": "app/radio_station.py",
-      "bytes": 5621,
-      "sha256": "4a612f520a111aadc7860372e1759703f96f8ffd63ee8c7d6bb31c9ffe73b9ed",
-      "sha256_lf": "4a612f520a111aadc7860372e1759703f96f8ffd63ee8c7d6bb31c9ffe73b9ed"
+      "bytes": 6165,
+      "sha256": "f5d5382a640c8160212c3880c3d81117fc93aab2f94a8b5c3429d2da464666a2",
+      "sha256_lf": "f5d5382a640c8160212c3880c3d81117fc93aab2f94a8b5c3429d2da464666a2"
     },
     {
       "path": "app/radio_ui.py",
@@ -2055,8 +2073,8 @@
     {
       "path": "app/version.txt",
       "bytes": 14,
-      "sha256": "f522137019da551a9ba0a3bbc5125610a3730f1bb31d6dd785568e7d1b7faacf",
-      "sha256_lf": "15d1fb714e82e9993f325e64faa88dc53adff985b2280e7b826f08c6cb0ba3bb"
+      "sha256": "7cc0b5df68e2afbccf23227564d4a3b0deb22bfc470754bc67cc6463654e027a",
+      "sha256_lf": "39ade52fcaff15f8571083520b322671dade4aa80ce37386cd449d9fa793a965"
     },
     {
       "path": "app/video_safety.py",
@@ -2240,9 +2258,9 @@
     },
     {
       "path": "app/ya_sound_panel.py",
-      "bytes": 14042,
-      "sha256": "07f32def5cd341dd76c2a6edaf6d9bd4ec89da8fdeeab848561422ff17facf5f",
-      "sha256_lf": "b254ac2ba5fe15dd301648aded48d6abf70681fa5a5152fe30b92c53980ccc52"
+      "bytes": 15362,
+      "sha256": "c28cda927f5f3b2df1e687bd5ddf4c58f7395805b88f25185fd8c4c51ea581bf",
+      "sha256_lf": "d9cf11054f587a3520e3d119be92567062ed2cfa5a05c461adc8a799ed4de0d9"
     },
     {
       "path": "app/ya_versions.py",
@@ -2282,15 +2300,15 @@
     },
     {
       "path": "app/yamusic_theme.py",
-      "bytes": 340579,
-      "sha256": "37d04cd65099a7ec4d0add897884076c8263794281c827b3fe663153cbf4ab52",
-      "sha256_lf": "864fec48f35385f6c0791d1c752e3b748c9a7e0f6825b813ec8b125d3c3f0eb8"
+      "bytes": 340931,
+      "sha256": "ad1911bdff27ad66a4852d4563ca0a8d8da3d975958cb28c7dafb311e72239db",
+      "sha256_lf": "0449d4ad75fa6c212d5c4ad55489a4cb432c92c4ca825212b63f0e0a8a85c137"
     },
     {
       "path": "docs/CHANGELOG.md",
-      "bytes": 7446,
-      "sha256": "4265c4329f64ff9c0984c2d2429a596d20bfec9eaf95dfb3d59420c28ce623e7",
-      "sha256_lf": "8d955b3246a74ae6a4bf0b351e7f86ae9777a2a49dccaed6764c665bc1e191bd"
+      "bytes": 11177,
+      "sha256": "dd187ce985e032b1cbee544a094597e42c2d526bd95a773a58b10da2610aca71",
+      "sha256_lf": "6221ff801ce9245a80fa2f8af40957898690fe1b4b39d5979daf9163f752a8ba"
     },
     {
       "path": "docs/MEMORY_BENCHMARK.json",
@@ -2331,8 +2349,8 @@
     },
     {
       "path": "docs/screenshots/duel-fire.png",
-      "bytes": 496268,
-      "sha256": "5732b4421f799cf0578bd523d44966ff8f67b1752a3ee5dd077660e1c70b2e43"
+      "bytes": 537896,
+      "sha256": "c891a0ac0e5a2e6cb6d833204629779d7b6bb98410d79368640ee81d1e68bdd2"
     },
     {
       "path": "docs/screenshots/duel-settings.png",
@@ -2343,6 +2361,11 @@
       "path": "docs/screenshots/duel.png",
       "bytes": 517985,
       "sha256": "1696d1ced71fd6e9f8af5812bcf517a18ed69ab3b470ff3cdbbb6b0d24559993"
+    },
+    {
+      "path": "docs/screenshots/export-player-settings.png",
+      "bytes": 86185,
+      "sha256": "6d6322ca02b3a0edb7e992550486fe811d122d228ca8d946c307781a5180195c"
     },
     {
       "path": "docs/screenshots/montage.png",
@@ -2370,6 +2393,11 @@
       "sha256": "f24687bf0601f4efaaebeeaeda42868df7e8fade83bfaa18efe31bd30646d1f0"
     },
     {
+      "path": "docs/screenshots/player-effects-settings.png",
+      "bytes": 417730,
+      "sha256": "7c3048c1aabe2e0387a30327e02e15febdaf67ee3376f9b0b82bcf362ad013af"
+    },
+    {
       "path": "docs/screenshots/radio-editor.png",
       "bytes": 177574,
       "sha256": "53b49f18b36b91827a53a2f2550172c5345c4ea2db5fb2307cbfb724b0b188d0"
@@ -2378,6 +2406,26 @@
       "path": "docs/screenshots/radio-live.png",
       "bytes": 377602,
       "sha256": "105a7a4e849363210ddb35677bb6878b89d7ebb8ff3950ad597f7af56142dd5e"
+    },
+    {
+      "path": "docs/screenshots/radio-soundboard.png",
+      "bytes": 57976,
+      "sha256": "dda4d64abc4c5a6af166b47a04b97fdaea5b95966d9e1ff7694732a1ad3f8464"
+    },
+    {
+      "path": "docs/screenshots/radio-voice-fx.png",
+      "bytes": 84936,
+      "sha256": "1ee4e307593879b67005ae6aca38c7294b26a1474595e84fc88bba5d77673b24"
+    },
+    {
+      "path": "docs/screenshots/requests-radio.png",
+      "bytes": 375014,
+      "sha256": "88a923ecb50446b4c20150e4345ea8634b89f1a7ff13f24db22384f042455a42"
+    },
+    {
+      "path": "docs/screenshots/staff-requests.png",
+      "bytes": 381468,
+      "sha256": "98539a7ede0a2f6ff4e7147cade16a57ba5d2ea37874545521efd0ad5487da0a"
     },
     {
       "path": "docs/screenshots/studio.png",
@@ -2391,9 +2439,9 @@
     },
     {
       "path": "docs/VALIDATION.md",
-      "bytes": 7472,
-      "sha256": "af02f35a182cc2d9c2205234ea327bf0eb30fe3bf660e196488460f41238df93",
-      "sha256_lf": "6318d15ee93b586b590d717d9ebc9b8ee68db7bba0545d1f7c98035c5afc1223"
+      "bytes": 10933,
+      "sha256": "2c561bdd1c572600d3e1085a198360392a7f6ac3cb7be6f8bd65643dac6acd91",
+      "sha256_lf": "ce41a7d5bd43ec64d9fbe5592c97d79c9bd834afcdbd9c8043ac74ef375b1daf"
     },
     {
       "path": "ECHOES Launcher.exe",
@@ -2444,9 +2492,15 @@
     },
     {
       "path": "qa/check_radio_fire_ui.py",
-      "bytes": 5538,
-      "sha256": "da60de6b95aa0fbaf72c8fe1a538fd61e811d8d1e3de105e1f6ddcf247fa610e",
-      "sha256_lf": "da60de6b95aa0fbaf72c8fe1a538fd61e811d8d1e3de105e1f6ddcf247fa610e"
+      "bytes": 5660,
+      "sha256": "22f3e7cd54c1101df7401d84c845bed8eade5de1f7651cbf528a0409f3bf0e99",
+      "sha256_lf": "b5791585348d73d46168e4930593dec6abe19cbc4a6af3bc06640abf0a92d3eb"
+    },
+    {
+      "path": "qa/check_radio_studio_ui.py",
+      "bytes": 8592,
+      "sha256": "91847c68eecb9a6df83fc59345a371459f60941e9b83da581846eda9c1a7637e",
+      "sha256_lf": "91847c68eecb9a6df83fc59345a371459f60941e9b83da581846eda9c1a7637e"
     },
     {
       "path": "qa/make_readme_screenshots.py",
@@ -2456,15 +2510,15 @@
     },
     {
       "path": "qa/package_github.py",
-      "bytes": 3825,
-      "sha256": "3f11850884893b0784eda2ec56f82831a371b272c1e548829e9977344dd11022",
-      "sha256_lf": "1402a505f4c472353436c39378962d1c83968f470da8e915e1927d11e111b011"
+      "bytes": 3852,
+      "sha256": "5ce7ade55aa8639ff4e71d446ca836891ac43618db74917f4cf0a0ea7bf761ca",
+      "sha256_lf": "fd97799ac5e18fe43827eba3d4ebc2b9900b99bccd8ebdce18230707f376f500"
     },
     {
       "path": "qa/test_duel_reports.py",
-      "bytes": 10099,
-      "sha256": "c2f4229e2c88baf113e2d0d2c0ad6862f70864fa97f48acd3919f5aacb95fb3b",
-      "sha256_lf": "c2f4229e2c88baf113e2d0d2c0ad6862f70864fa97f48acd3919f5aacb95fb3b"
+      "bytes": 10276,
+      "sha256": "cd81de6447daea74b51e92c6179d5794548995bcce02992eb5d172706c0ae0d6",
+      "sha256_lf": "661622a905d691eb679cda2bfb2f4ce3a6b98a62228e6a19bcc6a7abf93fb556"
     },
     {
       "path": "qa/test_interaction_latency.py",
@@ -2510,9 +2564,15 @@
     },
     {
       "path": "qa/test_radio_fire.py",
-      "bytes": 11103,
-      "sha256": "4bac0fe2e14896234769a433760379fec600c580faae30195fbd2893a2b8521d",
-      "sha256_lf": "4bac0fe2e14896234769a433760379fec600c580faae30195fbd2893a2b8521d"
+      "bytes": 11492,
+      "sha256": "057ce281a9d7c2b7b34e7b5c8a3b5f1158faeeb002335848adb7100f62d469c6",
+      "sha256_lf": "0321d162c02753acee4c817a2372b70ec68dd76d42a2b34263c2159be3cbdbb0"
+    },
+    {
+      "path": "qa/test_radio_studio.py",
+      "bytes": 12774,
+      "sha256": "510b00bf77bace2e85ef1dbc5744770badfcf9e76f1d1036d24a7a2da7862135",
+      "sha256_lf": "510b00bf77bace2e85ef1dbc5744770badfcf9e76f1d1036d24a7a2da7862135"
     },
     {
       "path": "qa/test_static_components.py",
@@ -2552,15 +2612,15 @@
     },
     {
       "path": "README.md",
-      "bytes": 17643,
-      "sha256": "cd8fd6083b3a34d02102b5438c237debc0a472dcd034dabd4569564a4289eced",
-      "sha256_lf": "fd3c5eab1674ae26eb00b10d4f347e1ad32400834ca995714045ba2ad8b18732"
+      "bytes": 19659,
+      "sha256": "94c5d44201b9d3e8bc33f98581ea0d5d40c51b52ff20675bb820818f8800fa6c",
+      "sha256_lf": "fd2f8359c98f25986b5b2dcf12bf59d97049cb759bc180159523d5861cd50311"
     },
     {
       "path": "README.ru.md",
-      "bytes": 28822,
-      "sha256": "55d5deefccc2b60fd4e9f0834e9877b5f5a9c9d87507de4b52ecf361f47a3820",
-      "sha256_lf": "a2cac08e2797f9b5512126ea1bad1774bf233760db021dda815a8b6fc0a44467"
+      "bytes": 32198,
+      "sha256": "5a7a2ac4b3560ca8bd88215bac04e036c239d94da01d311af49b1dfb4807d18a",
+      "sha256_lf": "19e3f10e18f03b87fade39a5dbb4b14ed77f5256dfae6638764a2ab825476de7"
     },
     {
       "path": "requirements-dev.txt",

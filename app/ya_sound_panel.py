@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from PyQt6.QtCore import QPoint, QRectF, Qt, QTimer
 from PyQt6.QtGui import QColor, QGuiApplication, QPainter, QPainterPath
-from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QSlider, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QSlider, QVBoxLayout, QWidget,QCheckBox
 
 YELLOW = "#ffdb1a"
 
@@ -91,10 +91,13 @@ class MiniEq(QWidget):
 
 
 class SoundPanel(QFrame):
-    def __init__(self, shell):
-        super().__init__(shell, Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint
+    def __init__(self, shell,embedded=False):
+        super().__init__(shell, Qt.WindowType.Widget if embedded else Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint
                          | Qt.WindowType.NoDropShadowWindowHint)
+        self.embedded=embedded
         self.shell, self.win = shell, shell.win
+        from duel_settings import tr
+        self.t=lambda ru,en:tr(self.win,ru,en)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setStyleSheet(QSS)
         outer = QVBoxLayout(self)
@@ -189,8 +192,14 @@ class SoundPanel(QFrame):
         more.setCursor(Qt.CursorShape.PointingHandCursor)
         more.clicked.connect(self._open_settings)
         v.addWidget(more)
+        from duel_settings import tr
+        self.follow_export=QCheckBox(tr(self.win,'Экспортировать с текущими настройками плеера','Use current player settings for export'))
+        self.follow_export.setChecked(self.win.settings.get('export_follow_player',True))
+        self.follow_export.toggled.connect(self._follow_export_changed);v.addWidget(self.follow_export)
+        export=QPushButton(tr(self.win,'Экспорт текущего трека с эффектами','Export current track with effects'))
+        export.clicked.connect(lambda:self.win.export_effects([]));v.addWidget(export)
 
-        self.setFixedWidth(360)
+        if not embedded:self.setFixedWidth(360)
         self.timer = QTimer(self)
         self.timer.setInterval(200)
         self.timer.timeout.connect(self.sync)
@@ -251,9 +260,10 @@ class SoundPanel(QFrame):
         self.sync()
 
     def _open_settings(self):
-        self.hide()
+        if not self.embedded:self.hide()
         try:
             self.shell.show_page("settings")
+            self.shell.settings_hub.select('sound')
         except Exception:                                  # noqa: BLE001
             pass
 
@@ -261,12 +271,14 @@ class SoundPanel(QFrame):
 
     def sync(self):
         w = self.win
+        self.follow_export.blockSignals(True);self.follow_export.setChecked(w.settings.get('export_follow_player',True));self.follow_export.blockSignals(False)
         bass = w.bass_boost()
         if self.bass.value() != bass and not self.bass.isSliderDown():
             self.bass.blockSignals(True)
             self.bass.setValue(bass)
             self.bass.blockSignals(False)
-        self.bass_val.setText("выкл" if bass == 0 else f"+{bass} %  ·  до +{round(12 * bass / 100)} дБ на 60 Гц")
+        self.bass_val.setText(self.t("выкл","off") if bass == 0 else self.t(
+            f"+{bass} %  ·  до +{round(12 * bass / 100)} дБ на 60 Гц",f"+{bass}% · up to +{round(12 * bass / 100)} dB at 60 Hz"))
         hp = w.settings.get("hp_profile", "")
         self.hp_val.setText("выровнено" if hp else "выкл")
         for p, b in self.bass_btns.items():
@@ -305,5 +317,11 @@ class SoundPanel(QFrame):
     def hideEvent(self, e):
         self.timer.stop()
         import time
-        self.shell._sound_closed_at = time.monotonic()     # клик по кнопке, закрывший попап, не откроет его снова
+        if not self.embedded:self.shell._sound_closed_at = time.monotonic()
         super().hideEvent(e)
+
+    def showEvent(self,event):
+        super().showEvent(event);self.sync();self.timer.start()
+
+    def _follow_export_changed(self,on):
+        self.win.settings['export_follow_player']=bool(on);self.win.save_settings()

@@ -44,6 +44,13 @@ def clean_wire(raw, previous=None):
     base = previous if previous.get('revision') == revision else {}
     out = profile({**base, **raw})
     out.update(revision=revision, current=str(raw.get('current') or '')[:32], repeat=bool(raw.get('repeat', True)))
+    bundle=raw.get('permit',base.get('permit'))
+    if isinstance(bundle,dict):out['permit']=bundle
+    sounds=raw.get('sounds',base.get('sounds',[]))
+    from net_files import clean_meta,AUDIO
+    from pathlib import Path
+    out['sounds']=[clean for item in sounds[:16] if (clean:=clean_meta(item)) and clean.get('kind')=='audio'
+                   and Path(clean['name']).suffix.lower() in AUDIO and 0<clean['size']<=10*2**20] if isinstance(sounds,list) else []
     queue = raw.get('queue', base.get('queue', []))
     out['queue'] = []
     for item in queue[:MAX_QUEUE] if isinstance(queue, list) else []:
@@ -53,7 +60,7 @@ def clean_wire(raw, previous=None):
 
 def summary(raw):
     if not isinstance(raw, dict): return None
-    return profile(raw)
+    return {**profile(raw),'permit':raw.get('permit') if isinstance(raw.get('permit'),dict) else None}
 
 class Station:
     def __init__(self, config, clock=time.monotonic):

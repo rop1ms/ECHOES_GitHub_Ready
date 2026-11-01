@@ -1,3 +1,25 @@
+# 2026.11.01-4
+
+## English
+
+- Liquid Glass radio voice-effects cloud: twelve presets and controls for autotune, pitch, formant, robot, delay, reverb, chorus, saturation, tremolo, bitcrusher, telephone filter and compression. Stateful resampling preserves correct tuning between 48 kHz voice and 44.1 kHz studio DSP.
+- Dedicated station audio engine/route keeps broadcast effects and soundboard clips out of personal calls. Soundboard playback works without an active microphone; files are bounded to 30 seconds/10 MiB, with up to 16 station slots and listener-only original-file downloads.
+- Signed radio hosting approval/revocation from trusted staff, validated when hosting, receiving station state and reading public announcements. Ordinary listening rooms remain available.
+- Separate Requests and bugs tab with categories, filters, durable private requests/replies, delivery acknowledgments, staff reply/approve/decline controls, and a radio application shortcut.
+- Fire levels now start at 5 wins, then 10/20/35/50/100, with a level badge. No flames at 1–4 wins.
+- Shared controls between Settings → Audio, the bottom sound popup and effect export. Export follows player speed, reverb, effective EQ/bass and gain by default; manual export configuration remains available. Reverb export no longer temporarily changes the live engine’s wet parameter.
+- Focused verification only: 38 radio/fire/studio/export cases, plus nine UI checks per language. A real 8-second WAV exported at 1.25× produced 6.4 seconds. No full 120+ test suite run.
+
+## Русский
+
+- Облачко эффектов радиомикрофона в Liquid Glass: 12 пресетов и настройки автотюна, питча, форманты, робота, эха, реверберации, хоруса, перегруза, тремоло, биткрашера, телефонного фильтра и компрессора.
+- Отдельный движок/маршрут эфира не отправляет эти эффекты и звуки в личные звонки. Файлы до 30 секунд/10 МиБ, до 16 слотов; текущие слушатели могут скачать оригиналы. Микрофон для запуска звуков не нужен.
+- Подписанное разрешение на ведение радио от администратора/модератора и его отзыв. Проверки применяются при открытии станции, получении состояния и объявлений каталога; обычные совместные комнаты доступны как прежде.
+- Отдельная вкладка «Запросы и баги»: категории, фильтры, личная история, ответы и кнопки одобрения/отклонения для сотрудников.
+- Уровни огня: 5, 10, 20, 35, 50 и 100 побед; на 1–4 победах пламени нет.
+- Настройки звука, нижняя панель и экспорт используют общие параметры. Экспорт по умолчанию берёт скорость, реверб, EQ/бас и усиление плеера; можно настроить отдельно. Экспорт реверба не меняет живой движок.
+- Только 38 профильных проверок и по 9 проверок интерфейса RU/EN; настоящий WAV длиной 8 секунд экспортирован в 6,4 секунды при 1,25×. Полный набор 120+ тестов не запускался.
+
 # 2026.11.01-3
 
 ## English

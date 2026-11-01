@@ -339,7 +339,7 @@ class NetPage(QWidget):
                 "net": "Профиль, приватность, уведомления",
                 "admin": "Модерация Echoes.NET: модераторы, блокировки, скрытые посты, обновления для всех"}
     TABS = (("feed", "Лента"), ("chats", "Сообщения"), ("friends", "Друзья"), ("room", "Слушать вместе"),
-            ("threads", "Треды"), ("mods", "Моды"), ("net", "Настройки"), ("admin", "Админка"))
+            ("threads", "Треды"), ("mods", "Моды"), ('requests','Запросы и баги'), ("net", "Настройки"), ("admin", "Админка"))
 
     def __init__(self, shell):
         super().__init__()
@@ -401,7 +401,7 @@ class NetPage(QWidget):
         self.title = NetTitle()
         top.addWidget(self.title, 1)
         from duel_settings import tr
-        self.b_bug=ghost_btn(tr(self.win,'Сообщить об ошибке','Report a bug'))
+        self.b_bug=ghost_btn(tr(self.win,'Запросы и баги','Requests and bugs'))
         self.b_bug.setIcon(ya_icon('bug',16));self.b_bug.clicked.connect(self.open_bug_report);top.addWidget(self.b_bug)
         self.b_me = QLabel()
         self.b_me.setFixedSize(40, 40)
@@ -426,6 +426,7 @@ class NetPage(QWidget):
         grp = QButtonGroup(self)
         btns = []
         for key, text in self.TABS:
+            if key=='requests':text=tr(self.win,'Запросы и баги','Requests and bugs')
             b = QPushButton(text)
             b.setCheckable(True)
             b.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -444,7 +445,8 @@ class NetPage(QWidget):
         root.addWidget(self.stack, 1)
         self.tabs = {"feed": self._build_feed(), "chats": self._build_chats(), "room": self._build_room(),
                      "friends": self._build_friends(), "net": self._build_net(), "profile": self._build_profile(),
-                     "mods": self._build_mods(), "threads": self._build_threads(), "admin": self._build_admin()}
+                     "mods": self._build_mods(), "threads": self._build_threads(), "admin": self._build_admin(),
+                     'requests':self._build_requests()}
         for w in self.tabs.values():
             self.stack.addWidget(w)
         from net_call_ui import CallController
@@ -489,8 +491,22 @@ class NetPage(QWidget):
         return bool(self.node and self.node.thread and self.node.thread.is_alive())
 
     def open_bug_report(self, _=False, inbox=False):
-        from bug_report_ui import open_reports
-        return open_reports(self,inbox=inbox)
+        self.shell.show_page('net');self.show_tab('requests');self._fill_requests()
+        panel=self._requests_panel
+        panel.tabs.setCurrentIndex(2 if inbox and panel.inbox is not None else 0)
+        return panel
+
+    def _build_requests(self):
+        self.requests_page=Page(margins=(0,4,8,12));return self.requests_page
+
+    def _fill_requests(self):
+        if self.node is None:return
+        panel=getattr(self,'_requests_panel',None)
+        if panel is None:
+            from bug_report_ui import BugReportsDialog
+            panel=self._requests_panel=BugReportsDialog(self,embedded=True)
+            self.requests_page.v.addWidget(panel,1)
+        panel.refresh()
 
     def start_net(self):
         nd = self._ensure_node(start=False)
@@ -502,6 +518,7 @@ class NetPage(QWidget):
 
     def stop_net(self):
         if self.node:
+            self._voice_stop()
             self.node.settings["autostart"] = False
             self.node.save_settings()
             self.node.stop()
@@ -625,6 +642,12 @@ class NetPage(QWidget):
         self._fill_room()
 
     def _voice_stop(self):
+        radio=getattr(self,'_radio_voice',None)
+        if radio is not None:
+            radio.close();self._radio_on_air=False
+            try:self.win.engine._apply_loudness()
+            except Exception:pass
+        self._radio_sound_token=self.__dict__.get('_radio_sound_token',0)+1
         if self._voice is not None and (self.node is None or self.node.cur_call is None):
             self._voice.close()
         self._voice_t.stop()
@@ -749,6 +772,7 @@ class NetPage(QWidget):
             self._fill_profile()
         elif key == "admin":
             self._fill_admin()
+        elif key=='requests':self._fill_requests()
         # Record only successful, populated views (startup creates the node later).
         if self.node is not None:
             filled[key] = stamp()
@@ -767,6 +791,9 @@ class NetPage(QWidget):
             traceback.print_exc()
 
     def _on_event_impl(self, kind, data):
+        if kind=='radio_permits':
+            if self._tab=='room':self._fill_room()
+            return
         if kind == "devsync" and isinstance(data, dict):        # синхронизация своих ПК
             import net_devsync
             net_devsync.on_message(self, data)
@@ -997,6 +1024,9 @@ class NetPage(QWidget):
 
     def _status_ui(self, st):
         st = st or {}
+        if st.get('phase') in ('off','error','no_tor'):
+            radio=getattr(self,'_radio_voice',None)
+            if radio is not None and (radio.mic_active or radio._clip is not None):self._voice_stop()
         self._staff_ui()
         on = bool(st.get("online"))
         self.title.set_state(on, st.get("text", ""))
@@ -1136,6 +1166,9 @@ class NetPage(QWidget):
             self._now_key = k
             nd.call(nd.set_now_playing, track_meta(cur))
         now = time.time()
+        radio_voice=getattr(self,'_radio_voice',None)
+        if nd.room_host is not None and nd.room_host.get('station') is not None and radio_voice is not None:
+            radio_voice.want={nd.room_codec()}
         if nd.room_host is not None and nd.room_host.get('station') is None:
             playing = self.shell.is_playing()
             try:
@@ -1851,6 +1884,12 @@ class NetPage(QWidget):
 
         def menu():
             m = QMenu(self)
+            from duel_settings import tr
+            from net_radio_auth import issue
+            on=not nd.radio_allowed(o)
+            if not nd.role(o):
+                m.addAction(tr(self.win,'Разрешить вести радио','Allow radio hosting') if on else tr(self.win,'Отозвать разрешение на радио','Revoke radio hosting'),
+                            lambda:nd.call(issue,nd,o,on))
             if not (nd.role(o) and r != "admin"):
                 if nd.staff_hidden(o):
                     m.addAction("Разблокировать в Echoes.NET", lambda: nd.call(nd.staff_act, "unban", o, "user", "",
@@ -3524,7 +3563,8 @@ class NetPage(QWidget):
         if station:
             from radio_ui import avatar_pixmap
             branding=QHBoxLayout(); photo=QLabel(); photo.setPixmap(avatar_pixmap(station.get('avatar',''),56))
-            branding.addWidget(photo); branding.addWidget(lbl(station.get('name','Echoes Radio'),'NetName')); branding.addStretch()
+            branding.addWidget(photo); branding.addWidget(lbl(station.get('name','Echoes Radio'),'NetName'))
+            verified=lbl(t('Проверенный ведущий','Verified host'),'YaSub');branding.addWidget(verified);branding.addStretch()
             hero.lay.addLayout(branding)
         page.v.addSpacing(10)
         mid = QHBoxLayout(); mid.setSpacing(14)
@@ -3555,6 +3595,8 @@ class NetPage(QWidget):
             nxt=ghost_btn(t('Следующий','Next')); nxt.clicked.connect(lambda:self.node.call(self.node.radio_control,'next')); controls.addWidget(nxt)
             lv.addLayout(controls)
             edit=ghost_btn(t('Станция и очередь','Station and queue')); edit.clicked.connect(self._edit_radio); lv.addWidget(edit)
+            console=ghost_btn(t('Голос и звуки эфира','Broadcast voice & sounds'));console.setIcon(ya_icon('eq',18))
+            console.clicked.connect(lambda:self._open_radio_console(console,True));lv.addWidget(console)
             if tr:
                 monitor=ghost_btn(t('Прослушать текущий трек','Preview current track'))
                 monitor.clicked.connect(lambda _=False,meta=tr:self.play_meta(meta)); lv.addWidget(monitor)
@@ -3598,6 +3640,9 @@ class NetPage(QWidget):
         mid.addWidget(left)
         right, rvl = card()
         if station:
+            if not host:
+                sounds_button=ghost_btn(t('Звуки станции · скачать','Station sounds · download'))
+                sounds_button.clicked.connect(lambda:self._open_radio_console(sounds_button,False));rvl.addWidget(sounds_button)
             rvl.addWidget(lbl(t('ЭФИРНАЯ ОЧЕРЕДЬ','ON-AIR QUEUE'),'Section'))
             queue=QListWidget(); queue.setMinimumHeight(130); queue.setMaximumHeight(230)
             for entry in station.get('queue',[]):
@@ -3659,9 +3704,11 @@ class NetPage(QWidget):
 
     def _open_radio(self):
         from duel_settings import tr
+        if not self.node.radio_allowed():
+            panel=self.open_bug_report();panel.category.setCurrentIndex(panel.category.findData('radio'))
+            self.toast(tr(self.win,'Чтобы вести радио, отправьте заявку администратору или модератору.','Apply to an administrator or moderator to host a radio station.'));return
         if not self.running() or not self.node.state.get("online"):
-            self.toast(tr(self.win,"Сначала включите сеть","Turn on the network first"))
-            return
+            self.toast(tr(self.win,"Сначала включите сеть","Turn on the network first"));return
         from radio_ui import StationDialog
         dialog = StationDialog(self, self.node.settings.get('radio_station'))
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -3679,10 +3726,12 @@ class NetPage(QWidget):
     def _radio_talk(self, on):
         """«Сказать в эфир»: пока кнопка зажата — микрофон и тише музыка (у себя тоже)."""
         try:
-            v = self.calls.ensure_engine()
+            from radio_console import engine
+            if not self.node.room_host or not self.node.room_host.get('station') or not self.node.radio_allowed():return
+            v = engine(self)
             nd = self.node
             if on and not v.mic_active:
-                v.sink = nd.voice_out
+                v.sink = nd.radio_voice_out
                 v.want = {nd.room_codec()}
                 v.mic_on()
                 self._voice_t.start()
@@ -3692,6 +3741,14 @@ class NetPage(QWidget):
             self._radio_on_air = on
         except Exception as e:                                 # noqa: BLE001
             self.toast(f"Микрофон не включился: {e}")
+
+    def _open_radio_console(self,anchor,host=True):
+        from radio_console import RadioConsole
+        previous=getattr(self,'_radio_console',None)
+        if previous is not None:
+            try:previous.close();previous.deleteLater()
+            except RuntimeError:pass
+        self._radio_console=RadioConsole(self,anchor,host);self._radio_console.show()
 
     def _open_room(self):
         if not self.running() or not self.node.state.get("online"):
@@ -5663,7 +5720,7 @@ class NetPage(QWidget):
 
     def _public_rooms(self, page):
         rooms = [r for r in self._pub()["rooms"].values() if r["onion"] != self.node.me.onion
-                 and (not r["exp"] or r["exp"] > time.time())]
+                 and (not r["exp"] or r["exp"] > time.time()) and (not r.get('radio') or self.node.radio_allowed(r['onion']))]
         page.v.addWidget(section_title("Публичные комнаты"))
         if not getattr(self.node, "nostr", None):
             page.v.addWidget(lbl("Включите Nostr в разделе «Сеть», чтобы видеть открытые комнаты всех пользователей.",

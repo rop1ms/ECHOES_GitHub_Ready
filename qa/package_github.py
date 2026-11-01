@@ -26,7 +26,7 @@ for folder in ('app/assets','app/dsl_themes','app/sounds','app/discord_assets','
     entries.extend(p for p in (ROOT/folder).rglob('*') if p.is_file())
 entries.append(ROOT/'tools/build_launcher.ps1')
 entries.extend((ROOT/'qa').glob('test_*.py'))
-entries.extend(ROOT/'qa'/name for name in ('ui_smoke.py','make_readme_screenshots.py','build_ui_symbols.py','package_github.py','benchmark_row_memory.py','check_duel_performance_ui.py','check_radio_fire_ui.py'))
+entries.extend(ROOT/'qa'/name for name in ('ui_smoke.py','make_readme_screenshots.py','build_ui_symbols.py','package_github.py','benchmark_row_memory.py','check_duel_performance_ui.py','check_radio_fire_ui.py','check_radio_studio_ui.py'))
 entries=sorted(set(p for p in entries if not any(part in ('__pycache__','(null)','launcher-build') for part in p.parts)
                    and p.suffix.lower() not in ('.pyc','.pyo','.bak','.log','.db','.sqlite','.key','.pem')
                    and '.old' not in p.name))

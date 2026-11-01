@@ -94,10 +94,10 @@ class StationProtocol(unittest.IsolatedAsyncioTestCase):
         node.room_host={'title':'Night Signals','state':Station(config()).state(),'station':Station(config()),
                         'share':True,'public':True,'genre':'Electronic','id':'station'}
         node.room_members={'guest'};node.peers={'guest':NS(send=AsyncMock())};node.settings={}
-        node.room_guest=None;node.room_state=None;node.room_chat=[]
+        node.room_guest=None;node.room_state=None;node.room_chat=[];node.me=NS(onion='host')
         node.emit=Mock();node.log=Mock();node._broadcast_friends=AsyncMock();node._hi=Mock(return_value={})
         node._name=lambda:'Host';node._contact_name=lambda peer:peer;node.room_codec=lambda:'adpcm'
-        node.nostr=None
+        node.nostr=None;node._staff={'mods':None,'acts':{}};node._radio_permits={};node.radio_allowed=lambda *args:True
         return node
 
     async def test_personal_player_updates_cannot_overwrite_air(self):
@@ -138,7 +138,8 @@ class StationProtocol(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('queue',info['radio']);node.nostr.publish.assert_awaited_once()
         self.assertEqual(node._clean_room_summary({'radio':info['radio']})['radio'],info['radio'])
 
-    async def test_guest_receives_branding_and_preserves_queue_between_updates(self):
+    @patch('net_radio_auth.accept',return_value=True)
+    async def test_guest_receives_branding_and_preserves_queue_between_updates(self,_authority):
         host=self.node();guest=self.node();guest.room_host=None;guest.room_guest='host';guest.is_friend=lambda peer:False
         buf=io.BytesIO();Image.new('RGB',(32,32),'green').save(buf,format='JPEG')
         host.room_host['state']['radio']['avatar']=base64.b64encode(buf.getvalue()).decode()
@@ -164,14 +165,14 @@ class StationProtocol(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([st['track']['title'] for st in seen],['First','Second'])
 
 class NativeFire(unittest.TestCase):
-    def render(self,now=1,wins=3,scale=1):
+    def render(self,now=1,wins=10,scale=1):
         image=QImage(600*scale,720*scale,QImage.Format.Format_ARGB32_Premultiplied);image.fill(Qt.GlobalColor.transparent)
         p=QPainter(image);p.scale(scale,scale);p.translate(300,360)
         FireCache().draw(p,QRectF(-194,-250,388,500),300,412,wins,now);p.end();return image
 
     def test_emitters_start_on_actual_card_not_outer_rectangle(self):
-        cache=FireCache();points=cache.frame(300,412,3)
-        self.assertIs(points,cache.frame(300,412,3,50))
+        cache=FireCache();points=cache.frame(300,412,10)
+        self.assertIs(points,cache.frame(300,412,10,50))
         for e in points:
             self.assertLessEqual(abs(e.x),150.01);self.assertLessEqual(abs(e.y),206.01)
             self.assertTrue(abs(e.x)>125 or abs(e.y)>181)
@@ -179,7 +180,7 @@ class NativeFire(unittest.TestCase):
 
     def test_native_render_animates_and_changes_tier(self):
         self.assertNotEqual(self.render(1),self.render(1.5))
-        self.assertNotEqual(self.render(1,1),self.render(1,20))
+        self.assertNotEqual(self.render(1,5),self.render(1,50))
         self.assertFalse(self.render(scale=2).isNull())
         self.assertTrue(all(self.render(wins=0).pixelColor(x,y).alpha()==0 for x,y in [(100,100),(300,300)]))
 

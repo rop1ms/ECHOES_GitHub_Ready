@@ -1,4 +1,32 @@
-# Release verification — 2026.11.01-3
+# Release verification — 2026.11.01-4
+
+Verification was limited to the changed radio, fire-level, request and player-effect features.
+
+| Focused check | Result |
+| --- | --- |
+| Radio studio/auth/export cases (`qa/test_radio_studio.py`) | 19 cases passed; a corrected normal-player fixture was rechecked individually |
+| Existing related radio/fire cases (`qa/test_radio_fire.py`) | 19 cases passed with updated level/authority fixtures |
+| Voice DSP | Every preset returned bounded finite audio; pitch changed frequency without changing duration; autotune corrected a detuned tone; echo/reverb had measured tails |
+| Hosting authorization | Default deny, admin/mod signed grants, rejection of forged/nonstaff grants, revocation/replay/persistence and moderator removal checked with synthetic real Ed25519 identities |
+| Support protocol | Private request → approved signed permission → reply → acknowledgment; nonstaff/uncertified approvals rejected; late delivery ACK does not overwrite approval |
+| Soundboard | Bounded file decode, send with closed mic gate, and original-file access restricted to station members |
+| Fire levels | No effect before 5 wins; all six thresholds and existing native-render/cache behavior checked |
+| Focused UI (`qa/check_radio_studio_ui.py`) | 9 checks each in English and Russian, no Python errors |
+| Shared controls | Settings and bottom popup shared bass/gain/speed; export read the same state and followed the shared link toggle |
+| Actual file export | 8-second generated WAV at 1.25× rendered to a 6.4-second WAV with current EQ/gain |
+| Screenshots | Real app captures with a temporary profile, generated artwork/audio, and synthetic staff identities |
+
+No full regression suite, general-page smoke audit, native editor checks or launcher tests were run for this release. No real administrator was messaged and no permission was issued for a real user. Permission and request protocol tests use in-memory peers; actual multi-PC broadcasts, microphones/devices, network latency and perceptual voice quality need a real listening session. Voice effects run before encoding; the station soundboard uses the available radio voice channel. Original-file transfer uses the existing transport limits. Everyone, including approving staff, needs an updated client for the new approval flow.
+
+## Русский
+
+Проверены только изменённые функции: 38 профильных случаев и по 9 проверок интерфейса на русском/английском. Измерены изменение частоты, работа автотюна и хвостов эха/реверба, проверены подписи разрешений и обмен заявками/ответами, доступ к файлам слушателей, уровни огня и общие параметры плеера/экспорта. WAV длиной 8 секунд при 1,25× получил длительность 6,4 секунды. Реальные аккаунты/разрешения не использовались, сообщения сотрудникам не отправлялись. Эфир между реальными ПК и субъективное качество микрофона не проверялись. Полный набор 120+ тестов не запускался.
+
+---
+
+## Historical verification — preceding releases
+
+### Release 2026.11.01-3
 
 This release was checked only for the changed radio and card-fire features, as requested.
 

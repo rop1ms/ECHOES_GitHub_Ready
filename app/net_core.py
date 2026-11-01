@@ -1165,7 +1165,8 @@ class NetNode:
             have = await self._upd_have()
             if have:
                 await p.send(have)
-            if self._staff_load().get("mods") or self._staff_load()["acts"]:
+            from net_radio_auth import load as radio_permits
+            if self._staff_load().get("mods") or self._staff_load()["acts"] or radio_permits(self):
                 await p.send(self._staff_payload())
             mine = [{"target": r["target"], "reason": r["reason"]} for r in self.my_reports()[:200]]
             if mine:
@@ -1211,9 +1212,18 @@ class NetNode:
     async def _handle(self, p: Peer, m: dict):
         t = m.get("t")
         o = p.onion
-        if t in ('bug_report','bug_ack'):
+        if t in ('bug_report','bug_ack','staff_reply','staff_reply_ack'):
             from net_bugs import receive
             await receive(self,p,m)
+            return
+        if t=='radio_permit':
+            from net_radio_auth import accept
+            bundle=m.get('proof')
+            if isinstance(bundle,dict):
+                decision=bundle.get('decision')
+                accept(self,decision.get('target','') if isinstance(decision,dict) else '',bundle)
+                if self.room_host and self.room_host.get('station') and not self.radio_allowed():
+                    await self.room_close()
             return
         if t in ("ka", "bye"):
             if t == "bye":
@@ -1274,6 +1284,9 @@ class NetNode:
             room = m.get("room") if isinstance(m.get("room"), dict) else None
             if room:
                 room = self._clean_room_summary(room)
+                if room.get('radio'):
+                    from net_radio_auth import accept
+                    if not accept(self,o,room['radio'].get('permit')):room=None
             taste = clean_taste(m.get("taste"))
             self.store.upsert_contact(o, name=clip(m.get("name"), MAX_NAME), bio=clip(m.get("bio"), 300),
                                       now=json.dumps(now, ensure_ascii=False) if now else "",
@@ -1438,6 +1451,11 @@ class NetNode:
                 else:
                     st["track"] = clean_track(st.get("track"))
                     if 'radio' in st:
+                        from net_radio_auth import accept
+                        bundle=(st.get('radio') or {}).get('permit') or ((self.room_state or {}).get('radio') or {}).get('permit')
+                        if not accept(self,o,bundle):
+                            self.room_guest=None;self.room_state=None;self.emit('room',None)
+                            self.emit('toast','Radio host permission is missing or revoked');return
                         from radio_station import clean_wire
                         st['radio'] = clean_wire(st['radio'], (self.room_state or {}).get('radio'))
                     self.room_state = st
@@ -2484,6 +2502,7 @@ class NetNode:
         await self.nostr.subscribe("mods", [{"kinds": [30078], "#t": ["echoes-mod"], "limit": 300}], self._nostr_mod)
         await self.nostr.subscribe("upd", [{"kinds": [30078], "#t": ["echoes-update"], "limit": 20}], self._nostr_update)
         await self.nostr.subscribe("staff", [{"kinds": [30078], "#t": ["echoes-staff"], "limit": 20}], self._nostr_staff)
+        await self.nostr.subscribe('radio_permits',[{'kinds':[30078],'#t':['echoes-radio-permit'],'limit':500}],self._nostr_radio_permit)
         await self.nostr.subscribe("modact", [{"kinds": [30078], "#t": ["echoes-modact"], "limit": 3000}],
                                    self._nostr_modact)
         asyncio.ensure_future(self._nostr_announce_loop())
@@ -2569,6 +2588,10 @@ class NetNode:
             data = json.loads(tag(ev, "echoes-room") or "{}")
         except ValueError:
             data = {}
+        if not isinstance(data,dict):return
+        if data.get('radio'):
+            from net_radio_auth import accept
+            if not isinstance(data['radio'],dict) or not accept(self,onion,data['radio'].get('permit')):return
         key = (ev["pubkey"], tag(ev, "d"))
         if self._mod_drop(ev["pubkey"], tag(ev, "title"), data.get("genre")) or self.mod_hidden(onion):
             self.public["rooms"].pop(key, None)
@@ -3741,13 +3764,23 @@ class NetNode:
     def _staff_payload(self):
         st = self._staff_load()
         acts = sorted(st["acts"].values(), key=lambda a: -float(a.get("ts") or 0))[:300]
-        return {"t": "staff", "mods": st.get("mods"), "acts": acts}
+        from net_radio_auth import load
+        permits=sorted(load(self).values(),key=lambda p:-p['ts'])[:300]
+        return {"t": "staff", "mods": st.get("mods"), "acts": acts,'radio_permits':permits}
 
     def _staff_in(self, m):
         if m.get("mods"):
             self._take_modlist(m.get("mods"))
         for a in (m.get("acts") or [])[:300]:
             self._take_act(a)
+        from net_radio_auth import take
+        for decision in (m.get('radio_permits') or [])[:300]:take(self,decision)
+
+    def _nostr_radio_permit(self,ev):
+        if not self._ev_ok(ev) or len(ev.get('content') or '')>3000:return
+        from net_radio_auth import take
+        try:take(self,json.loads(ev.get('content') or '{}'))
+        except (ValueError,TypeError):pass
 
     # ── подписки на авторов: уведомления о новых постах ── #
 
@@ -3894,6 +3927,9 @@ class NetNode:
             if data.get("now") is not None or "now" in data:
                 upd["now"] = json.dumps(now, ensure_ascii=False) if now else ""
             room = data.get("room") if isinstance(data.get("room"), dict) else None
+            if room and room.get('radio'):
+                from net_radio_auth import accept
+                if not isinstance(room['radio'],dict) or not accept(self,onion,room['radio'].get('permit')):room=None
             upd["room"] = json.dumps(self._clean_room_summary(room), ensure_ascii=False) if room else ""
         self.store.upsert_contact(onion, **upd)
         was = onion in self.peers
@@ -4469,7 +4505,9 @@ class NetNode:
                                                              "связь через Tor или напрямую"})
             return
         ok = bool(r) and r["state"] == "have" and r["owner"] == self.me.onion and Path(r["path"]).exists() and \
-            (("*" in r["allow"] and self.is_friend(p.onion)) or p.onion in r["allow"] or "*public*" in r["allow"])
+            (("*" in r["allow"] and self.is_friend(p.onion)) or p.onion in r["allow"] or "*public*" in r["allow"] or
+             ('radio' in r['allow'] and p.onion in self.room_members and self.room_host is not None and
+              any(sound.get('fid')==fid for sound in self.room_host.get('sounds',[]))))
         if not ok:
             await p.send({"t": "file_err", "fid": fid, "why": "файла нет или он не для вас"})
             return
@@ -4634,8 +4672,52 @@ class NetNode:
         if st.get('radio'):
             from radio_station import summary
             destination.update(radio=summary(st['radio']), now=clean_track(st.get('track')))
+            from net_radio_auth import proof
+            destination['radio']['permit']=proof(self)
+
+    def radio_allowed(self,onion=None):
+        from net_radio_auth import allowed
+        return allowed(self,onion)
+
+    def radio_voice_out(self,seq,frames):
+        """Dedicated host microphone/soundboard route: never send to an unrelated call."""
+        loop=self.loop
+        if loop is None:return
+        def send():
+            if self.room_host is not None and self.room_host.get('station') is not None:
+                encoded={codec:[base64.b64encode(frame).decode() for frame in packets] for codec,packets in frames.items()}
+                asyncio.create_task(self.voice_send(int(seq),encoded))
+        loop.call_soon_threadsafe(send)
+
+    async def radio_add_sound(self,path):
+        if not self.room_host or not self.room_host.get('station') or not self.radio_allowed():return
+        rh=self.room_host;sounds=rh.setdefault('sounds',[])
+        if len(sounds)>=16:self.emit('toast','The station soundboard holds up to 16 clips');return
+        try:
+            from radio_audio import decode_clip
+            audio=await asyncio.get_running_loop().run_in_executor(None,decode_clip,path)
+            del audio
+            meta=await self.share_file(path,['radio'])
+        except Exception as error:
+            self.emit('toast',str(error));return
+        if self.room_host is not rh or not meta:return
+        sounds=rh.setdefault('sounds',[])
+        if len(sounds)>=16:return
+        small={**meta,'pv':{k:v for k,v in meta.get('pv',{}).items() if k in ('dur','title','artist')}}
+        sounds.append(small);self.settings['radio_sounds']=sounds;self.save_settings()
+        rh['station'].revision=secrets.token_hex(8);rh['state']=rh['station'].state()
+        await self._room_broadcast()
+
+    async def radio_remove_sound(self,fid):
+        rh=self.room_host
+        if rh is None or not rh.get('station'):return
+        rh['sounds']=[s for s in rh.get('sounds',[]) if s.get('fid')!=fid]
+        self.settings['radio_sounds']=rh['sounds'];self.save_settings()
+        rh['station'].revision=secrets.token_hex(8);rh['state']=rh['station'].state();await self._room_broadcast()
 
     async def radio_open(self, config):
+        if not self.radio_allowed():
+            self.emit('toast','Radio hosting requires approval. Open Requests & bugs to apply.');return
         from radio_station import Station
         try:
             station = Station(config)
@@ -4672,6 +4754,9 @@ class NetNode:
         last_key = None; last_send = 0.
         while self.room_host is not None and self.room_host.get('station') is not None:
             rh = self.room_host
+            if not self.radio_allowed():
+                self.emit('toast','Radio host permission was revoked')
+                asyncio.create_task(self.room_close());return
             st = rh['station'].state()
             key = (st['radio']['revision'], st['radio']['current'], st['playing'])
             rh['state'] = st
@@ -4705,6 +4790,8 @@ class NetNode:
     async def room_open(self, title, public=None, genre="", share=True, radio=None):
         """public — комната видна всем в Echoes.NET (объявление в Nostr), зайти могут и незнакомцы.
         share — гостям, у которых трека нет, хост отдаёт свой файл."""
+        if radio is not None and not self.radio_allowed():
+            self.emit('toast','Radio hosting requires staff approval');return
         if public is None:                                     # по умолчанию комнаты — для всех
             public = bool(self.settings.get("rooms_public", True)) and getattr(self, "nostr", None) is not None
         if self.room_guest:
@@ -4715,7 +4802,8 @@ class NetNode:
                           "public": bool(public), "genre": clip(genre, 40), "share": bool(share),
                           "id": secrets.token_hex(6)}
         if radio is not None:
-            self.room_host.update(station=radio, state=radio.state(), sent_revisions={})
+            sounds=[m for m in self.settings.get('radio_sounds',[])[:16] if isinstance(m,dict) and self.store.file(m.get('fid',''))]
+            self.room_host.update(station=radio, state=radio.state(), sent_revisions={},sounds=sounds)
             self._radio_task = asyncio.create_task(self._radio_loop())
         self.room_members = set()
         self.room_chat = []
@@ -4762,6 +4850,10 @@ class NetNode:
         if self.room_host is None:
             return
         st = dict(self.room_host.get("state") or {})
+        if st.get('radio'):
+            from net_radio_auth import proof
+            st['radio']={**st['radio'],'permit':proof(self),'sounds':self.room_host.get('sounds',[])}
+            self.room_host['state']={**(self.room_host.get('state') or {}),'radio':st['radio']}
         st["title"] = self.room_host.get("title", "")
         st["share"] = bool(self.room_host.get("share"))
         st["public"] = bool(self.room_host.get("public"))
@@ -4777,7 +4869,7 @@ class NetNode:
                     previous = revisions.get(o)
                     full = not previous or previous[0] != radio['revision'] or time.monotonic()-previous[1] >= 30
                     if not full:
-                        packet = {**st, 'radio': {k:v for k,v in radio.items() if k not in ('avatar', 'queue')}}
+                        packet = {**st, 'radio': {k:v for k,v in radio.items() if k not in ('avatar', 'queue', 'permit', 'sounds')}}
                     await p.send({"t": "room_state", "state": packet})
                     if full: revisions[o] = (radio['revision'], time.monotonic())
                 else:

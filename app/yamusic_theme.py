@@ -5385,6 +5385,9 @@ class YaShell(QWidget):
         from ya_settings import SettingsHub
         hub = SettingsHub(Page, ya_icon, YELLOW)
         self.settings_hub = hub
+        from ya_sound_panel import SoundPanel
+        sound_controls=SoundPanel(self,embedded=True);hub.v.addWidget(sound_controls)
+        hub.add('sound','Эффекты плеера и экспорт',sound_controls,'bass boost slowed speed up nightcore export effects настройки эффекты бас экспорт громкость')
         from performance_ui import settings_card
         perf=settings_card(self.win);hub.v.addWidget(perf)
         hub.add('performance','Производительность',perf,'performance memory ram fps cache graphics animation озу память кэш нагрузка')

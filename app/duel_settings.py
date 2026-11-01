@@ -80,8 +80,10 @@ def filter_tracks(tracks, opts, *, playlists=None, liked=(), profiles=None):
     return out
 
 
+FIRE_LEVELS=(5,10,20,35,50,100)
+
 def fire_tier(wins):
-    return sum(wins >= threshold for threshold in (1, 3, 5, 10, 20, 35))
+    return sum(wins >= threshold for threshold in FIRE_LEVELS)
 
 
 def open_settings(page):
@@ -107,8 +109,8 @@ def open_settings(page):
                     'Background analysis is cached. If no chorus is found, use a highlight; without analysis, use the track beginning.'))
     note.setWordWrap(True); note.setStyleSheet('color:#9da9bc;font-size:11px;'); body.addWidget(note)
     fire = QCheckBox(t('Огненная аура за победы', 'Fire aura for wins')); fire.setChecked(opts['fire']); body.addWidget(fire)
-    legend = QLabel(t('1 — изумрудный · 3 — синий · 5 — фиолетовый · 10 — розовый · 20 — огненный · 35 — ледяной',
-                      '1 — emerald · 3 — blue · 5 — violet · 10 — pink · 20 — flame · 35 — ice'))
+    legend = QLabel(t('Уровни: 5 — изумрудный · 10 — синий · 20 — фиолетовый · 35 — розовый · 50 — огненный · 100 — ледяной. До 5 побед огня нет.',
+                      'Levels: 5 — emerald · 10 — blue · 20 — violet · 35 — pink · 50 — flame · 100 — ice. No fire before 5 wins.'))
     legend.setWordWrap(True); legend.setStyleSheet('color:#9da9bc;font-size:11px;'); body.addWidget(legend)
     form = QFormLayout(); form.setSpacing(10); combos = {}
     library = win.library; profiles = getattr(page.shell, '_profiles', None) or {}

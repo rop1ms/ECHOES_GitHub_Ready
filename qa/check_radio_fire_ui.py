@@ -31,15 +31,15 @@ for i in range(8):
 win.library=tracks;win.playlists['Signals']={'tracks':tracks};win.settings['duel_options']={'chorus':False}
 shell=win._ya;shell.show_page('duel');ui_anim._finish(shell.stack);settle(.2)
 duel=shell.pages['duel'];duel.begin();settle(.2)
-for _ in range(3):duel.vote(0);duel.arena.fast_forward()
+for _ in range(5):duel.vote(0);duel.arena.fast_forward()
 settle(.9)
 times=[]
 for _ in range(35):
     before=time.perf_counter();duel.arena.grab();times.append((time.perf_counter()-before)*1000)
-assert duel.game.streak()==3 and duel.arena.fire_cache.bytes>0
+assert duel.game.streak()==5 and duel.arena.fire_cache.bytes>0
 fire_bytes=duel.arena.fire_cache.bytes
 if settings['language']=='en':win.grab().save(str(out/'duel-fire.png'))
-net=shell.pages['net'];shell.show_page('net');ui_anim._finish(shell.stack)
+net=shell.pages['net'];net.node.radio_allowed=lambda *args:True;shell.show_page('net');ui_anim._finish(shell.stack)
 buf=io.BytesIO();Image.new('RGB',(144,144),'#3478b4').save(buf,format='JPEG')
 cfg={'name':'Night Signals','avatar':base64.b64encode(buf.getvalue()).decode(),'genre':'Electronic','repeat':True,
      'queue':[{'id':str(i),'track':track} for i,track in enumerate(tracks[:4])]}

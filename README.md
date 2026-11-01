@@ -52,6 +52,12 @@ Russian installer entry points are included as `УСТАНОВИТЬ ECHOES.bat`
 
 ![Custom voice phrases and scenarios](docs/screenshots/voice.png)
 
+**Shared player effects:** Settings → Audio and the small sound button in the bottom player use the same bass boost, gain and speed/preset controls. Effect export follows these settings by default, including effective EQ and reverb, with an option to configure an export separately. Radio microphone effects are a separate rack.
+
+![Shared player sound settings](docs/screenshots/player-effects-settings.png)
+
+![Export using current player settings](docs/screenshots/export-player-settings.png)
+
 ### Echoes.NET — a social space inside your player
 
 - **Peer-to-peer connections:** Tor-based identities, direct connection options, local-network discovery, and relay/discovery integrations. Connection availability depends on the chosen transport and network.
@@ -59,6 +65,10 @@ Russian installer entry points are included as `УСТАНОВИТЬ ECHOES.bat`
 - **Feed:** posts, comments, polls, track sharing, emoji reactions, moments, and time capsules.
 - **Listen together:** synchronized listening rooms, collaborative playlists, and what friends are listening to now.
 - **Your radio station:** a public station name and avatar, visible to listeners and in the public directory. Build a separate on-air queue from your library/playlists, drag to reorder, edit it live, pause, skip, select a track, and repeat. The broadcast schedule runs independently of the host’s personal player. Guests see the queue and follow the on-air track. Hold to speak on air. Up to 100 tracks with a known duration; listeners use their library, supported streams, or the host’s shared file when a direct connection is available.
+- **Radio voice cloud:** autotune with key/scale, pitch, formant, robot/vocoder, echo, reverb, chorus/double voice, saturation/distortion, tremolo, bitcrusher, telephone filter and broadcast compression. Twelve presets plus custom combinations. Processing happens before transmission on a dedicated station voice engine, separate from personal calls.
+- **On-air soundboard:** import up to 16 audio files (up to 30 seconds and 10 MiB each), play/stop clips without holding the microphone, adjust clip volume, and let current station members download the originals. Short files are decoded in the background; playback uses the station’s available voice channel.
+- **Approved hosts:** request radio-host permission from a verified administrator/moderator. Permission decisions are signed and can be revoked; station packets/public listings are checked against trusted staff roles. Staff can also grant/revoke access from a user’s moderation menu.
+- **Requests and bugs:** a separate social tab for bugs, radio applications, appeals and other requests, with category filters, private history, staff replies, and approval/decline controls. Turn on Echoes.NET to send a staff reply; queued replies retry until acknowledged.
 - **Music with friends:** taste compatibility, an interactive taste map, music quizzes, live quizzes, challenges, weekly rankings, and achievements.
 - **Make it yours:** profiles, avatars, banners, frames, badges, gifts, showcases, and a community market for appearance items and themes.
 - Moderation tools, notifications, device synchronization, backups, and update sharing round out the network features. Encrypted relayed message envelopes are implemented separately from public posts.
@@ -69,13 +79,19 @@ Russian installer entry points are included as `УСТАНОВИТЬ ECHOES.bat`
 
 ![Radio station host controls and listener queue](docs/screenshots/radio-live.png)
 
+![Radio voice effects cloud](docs/screenshots/radio-voice-fx.png)
+
+![File soundboard for the broadcast](docs/screenshots/radio-soundboard.png)
+
+![Staff requests and radio approvals](docs/screenshots/staff-requests.png)
+
 ### Track duels and music tier lists
 
 - **Echoes Duel:** two covers enter the arena; preview either track and pick a winner. Play King of the Hill or endless pairs, undo a vote, and keep a tournament across sessions.
 - Add online contenders, inspect the leaderboard, and play your winners.
 - **Duel settings:** combine genre, artist, album, playlist, liked-track, and duration filters for the next tournament.
 - **Chorus-first previews are enabled by default.** A single background worker reuses cached analysis or finds an energetic repeated section. If a chorus cannot be identified, it uses a highlight or the beginning; it never pauses the interface to analyze audio.
-- **Evolving fire aura:** emerald, blue, violet, pink, orange, and icy light mark increasing win counts. Native-resolution translucent flames and embers emerge directly from the rounded card edges, without an enlarged low-resolution texture or rectangular aura surface. The bounded cache stores small emitter recipes and is released when hidden.
+- **Evolving fire aura:** levels at **5, 10, 20, 35, 50 and 100 wins** unlock emerald, blue, violet, pink, orange and icy light. Cards have no fire before level one. Native-resolution translucent flames and embers emerge directly from the rounded card edges, without an enlarged low-resolution texture or rectangular aura surface. The bounded cache stores small emitter recipes and is released when hidden.
 - **Music tier list:** organize tracks visually into ranked rows, adjust the board, and save/share the result.
 - Cached artwork, effects, and monitor-aware animation timing keep the duel arena economical to draw.
 
