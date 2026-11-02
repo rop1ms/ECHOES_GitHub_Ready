@@ -86,6 +86,10 @@ def _setup(lib):
         "eui_liquid_surface_callback": (None, [_STRIP_CB]),
         "eui_liquid_surface_async": (None, [I, I, I, D]),
         "eui_liquid_surface_take": (I, [I, P]),
+        "eui_text_cache_new": (P, []),
+        "eui_text_cache_free": (None, [P]),
+        "eui_draw_wrapped": (None, [P, P, I, I, I, I, I, W]),
+        "eui_draw_liquid": (None, [P, P, I, I, I, ctypes.POINTER(W)] + [ctypes.POINTER(D)] * 5 + [D, I, P, P, D]),
     }
     for name, (res, args) in sig.items():
         fn = getattr(lib, name)
@@ -269,3 +273,37 @@ def grab_from_window(widget):
     from PyQt6.QtGui import QPixmap
     pm = QPixmap()
     return pm if _lib.eui_grab_from_window(_ptr(widget), _ptr(pm)) else None
+
+
+# ── текст экрана «Текст песни» (text_cache.cpp) ─────────────────────────── #
+
+class TextCache:
+    """Готовые раскладки строк и глифы букв для одной панели текста (кэш живёт вместе с ней)."""
+
+    def __init__(self):
+        self._h = _lib.eui_text_cache_new()
+
+    def __del__(self):
+        if _lib is not None and self._h:
+            _lib.eui_text_cache_free(self._h)
+            self._h = None
+
+    def draw_wrapped(self, painter, rect, flags: int, text: str):
+        """= painter.drawText(rect, flags, text) — текст уже переведён (i18n.tr)."""
+        _lib.eui_draw_wrapped(self._h, _ptr(painter), rect.x(), rect.y(), rect.width(), rect.height(),
+                              int(flags), text)
+
+    def draw_liquid(self, painter, ox, oy, arrays, now, px, col, dim_col, alpha):
+        n, chars, cx, base, cw, t0, t1 = arrays
+        col, dim_col = QColor(col), QColor(dim_col)        # живут до конца вызова
+        _lib.eui_draw_liquid(self._h, _ptr(painter), int(ox), int(oy), n, chars, cx, base, cw, t0, t1,
+                             float(now), int(px), _ptr(col), _ptr(dim_col), float(alpha))
+
+
+def liquid_arrays(chars, tr=lambda s: s):
+    """Раскладка «жидкой» строки ([символ, x, база, ширина, слово, t0, t1]) → массивы для C++."""
+    n = len(chars)
+    col = lambda k: (ctypes.c_double * max(1, n))(*[float(c[k]) for c in chars])
+    keep = [tr(c[0]) for c in chars]
+    arr = (ctypes.c_wchar_p * max(1, n))(*keep)
+    return (n, arr, col(1), col(2), col(3), col(5), col(6))

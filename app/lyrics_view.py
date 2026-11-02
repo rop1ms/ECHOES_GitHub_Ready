@@ -634,28 +634,76 @@ class LyricsScrollPanel(QWidget):
     # ── рисование ── #
 
     def paintEvent(self, _):
-        p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
         W, H = self.width(), self.height()
+        bg, off = None, None
         if self._backdrop is not None:
-            bg, off = None, None
             try:
                 bg, off = self._backdrop()
             except Exception:                        # noqa: BLE001
                 bg = None
+        if self._layout_w != W:
+            self._relayout()
+        # Пока строки стоят на месте, фон и все неактивные строки — одна готовая картинка (слой), в кадре
+        # рисуется только текущая строка и точки. Слой собирается, когда два кадра подряд одинаковы
+        # (во время прокрутки к новой строке — рисуем всё напрямую, как раньше).
+        key = self._layer_key(bg, off)
+        if key is not None and key == self.__dict__.get("_layer_k") and self.__dict__.get("_layer") is not None:
+            p = QPainter(self)
+            p.drawPixmap(0, 0, self._layer)
+            self._paint_content(p, W, H, "active")
+            p.end()
+            self._prev_k = key
+            return
+        if key is not None and key == self.__dict__.get("_prev_k"):
+            dpr = self.devicePixelRatioF()
+            layer = QPixmap(max(1, int(W * dpr)), max(1, int(H * dpr)))
+            layer.setDevicePixelRatio(dpr)
+            lp = QPainter(layer)
+            self._paint_backdrop(lp, W, H, bg, off)
+            self._paint_content(lp, W, H, "base")
+            lp.end()
+            self._layer, self._layer_k = layer, key
+            p = QPainter(self)
+            p.drawPixmap(0, 0, layer)
+            self._paint_content(p, W, H, "active")
+            p.end()
+            return
+        self._layer = None
+        self._prev_k = key
+        p = QPainter(self)
+        self._paint_backdrop(p, W, H, bg, off)
+        self._paint_content(p, W, H, "all")
+        p.end()
+
+    def _layer_key(self, bg, off):
+        """Всё, от чего зависит слой «фон + неактивные строки», или None (слой не нужен: нет непрозрачного
+        фона, «точки» дышат, наведена строка, нет активной строки)."""
+        if bg is None or bg.isNull() or not self._timed or self._active_idx < 0 or not self._texts:
+            return None
+        a = list(self._alpha)
+        if 0 <= self._active_idx < len(a):
+            a[self._active_idx] = None
+        return (self.width(), self.height(), self.devicePixelRatioF(), bg.cacheKey(), off.x(), off.y(),
+                self._scroll, self._active_idx, tuple(a), id(self._layout), id(self._st), self._light,
+                self.liquid, self._font.key(), self._dots is not None)
+
+    def _paint_backdrop(self, p, W, H, bg, off):
+        if self._backdrop is not None:
             if bg is not None and not bg.isNull():
                 p.drawPixmap(0, 0, bg, off.x(), off.y(), W, H)
             else:
-                p.fillRect(self.rect(), QColor(30, 30, 32))
-        if self._layout_w != W:
-            self._relayout()
+                p.fillRect(QRect(0, 0, W, H), QColor(30, 30, 32))
+
+    def _paint_content(self, p, W, H, part):
+        """part: "all" — всё по порядку; "base" — всё, кроме текущей строки и точек; "active" — только они."""
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
         st = self._st
         base = QColor(10, 10, 10) if self._light else QColor(255, 255, 255)
         act_col = self._col("color", base)
         dim_col = self._col("dim_color", act_col)
         dim_k = float(st.get("dim", 1.0))
-        if st.get("panel") and not st.get('liquid_glass', False):  # Glass is one full-page surface.
+        if part != "active" and st.get("panel") and not st.get('liquid_glass', False):  # Glass: one full-page surface.
             p.setPen(Qt.PenStyle.NoPen)
             p.setBrush(QColor(st["panel"]))
             r = float(st.get("panel_radius", 18))
@@ -681,6 +729,8 @@ class LyricsScrollPanel(QWidget):
                 continue
             a = self._alpha[i] if i < len(self._alpha) else 0.5
             active = i == self._active_idx and self._timed
+            if (part == "base" and active) or (part == "active" and not active):
+                continue
             if not active:
                 a *= dim_k
             # мягкое затухание к краям панели
@@ -714,7 +764,7 @@ class LyricsScrollPanel(QWidget):
                 self._draw_line(p, QRect(m, int(top), inner, h + 4), flags, text, c, 0.0, shadow, -1)
 
         # точки ожидания (проигрыш)
-        if self._dots_a > 0.01 and self._dots is not None:
+        if part != "base" and self._dots_a > 0.01 and self._dots is not None:
             base = act_col
             yc = self._dots[0] - off
             prog = self._dots[1]
@@ -737,7 +787,6 @@ class LyricsScrollPanel(QWidget):
                 rr = r * breathe
                 p.drawEllipse(QRectF(x + r - rr, yc - rr, rr * 2, rr * 2))
                 x += r * 2 + gap
-        p.end()
 
     # ── «жидкий» текст ── #
 
@@ -829,12 +878,39 @@ class LyricsScrollPanel(QWidget):
         self._lq_cache[key] = lay
         return lay
 
+    def _native_text(self):
+        """Кэш раскладок и глифов на C++ (echoes_ui.dll) или None — тогда drawText, как раньше."""
+        tc = self.__dict__.get("_ntext", False)
+        if tc is False:
+            import native_ui
+            tc = self._ntext = native_ui.TextCache() if native_ui.available() else None
+        return tc
+
+    def _text(self, p, rect, flags, text):
+        """p.drawText(rect, flags, text) — без повторной раскладки строки в каждом кадре."""
+        tc = self._native_text()
+        if tc is None:
+            p.drawText(rect, flags, text)
+            return
+        import i18n
+        tc.draw_wrapped(p, rect, flags, i18n.tr(text))
+
     def _draw_liquid(self, p, rect, text, col, dim_col, i, alpha):
         """Текущая строка: серый текст заливается белым слева направо ровно за время строки; буква,
         которую заливает, подрастает и приподнимается, залитые светятся мягким ореолом."""
-        chars, _h, line_h = self._liquid_layout(i, text, rect.width())
+        lay = self._liquid_layout(i, text, rect.width())
+        chars, _h, line_h = lay
         now = self._now_ms()
         p.setFont(self._font)
+        tc = self._native_text()
+        if tc is not None:                                      # тот же рисунок на C++ (готовые глифы)
+            import i18n
+            import native_ui
+            if self.__dict__.get("_lq_arr", (None,))[0] is not lay:
+                self._lq_arr = (lay, native_ui.liquid_arrays(chars, i18n.tr))
+            tc.draw_liquid(p, rect.x(), rect.y(), self._lq_arr[1], now, self._font.pixelSize(), col, dim_col,
+                           alpha)
+            return
         lit = QColor(col)
         lit.setAlphaF(min(1.0, alpha))
         dim = QColor(dim_col)
@@ -903,7 +979,7 @@ class LyricsScrollPanel(QWidget):
             sc.setAlphaF(min(1.0, c.alphaF() * shadow * 0.8))
             p.setPen(sc)
             d = max(1, int(self._font.pixelSize() * 0.06))
-            p.drawText(rect.translated(d, d), flags, text)
+            self._text(p, rect.translated(d, d), flags, text)
         if glow > 0.01:
             gc = self._col("glow_color", c)
             r = max(1.0, self._font.pixelSize() * 0.10)
@@ -912,7 +988,7 @@ class LyricsScrollPanel(QWidget):
                 gc2 = QColor(gc)
                 gc2.setAlphaF(min(1.0, c.alphaF() * glow * 0.22))
                 p.setPen(gc2)
-                p.drawText(rect.translated(int(round(math.cos(ang) * r)), int(round(math.sin(ang) * r))),
+                self._text(p, rect.translated(int(round(math.cos(ang) * r)), int(round(math.sin(ang) * r))),
                            flags, text)
         if idx >= 0 and self._st.get("karaoke") and 0 <= idx < len(self._ms) and self._ms[idx] >= 0:
             start = self._ms[idx]
@@ -925,16 +1001,16 @@ class LyricsScrollPanel(QWidget):
             p.save()
             p.setClipRect(QRectF(cut, rect.top() - 50, rect.right() + 100 - cut, rect.height() + 100))
             p.setPen(dim)
-            p.drawText(rect, flags, text)
+            self._text(p, rect, flags, text)
             p.restore()
             p.save()
             p.setClipRect(QRectF(rect.left() - 100, rect.top() - 50, cut - rect.left() + 100, rect.height() + 100))
             p.setPen(c)
-            p.drawText(rect, flags, text)
+            self._text(p, rect, flags, text)
             p.restore()
             return
         p.setPen(c)
-        p.drawText(rect, flags, text)
+        self._text(p, rect, flags, text)
 
 
 class _NowCaption(QWidget):
