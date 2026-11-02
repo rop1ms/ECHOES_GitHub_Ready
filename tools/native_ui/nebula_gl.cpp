@@ -86,27 +86,33 @@ vec2 warp(vec2 p, float t) {
     return q;
 }
 
-// Один слой туманности по координатам q (уже с течением): цвет масс, провалы, складки.
-vec3 nebulaLayer(vec2 q, float t, float energy, float kick, out float dens) {
-    vec3 acc = vec3(0.0);
-    float wsum = 0.0, w2sum = 0.0;
-    for (int b = 0; b < 12; ++b) {
-        if (b >= uNB) break;
-        vec2 d = q - uBPos[b].xy * 1.5;
-        float w = exp(-dot(d, d) * uBPos[b].z * 0.40) * uBCol[b].w;
-        acc += w * w * uBCol[b].rgb;
+// Смещение «течения» в координатах, которые непрерывно расходятся из ядра: два слоя (масштаб растёт
+// вдвое за цикл) сменяют друг друга без скачков — волнистость края и складки текут из центра наружу.
+vec2 outflow(vec2 p, float t, float flow) {
+    vec2 acc = vec2(0.0);
+    float wsum = 0.0;
+    for (int i = 0; i < 2; ++i) {
+        float cyc = flow + 0.5 * float(i);
+        float ph = fract(cyc);
+        float w = sin(3.14159 * ph);
+        vec2 s = p / exp2(ph);
+        float tt = t + floor(cyc) * 11.0;
+        vec2 d = vec2(n2(s * 1.15, tt), n2(s * 1.15 + 5.2, tt * 1.1));
+        d += 0.45 * vec2(n2(s * 2.4 + 1.7, tt * 1.3), n2(s * 2.4 + 9.1, tt * 0.9));
+        acc += d * exp2(ph) * w;                         // смещение растёт вместе с узором
         wsum += w;
-        w2sum += w * w;
     }
-    vec3 hue = acc / max(w2sum, 1e-4);
-    float lum = dot(hue, vec3(0.299, 0.587, 0.114));
-    hue = clamp(mix(vec3(lum), hue, 1.5), 0.0, 1.0);    // насыщеннее
-    dens = 1.0 - exp(-wsum * 1.8);
-    float pocket = 0.5 + 0.5 * n2(q * 1.35 + 3.0, t * 0.6);
-    dens *= mix(0.88, 1.0, smoothstep(0.18, 0.80, pocket));   // лёгкая неоднородность, без тёмных провалов
-    float band = 0.5 + 0.5 * sin(q.x * 2.3 + q.y * 1.5 + t * 0.32 + 2.2 * n2(q * 1.25, t * 0.8));
-    float fold = pow(band, 6.0) * smoothstep(0.40, 0.90, 0.5 + 0.5 * n2(q * 0.9 + 7.0, t * 0.5));
-    return hue * dens + mix(hue, vec3(1.0), 0.5) * fold * dens * (0.22 + uAmt.x * 0.8);
+    return acc / max(wsum, 1e-3);
+}
+
+vec3 ramp(float m, vec3 c0, vec3 c1, vec3 c2, vec3 c3) {
+    // от ядра наружу: светлое ядро → основной цвет → второй → глубокий к краю
+    vec3 core = mix(c0, vec3(1.0), 0.18);
+    vec3 col = mix(core, c0, smoothstep(0.0, 0.38, m));
+    col = mix(col, mix(c0, c1, 0.6), smoothstep(0.30, 0.68, m));
+    col = mix(col, c1, smoothstep(0.55, 0.90, m));
+    col = mix(col, c2 * 0.9, smoothstep(0.85, 1.45, m));
+    return col;
 }
 
 void main() {
@@ -116,60 +122,63 @@ void main() {
     float R = max(1.0, uCenter.z);
     vec2 p = vec2(px - uCenter.x, py - uCenter.y) / R;
     p *= uScale;
-    p /= 1.0 + 0.35 * uBurst;                       // при включении — поле шире и ближе
-    // Течение из ядра: два слоя узора непрерывно расходятся из центра наружу (масштаб растёт вдвое
-    // за цикл) и сменяют друг друга без скачков — узор рождается в ядре и гаснет у краёв.
-    float tf = t * 0.18;                                // своё перетекание — слабое, главное движение — из ядра
-    float flow = t * 0.07;                              // скорость вылета из ядра
-    vec3 lay = vec3(0.0);
-    float wl = 0.0, dl = 0.0;
-    for (int i = 0; i < 2; ++i) {
-        float cyc = flow + 0.5 * float(i);
-        float ph = fract(cyc);
-        float w = sin(3.14159 * ph);
-        float d;                                        // новый цикл — другой узор (в момент смены вес слоя 0)
-        vec3 c = nebulaLayer(warp(p / exp2(ph), tf + floor(cyc) * 11.0), tf, energy, kick, d);
-        lay += c * w;
-        dl += d * w;
-        wl += w;
-    }
-    lay /= max(wl, 1e-3);
-    dl /= max(wl, 1e-3);
+    p /= 1.0 + 0.30 * uBurst;
+    vec3 c0 = uBCol[0].rgb, c1 = uBCol[2].rgb, c2 = uBCol[4].rgb, c3 = uBCol[6].rgb;
+    float tf = t * 0.22;
+    float flow = t * 0.06;
     float r = length(p);
-    vec3 hue = lay / max(dl, 1e-3);
-    float dens = max(dl, exp(-r * r * 0.9) * 0.85);              // внутри туманности темно не бывает — гаснет только край
-    float edge = exp(-pow(r / (1.5 + 0.2 * energy + 0.5 * uBurst), 3.0));
-    vec3 col = max(lay, hue * dens) * edge * (1.0 + 0.4 * energy + 0.5 * kick);
-    // центр — как ядро звезды: широкое светлое свечение в цвет волны и горячая почти белая середина
-    float pulse = 1.0 + 0.25 * energy + 0.35 * kick + 0.6 * uBurst;
-    col += mix(hue, vec3(1.0), 0.35) * exp(-r * r * 2.4) * 0.55 * pulse;
-    col += mix(hue, vec3(1.0), 0.75) * exp(-r * r * 9.0) * 0.95 * pulse;
-    col += vec3(1.0) * exp(-r * r * 40.0) * 0.8 * pulse;
     float ang = atan(p.y, p.x);
-    // яркие пучки: тонкие лучи разной силы из самого центра, медленно плавают;
-    // при включении волны — длинные и яркие, потом гаснут
-    float beams = 0.0;
-    for (int k = 0; k < 9; ++k) {
-        float fk = float(k);
-        float a0 = fk * 2.39996 + 0.45 * sin(t * (0.04 + fk * 0.011) + fk * 2.1);   // золотой угол — без «цветка»
-        float c = max(cos(ang - a0), 0.0);
-        float sharp = 140.0 + 900.0 * pow(0.5 + 0.5 * sin(fk * 3.7 + 1.1), 2.0);
-        float wgt = 0.15 + 0.85 * pow(0.5 + 0.5 * sin(fk * 12.9 + t * 0.07), 3.0);
-        beams += (pow(c, sharp) + 0.25 * pow(c, sharp * 0.12)) * wgt;              // ядро луча + мягкий ореол
-    }
-    float len = 0.55 + 2.8 * uBurst + 0.4 * kick + 0.25 * energy;
-    float rfall = smoothstep(0.22, 0.55, r) * exp(-max(r - 0.35, 0.0) / len * 1.25);
-    vec3 rcol = mix(vec3(1.0), hue, 0.45);
-    col += rcol * beams * rfall * (0.06 + 0.5 * uAmt.y + 2.4 * uBurst);
+    // одна светящаяся масса с волнистым краем; m — расстояние в долях её радиуса
+    vec2 q = p + 0.13 * outflow(p, tf, flow);           // мягкая волнистость, без «амёбы»
+    float breath = 1.0 + 0.08 * energy + 0.10 * kick + 0.25 * uBurst;
+    float m = length(q) / (0.95 * breath);
+    vec3 col = ramp(m, c0, c1, c2, c3);
+    // пятна других цветов на периферии (как фиолетовый снизу на «Грустном»)
+    float pat1 = smoothstep(0.15, 0.75, 0.5 + 0.5 * n2(q * 1.3 + vec2(3.1, -1.7), tf * 0.8));
+    col = mix(col, c3, pat1 * smoothstep(0.55, 1.05, m) * 0.85);
+    float pat2 = smoothstep(0.35, 0.85, 0.5 + 0.5 * n2(q * 1.7 - vec2(6.3, 2.2), tf * 0.6));
+    col = mix(col, c2, pat2 * smoothstep(0.65, 1.15, m) * 0.6);
+    float lum = dot(col, vec3(0.299, 0.587, 0.114));
+    col = clamp(mix(vec3(lum), col, 1.35), 0.0, 1.0);
+    // яркость: внутри светло без провалов, за краем — быстро в черноту
+    float body = exp(-pow(m / 1.2, 2.0));               // огромное мягкое свечение, плавно в черноту
+    vec3 outc = col * body * (0.95 + 0.25 * energy + 0.3 * kick);
+    // заострённые края: тонкие светящиеся контуры вдоль волнистых границ массы и складок внутри
+    float wob = n2(q * 3.1 + 2.0, tf * 1.4) * 0.05;
+    float l1 = (m - 0.78 + wob) / 0.014;                 // штрихи света внутри свечения
+    float l2 = (m - 1.02 - wob * 1.4) / 0.030;
+    float l3 = (length(q + 0.22 * outflow(p * 1.7 + 3.0, tf, flow)) / 0.95 - 0.52 + wob) / 0.022;
+    float along1 = smoothstep(0.50, 0.92, 0.5 + 0.5 * n2(vec2(ang * 2.4, m * 1.5), tf * 0.7));   // отдельные штрихи
+    float along2 = smoothstep(0.35, 0.9, 0.5 + 0.5 * n2(vec2(ang * 2.6 + 4.0, m * 0.5), tf * 0.5));
+    float rim = exp(-l1 * l1) * 0.30 * along1 + exp(-l2 * l2) * 0.20 * along2 + exp(-l3 * l3) * 0.15 * along2;
+    rim += (exp(-l1 * l1 * 0.10) * 0.06) * along1;                       // мягкий ореол контура
+    vec3 rimc = mix(col, vec3(0.85, 0.95, 1.0), 0.55);
+    outc += rimc * rim * (0.9 + uAmt.x * 0.8) * smoothstep(1.7, 0.9, m);
+    // лучи как туманность: мягкие размазанные полосы света из центра, больше вбок, уходят за край
+    float ra = ang + 0.06 * sin(r * 2.0 - tf * 2.0);
+    float rays = pow(0.5 + 0.5 * sin(ra * 4.0 + 1.6 * sin(ra * 2.0 + tf * 0.5) + flow * 6.0), 10.0)
+               + 0.6 * pow(0.5 + 0.5 * sin(ra * 7.0 - 1.2 * sin(ra * 3.0 - tf * 0.4) - flow * 4.0), 16.0)
+               + 0.35 * pow(0.5 + 0.5 * sin(ra * 11.0 + tf * 0.3 + 1.1), 30.0);
+    float side = 0.15 + 0.85 * pow(abs(cos(ang)), 4.0);                // в основном вбок
+    float reach = 1.0 + 1.6 * uBurst + 0.3 * kick + 0.2 * energy;
+    float rfall = smoothstep(0.30, 0.75, m) * exp(-max(r - 0.6, 0.0) / reach * 0.9);
+    vec3 rayc = mix(mix(c1, c0, 0.4), vec3(0.9, 0.95, 1.0), 0.45);
+    outc += rayc * rays * side * rfall * (0.22 + 0.45 * uAmt.y + 2.0 * uBurst);
+    // светлый центр (цветной, без белого пятна)
+    float pulse = 1.0 + 0.25 * energy + 0.35 * kick + 0.5 * uBurst;
+    outc += mix(c0, vec3(1.0), 0.30) * exp(-r * r * 1.8) * 0.35 * pulse;
+    outc += mix(c0, vec3(1.0), 0.50) * exp(-r * r * 6.0) * 0.25 * pulse;
+    vec3 col2 = outc;
+    float edge = exp(-pow(r / (1.9 + 0.6 * uBurst), 4.0));
     for (int k = 0; k < 6; ++k) {                   // кольца на удар баса
         if (k >= uNR) break;
         float d = (r - uRings[k].x) / 0.13;
-        col += uRingCol * exp(-d * d) * uRings[k].y * edge * 0.8;
+        col2 += uRingCol * exp(-d * d) * uRings[k].y * edge * 0.6;
     }
-    col *= 1.0 + 0.6 * uBurst;
-    col = vec3(1.0) - exp(-col * (1.35 + 0.15 * energy));          // мягкое сжатие яркости
+    col2 *= edge * (1.0 + 0.4 * uBurst);
+    vec3 fin = vec3(1.0) - exp(-col2 * 2.1);                        // мягкое сжатие яркости, цвета сочные
     float n = (hash(gl_FragCoord.xy) + hash(gl_FragCoord.yx + 17.0) - 1.0) * uAmt.z;
-    gl_FragColor = vec4(clamp(col + n, 0.0, 1.0), 1.0);
+    gl_FragColor = vec4(clamp(fin + n, 0.0, 1.0), 1.0);
 }
 )";
 
@@ -208,6 +217,7 @@ public:
     bool overlay_dirty_ = false;
     float burst_ = 0.f;                                     // вспышка при включении волны (1 → 0)
     float scale_ = 1.f;
+    QByteArray log_;                                        // журнал сборки шейдера (если не собрался)
     bool ok_ = true;                                        // шейдер собрался
 
 protected:
@@ -218,7 +228,7 @@ protected:
               prog_->addShaderFromSourceCode(QOpenGLShader::Fragment, FRAG);
         prog_->bindAttributeLocation("pos", 0);
         ok_ = ok_ && prog_->link();
-        if (!ok_) qWarning("[echoes_ui] nebula shader: %s", qPrintable(prog_->log()));
+        if (!ok_) log_ = prog_->log().toUtf8();
         ovl_prog_ = new QOpenGLShaderProgram;
         bool ook = ovl_prog_->addShaderFromSourceCode(QOpenGLShader::Vertex, VERT) &&
                    ovl_prog_->addShaderFromSourceCode(QOpenGLShader::Fragment, OVL_FRAG);
@@ -331,6 +341,8 @@ EUI_API void eui_nebula_params(void *w, const void *params) {
     n->have_ = true;
     n->update();
 }
+
+EUI_API const char *eui_nebula_log(void *w) { return N(w)->log_.constData(); }
 
 EUI_API void eui_nebula_burst(void *w, float burst) { N(w)->burst_ = burst; }
 EUI_API void eui_nebula_scale(void *w, float scale) { N(w)->scale_ = scale; N(w)->update(); }
