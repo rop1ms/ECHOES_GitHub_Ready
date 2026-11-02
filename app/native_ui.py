@@ -72,6 +72,9 @@ def _setup(lib):
         "eui_strip_callbacks": (None, [_STRIP_CB, _STRIP_CB, _STRIP_CB, _STRIP_CB]),
         "eui_strip_invalidate": (None, [P, I]),
         "eui_strip_new": (P, [I]),
+        "eui_grid_new": (P, [I]),
+        "eui_strip_clear": (None, [P]),
+        "eui_grid_done": (None, [P]),
         "eui_strip_style": (None, [P, P, P, W, I]),
         "eui_strip_add": (I, [P, W, W, I, D, I, P, P]),
         "eui_strip_text": (None, [P, I, W, W]),
@@ -190,14 +193,14 @@ class Strip:
     on_click(i) / on_hover(i) задаёт владелец; после удаления виджета alive == False и все
     вызовы — пустые (поздняя обложка из фонового потока не обратится к удалённому объекту)."""
 
-    def __init__(self):
+    def __init__(self, grid=False):
         _next_id[0] += 1
         self.id = _next_id[0]
         self.alive = True
         self.on_click = None
         self.on_hover = None
         self.on_need = None                                # карточку рисуют впервые / после invalidate
-        self._p = _lib.eui_strip_new(self.id)
+        self._p = (_lib.eui_grid_new if grid else _lib.eui_strip_new)(self.id)
         self.widget = _wrap(self._p)
         _STRIPS[self.id] = self
 
@@ -213,6 +216,14 @@ class Strip:
         c1, c2 = (QColor(mix[0]), QColor(mix[1])) if mix else (None, None)
         return _lib.eui_strip_add(self._p, title, subtitle, int(size), float(rad), int(bool(circle)),
                                   _ptr(c1), _ptr(c2))
+
+    def clear(self):
+        if self.alive:
+            _lib.eui_strip_clear(self._p)
+
+    def grid_done(self):
+        if self.alive:
+            _lib.eui_grid_done(self._p)
 
     def text(self, i, title, subtitle):
         if self.alive:

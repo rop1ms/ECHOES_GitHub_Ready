@@ -149,6 +149,67 @@ class NativeCardStrip(unittest.TestCase):
             with self.subTest(card=i):
                 self.compare(dict(card_glow=True, mix_covers=True, cascade=False), hover_index=i)
 
+    def grid(self, native, width, n=23, height=640):
+        # Курсор — в сторону: под неподвижным курсором старая сетка после прокрутки держит наведение на
+        # уехавшей карточке (Qt не шлёт Leave при прокрутке), новая — на той, что под курсором сейчас.
+        from PyQt6.QtGui import QCursor
+        QCursor.setPos(5000, 5000)
+        ya_decor._CFG.update(dict(card_glow=False, mix_covers=False, cascade=False))
+        host = QWidget(); host.resize(width, height)
+        lay = QVBoxLayout(host); lay.setContentsMargins(0, 0, 0, 0)
+        g = Y.NativeCardGrid() if native else Y.CardGrid()
+        lay.addWidget(g.widget_)
+        host.show(); pump(0.05)
+        g.clear()
+        for k in range(n):
+            g.card(f'Альбом {k} с длинным названием' if k % 3 else f'A{k}', f'Исполнитель {k} · {k + 1} треков',
+                   self.covers[k % 3] if k % 4 else '', 160, seed=f'a{k}')
+        g.done()
+        deadline = time.perf_counter() + 3
+        while time.perf_counter() < deadline and Y._LOADER.waiting:
+            pump(0.02)
+        pump(0.2)
+        return host, g
+
+    def grid_image(self, g):
+        return g.widget_.grab().toImage().convertToFormat(QImage.Format.Format_ARGB32)
+
+    def test_grid_matches_card_grid(self):
+        for width in (1180, 905, 520, 170):
+            with self.subTest(width=width):
+                shots = []
+                for native in (False, True):
+                    host, g = self.grid(native, width)
+                    shots.append([self.grid_image(g)])
+                    g.widget_.verticalScrollBar().setValue(260); pump(0.05)
+                    shots[-1].append(self.grid_image(g))
+                    host.resize(width + 190, 640); pump(0.1)           # колонки пересчитываются
+                    shots[-1].append(self.grid_image(g))
+                    host.close(); host.deleteLater(); pump()
+                for k, (a, b) in enumerate(zip(*shots)):
+                    self.assertEqual(a.size(), b.size(), k)
+                    self.assertTrue(a == b, f'frame {k} differs at width {width}')
+
+    def test_grid_refill_hover_and_click(self):
+        host, g = self.grid(True, 900)
+        hits = []
+        g.items[5].clicked.connect(lambda: hits.append(5))
+        canvas = g.widget_.widget()
+        x, y = g.strip.card_pos(5)
+        pos = canvas.mapFrom(g.widget_, QPointF(x + 20, y + 20).toPoint()).toPointF()
+        for kind in (QEvent.Type.MouseMove, QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease):
+            QApplication.sendEvent(canvas, QMouseEvent(kind, pos, canvas.mapToGlobal(pos), Qt.MouseButton.LeftButton
+                                                       if kind != QEvent.Type.MouseMove else Qt.MouseButton.NoButton,
+                                                       Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier))
+        self.assertEqual(hits, [5])
+        g.clear()                                          # пересортировка: старые карточки уходят целиком
+        for k in range(3):
+            g.card(f'B{k}', 'x', '', 160, seed=f'b{k}')
+        g.done(); pump(0.05)
+        self.assertEqual(len(g.items), 3)
+        self.assertEqual(g.widget_.verticalScrollBar().value(), 0)
+        host.close(); host.deleteLater(); pump()
+
     def test_click_and_flight_source(self):
         ya_decor._CFG.update(dict(cascade=False))
         host, row = self.build(True, {})

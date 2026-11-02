@@ -1764,10 +1764,10 @@ class NativeCardRow:
     """Лента карточек на C++ (echoes_ui.dll, tools/native_ui/card_strip.cpp): один виджет на ряд
     вместо HRow с десятками Card. Выглядит так же — рисование портировано из Card._paint_card."""
 
-    def __init__(self):
+    def __init__(self, grid=False):
         import native_ui
         import ya_decor
-        self.strip = native_ui.Strip()
+        self.strip = native_ui.Strip(grid)
         self.items = []
         self.strip.on_click = self._click
         self.strip.on_hover = self._hover
@@ -1826,6 +1826,28 @@ _NATIVE_ROWS = _weakref.WeakSet()
 def i18n_tr(s):
     import i18n
     return i18n.tr(s) if s else s
+
+
+class NativeCardGrid(NativeCardRow):
+    """CardGrid на C++: та же лента карточек, но сеткой с вертикальной прокруткой (страница «Альбомы»).
+    Карточки задаются заново: clear(), card(...) на каждую, done()."""
+
+    def __init__(self):
+        super().__init__(grid=True)
+        self.widget_.setStyleSheet("QScrollArea{background:transparent;border:none;}")
+
+    def clear(self):
+        self.strip.clear()
+        self.items = []
+
+    def done(self):
+        self.strip.grid_done()
+
+
+def card_grid():
+    """Сетка карточек: на C++, если echoes_ui.dll подходит, иначе прежняя CardGrid."""
+    import native_ui
+    return NativeCardGrid() if native_ui.available() else CardGrid()
 
 
 def card_row():
@@ -2267,6 +2289,22 @@ class CardGrid(QScrollArea):
         self.setWidget(self.inner)
         self.cards = []
         self._cols = 0
+
+    @property
+    def widget_(self):
+        return self
+
+    # тот же интерфейс, что у NativeCardGrid
+    def clear(self):
+        self._pending = []
+
+    def card(self, *a, **kw) -> "Card":
+        c = Card(*a, **kw)
+        self.__dict__.setdefault("_pending", []).append(c)
+        return c
+
+    def done(self):
+        self.set_cards(self.__dict__.pop("_pending", []))
 
     def set_cards(self, cards):
         for c in self.cards:
@@ -4775,8 +4813,8 @@ class YaShell(QWidget):
         self.al_search.textChanged.connect(lambda _: self._albums_apply())
         top.addWidget(self.al_search)
         v.addLayout(top)
-        self.al_grid = CardGrid()
-        v.addWidget(self.al_grid, 1)
+        self.al_grid = card_grid()
+        v.addWidget(self.al_grid.widget_, 1)
         self.al_count = QLabel(""); self.al_count.setObjectName("YaSub")
         v.addWidget(self.al_count)
         self._albums = {}
@@ -4810,14 +4848,13 @@ class YaShell(QWidget):
             items.sort(key=lambda a: -max(pos.get(id(t), 0) for t in a["tracks"]))
         else:
             items.sort(key=lambda a: a["name"].lower())
-        cards = []
+        self.al_grid.clear()
         for a in items:
             n = len(a["tracks"])
-            c = Card(a["name"], f"{a['artist']} · {n} {_plural(n, 'трек', 'трека', 'треков')}",
-                     a["cover"], 160, seed=a["name"])
+            c = self.al_grid.card(a["name"], f"{a['artist']} · {n} {_plural(n, 'трек', 'трека', 'треков')}",
+                                  a["cover"], 160, seed=a["name"])
             c.clicked.connect(lambda k=a["key"]: self.open_album(k))
-            cards.append(c)
-        self.al_grid.set_cards(cards)
+        self.al_grid.done()
         total = len(self._albums)
         if not self._albums:
             self.al_count.setText("Альбомы появятся, когда у треков будет заполнен тег «альбом» "

@@ -9,6 +9,7 @@
 #include <QtWidgets/QScrollBar>
 #include <QtWidgets/QWidget>
 #include <QtGui/QFontMetrics>
+#include <QtGui/QCursor>
 #include <QtGui/QIcon>
 #include <QtGui/QMouseEvent>
 #include <QtGui/QPainter>
@@ -82,7 +83,7 @@ class Canvas;
 
 class CardStrip final : public QScrollArea {
 public:
-    CardStrip(int id);
+    CardStrip(int id, bool grid = false);
     ~CardStrip() override { if (g_gone) g_gone(id_, -1); }
 
     int id_;
@@ -92,7 +93,12 @@ public:
     bool cascade = false;
     bool layout_dirty = false;
     bool in_need = false;                                   // внутри g_need: присланное не перерисовывает
+    // Сетка (CardGrid альбомов): вертикальная прокрутка, колонки по ширине, поля 0,6,0,6, шаг 22×20.
+    bool grid = false;
+    int cols = 0;
     Canvas *canvas;
+
+    void grid_columns();
 
     void relayout();
     void ensure_layout() { if (layout_dirty) relayout(); }
@@ -114,7 +120,14 @@ public:
     }
 
 protected:
-    void wheelEvent(QWheelEvent *e) override { e->ignore(); }   // колесо — странице (как HRow)
+    void wheelEvent(QWheelEvent *e) override {
+        if (grid) QScrollArea::wheelEvent(e);               // сетка листается сама
+        else e->ignore();                                   // колесо — странице (как HRow)
+    }
+    void resizeEvent(QResizeEvent *e) override {
+        QScrollArea::resizeEvent(e);
+        if (grid) grid_columns();                           // CardGrid.resizeEvent → _relayout
+    }
 };
 
 class Canvas final : public QWidget {
@@ -145,6 +158,12 @@ public:
         update_card(old);
         update_card(i);
     }
+    // Qt шлёт Enter/Leave виджетам, которые появились или сдвинулись под неподвижным курсором (Card):
+    // карточки здесь не виджеты — после раскладки наведение пересчитывается по курсору.
+    void sync_hover() {
+        if (!isVisible() || !underMouse()) return;
+        set_hover(at(mapFromGlobal(QCursor::pos())));
+    }
     void update_card(int i) {
         if (i < 0 || i >= strip->cards.size()) return;
         strip->ensure_layout();
@@ -164,6 +183,17 @@ public:
 
 protected:
     QSize minimumSizeHint() const override {
+        if (strip->grid) {                                  // QGridLayout: колонки × карточки, поля 0,6,0,6
+            if (strip->cards.isEmpty() || strip->cols <= 0) return QSize(0, 12);
+            int cw = strip->cards[0].width(), n = strip->cards.size(), c = strip->cols;
+            int rows = (n + c - 1) / c, h = 12 + 20 * (rows - 1);
+            for (int r = 0; r < rows; ++r) {
+                int rh = 0;
+                for (int k = r * c; k < std::min(n, (r + 1) * c); ++k) rh = std::max(rh, strip->cards[k].height());
+                h += rh;
+            }
+            return QSize(c * cw + 22 * (c - 1), h);
+        }
         int w = 0, h = 0;
         for (const Card &c : strip->cards) { w += c.width(); h = std::max(h, c.height()); }
         if (!strip->cards.isEmpty()) w += 16 * (strip->cards.size() - 1);
@@ -227,12 +257,13 @@ protected:
     }
 };
 
-CardStrip::CardStrip(int id) : id_(id) {
+CardStrip::CardStrip(int id, bool grid_) : id_(id), grid(grid_) {
     setWidgetResizable(true);
-    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    setVerticalScrollBarPolicy(grid ? Qt::ScrollBarAsNeeded : Qt::ScrollBarAlwaysOff);
+    setHorizontalScrollBarPolicy(grid ? Qt::ScrollBarAlwaysOff : Qt::ScrollBarAsNeeded);
     setFrameShape(QFrame::NoFrame);
     canvas = new Canvas(this);
+    if (grid) canvas->setObjectName(QStringLiteral("YaPage"));  // как inner у CardGrid
     setWidget(canvas);
     // переводить в ленте нечего (подписи приходят уже переведёнными): метка i18n._SEEN, чтобы
     // i18n.sweep не обходил её детей из Python при каждом addWidget/показе
@@ -241,8 +272,36 @@ CardStrip::CardStrip(int id) : id_(id) {
 }
 
 // QHBoxLayout(поля 0,0,0,6; шаг 16) + растяжка в конце: x — подряд, y — по центру (как QWidgetItem).
+// CardGrid._relayout: колонок столько, сколько влезает в ширину области (с шагом 22)
+void CardStrip::grid_columns() {
+    if (cards.isEmpty()) return;
+    int cw = cards[0].width() + 22;
+    int c = std::max(1, (viewport()->width() + 22) / std::max(1, cw));
+    if (c == cols) return;
+    cols = c;
+    canvas->updateGeometry();
+    layout_dirty = true;
+    canvas->update();
+}
+
 void CardStrip::relayout() {
     layout_dirty = false;
+    if (grid) {                                             // ячейки QGridLayout: строка — по самой высокой
+        int n = cards.size(), c = std::max(1, cols), y = 6;
+        for (int r = 0; r * c < n; ++r) {
+            int rh = 0;
+            for (int k = r * c; k < std::min(n, (r + 1) * c); ++k) {
+                Card &cd = cards[k];
+                cd.x = (k % c) * (cards[0].width() + 22);
+                cd.y = y;
+                rh = std::max(rh, cd.height());
+            }
+            y += rh + 20;
+        }
+        canvas->update();
+        canvas->sync_hover();
+        return;
+    }
     int x = 0, avail = canvas->height() - 6;
     for (Card &c : cards) {
         c.x = x;
@@ -381,6 +440,26 @@ EUI_API void eui_strip_invalidate(void *w, int i) {
 }
 
 EUI_API void *eui_strip_new(int id) { return static_cast<QWidget *>(new CardStrip(id)); }
+EUI_API void *eui_grid_new(int id) { return static_cast<QWidget *>(new CardStrip(id, true)); }
+
+// CardGrid.set_cards: убрать все карточки (новые добавит eui_strip_add, затем eui_grid_done)
+EUI_API void eui_strip_clear(void *w) {
+    CardStrip *s = S(w);
+    s->cards.clear();
+    s->canvas->hovered = s->canvas->pressed = -1;
+    s->cols = 0;
+    s->layout_dirty = true;
+    s->canvas->updateGeometry();
+    s->canvas->update();
+}
+
+EUI_API void eui_grid_done(void *w) {
+    CardStrip *s = S(w);
+    s->cols = 0;
+    s->grid_columns();
+    s->relayout();
+    s->verticalScrollBar()->setValue(0);
+}
 
 // text/muted — цвета подписей (TEXT/MUTED темы), families — FAMILIES через '\n'
 EUI_API void eui_strip_style(void *w, const QColor *text, const QColor *muted, const wchar_t *families,
@@ -406,7 +485,7 @@ EUI_API int eui_strip_add(void *w, const wchar_t *title, const wchar_t *subtitle
     c.cascade_pending = s->cascade;
     s->cards.push_back(c);
     // HRow.add: setFixedHeight(высота карточки + 16) — по последней добавленной
-    if (s->minimumHeight() != c.height() + 16 || s->maximumHeight() != c.height() + 16)
+    if (!s->grid && (s->minimumHeight() != c.height() + 16 || s->maximumHeight() != c.height() + 16))
         s->setFixedHeight(c.height() + 16);
     s->canvas->updateGeometry();
     s->layout_dirty = true;                                 // раскладка — один раз, перед показом/рисованием
