@@ -4576,7 +4576,7 @@ class MainWindow(QMainWindow):
                 self._play_index(idx, context, rebuild_shuffle, start_sec=start_sec)
             finally:
                 self._advancing = False
-        self.streams.resolve(t, done)
+        self.streams.resolve(t, done, urgent=True)            # включают сейчас — без очереди за заготовками
 
     def _stream_apply_info(self, t):
         """Что выяснилось при поиске потока: локальная обложка, процент совпадения, альбом."""

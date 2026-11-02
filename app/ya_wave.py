@@ -46,7 +46,8 @@ HERO_MAX_FPS = 30.0                     # баннер «Моя волна» н�
 # Туманность считается сразу в размер окна (в фоновом потоке, C++): поток интерфейса только копирует
 # готовый кадр 1:1. Раньше кадр в 75 % размера растягивался в каждом кадре на потоке интерфейса.
 NEBULA_RENDER_SCALE = 1.0
-GPU_PAGE_SCALE = 2.2                    # GPU-туманность на странице «Моя волна»: компактнее (баннер — 1.0)
+GPU_PAGE_SCALE = 1.85                   # GPU-туманность на странице «Моя волна»: компактнее (баннер — 1.0)
+GPU_PAGE_SPEED = 2.3                    # и живее: время туманности на странице идёт в 2.3 раза быстрее
 
 
 def _tr(s):
@@ -1382,7 +1383,11 @@ class WavePage(QWidget):
         self.mood_chip.setStyleSheet(glass + "QPushButton{color:#ffffff;border-radius:20px;padding:0 18px;font-size:15px;font-weight:700;}")
         icon_only = self.kind != "my"
         self.tune_btn.setText("" if icon_only else "  Настроить")
-        self.tune_btn.setStyleSheet(glass + f"QPushButton{{color:#ffffff;border-radius:20px;padding:0 {0 if icon_only else 18}px;font-size:14px;font-weight:700;}}")
+        # «Настроить» — прозрачная: туманность видна сквозь неё, кнопку выдаёт только тонкий контур
+        self.tune_btn.setStyleSheet(f"QPushButton{{background:transparent;color:#ffffff;border:1px solid rgba(255,255,255,0.22);"
+                                    f"border-radius:20px;padding:0 {0 if icon_only else 18}px;font-size:14px;font-weight:700;}}"
+                                    "QPushButton:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.45);}"
+                                    "QPushButton:pressed{background:rgba(255,255,255,0.14);}")
         self.tune_btn.ensurePolished()
         self.tune_btn.setFixedWidth(40 if icon_only else self.tune_btn.sizeHint().width() + 20)
 
@@ -1481,7 +1486,7 @@ class WavePage(QWidget):
             self._gl_overlay()
             b = self._burst_level()
             with self._worker.lock:                      # прежний кадр CPU мог ещё считаться в фоне
-                P = self.neb.params(W, H, cx, cy, R, self._beat, dt * (1.0 + 1.8 * b), 0,
+                P = self.neb.params(W, H, cx, cy, R, self._beat, dt * (GPU_PAGE_SPEED + 1.8 * b), 0,
                                     self.devicePixelRatioF())
             self._gl.burst(b)
             self._gl.params(P)

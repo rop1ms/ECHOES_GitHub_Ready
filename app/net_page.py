@@ -783,8 +783,26 @@ class NetPage(QWidget):
                 b.setStyleSheet("QPushButton{padding:6px 9px;font-size:12px;}" if compact else "")
 
     def on_show(self):
-        """Открыли Echoes.NET: вкладку пересобрать, только если с прошлого раза пришло что-то новое."""
-        self._refresh_tab(self._tab, force=False)
+        """Открыли Echoes.NET: вкладку пересобрать, только если с прошлого раза пришло что-то новое
+        (уже показанная — после перехода, см. _refresh_soon)."""
+        self._refresh_soon(self._tab)
+
+    def _refresh_soon(self, key):
+        """Вкладка уже была заполнена — показать её сразу как есть, а обновить, когда закончится переход.
+        Любое событие сети (присутствие друзей, посты, сообщения) помечает устаревшими все вкладки, поэтому
+        раньше почти каждый клик сначала пересобирал вкладку (100–250 мс), а уже потом показывал её."""
+        if key in ("profile", "chats") or key not in self.__dict__.get("_filled_ver", {}):
+            # впервые — сразу (иначе мелькнёт пустая); профиль и чат — другой человек, старое не показывать
+            self._refresh_tab(key, force=False)
+            return
+
+        def later():
+            try:
+                if self._tab == key and self.isVisible():
+                    self._refresh_tab(key, force=False)
+            except RuntimeError:
+                pass
+        QTimer.singleShot(320, later)
 
     def show_tab(self, key):
         if key not in self.tabs:
@@ -799,7 +817,7 @@ class NetPage(QWidget):
             for b in self.tab_btns.values():
                 b.setChecked(False)
             grp.setExclusive(True)
-        self._refresh_tab(key, force=False)
+        self._refresh_soon(key)
         w = self.tabs[key]
         # The common transition driver coalesces rapid navigation and captures
         # only visible content; cached tabs keep drafts and scroll position.
@@ -815,8 +833,24 @@ class NetPage(QWidget):
         every click, including widgets already waiting for deferred deletion.
         """
 
+    # какие вкладки показывают данные события сети (остальные не пересобирать); нет в списке — все
+    _EVENT_TABS = {
+        "presence": ("friends", "chats", "net", "room"),
+        "message": ("chats",), "delivered": ("chats",), "group": ("chats",), "file": ("chats",),
+        "track_file": ("chats",),
+        "feed": ("feed", "profile"), "social": ("feed", "profile"), "public": ("feed", "profile"),
+        "mreact": ("feed", "profile"),
+        "profile": ("feed", "friends", "chats", "profile", "room", "requests"),
+        "contacts": ("friends", "chats", "requests", "profile"),
+        "staff": ("mods", "admin", "profile"),
+        "room": ("room",), "room_chat": ("room",), "radio_permits": ("room",), "quiz": ("room",),
+        "q_add": ("room",), "q_res": ("room",), "spl": ("room",),
+        "update_pub": ("net", "admin"), "notify": ("requests", "friends"),
+        "ring": (), "call": (), "toast": (), "devsync": (),
+    }
+
     def _refresh_tab(self, key, force=True):
-        version = self.__dict__.get("_data_ver", 0)
+        version = (self.__dict__.get("_data_ver", 0), self.__dict__.get("_tab_ver", {}).get(key, 0))
         filled = self.__dict__.setdefault("_filled_ver", {})
         def stamp():
             context = self.__dict__.get("_chat_peer") if key == "chats" else \
@@ -852,7 +886,13 @@ class NetPage(QWidget):
 
     def _on_event(self, kind, data):
         if kind not in ("voice", "vc", "update", "status"):
-            self._data_ver = self.__dict__.get("_data_ver", 0) + 1     # данные сети изменились
+            tabs = self._EVENT_TABS.get(kind)
+            if tabs is None:                                           # незнакомое событие — устарело всё
+                self._data_ver = self.__dict__.get("_data_ver", 0) + 1
+            else:                                                      # только вкладки с этими данными
+                tv = self.__dict__.setdefault("_tab_ver", {})
+                for t in tabs:
+                    tv[t] = tv.get(t, 0) + 1
         if kind in ("profile", "contacts", "staff", "social"):
             self._chat_render_epoch = self.__dict__.get("_chat_render_epoch", 0) + 1
         try:                                     # исключение в слоте Qt роняет весь плеер — сеть не должна

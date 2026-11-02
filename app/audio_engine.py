@@ -967,7 +967,7 @@ class AudioEngine(QObject):
         if path.startswith("stream:") and self.url_resolver is not None:
             url = self.url_resolver(path) or ""
             m = self.instance.media_new(url or path)
-            m.add_option(":network-caching=700")          # поток стартует быстро, но без заиканий
+            m.add_option(":network-caching=350")          # поток стартует быстро (ссылки yt-dlp — на CDN, без заиканий)
             m.add_option(":http-reconnect")
             return m
         return self.instance.media_new(path)

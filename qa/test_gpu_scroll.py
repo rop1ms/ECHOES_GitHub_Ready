@@ -301,6 +301,24 @@ class GpuScroll(unittest.TestCase):
         self.assertEqual(bar.value(), target)
         self.assertEqual(page.widget().y(), -target)
 
+    def test_page_with_msaa_canvas_falls_back_to_raster(self):
+        """Duel page: the arena's GL canvas (4x MSAA) snapshots as garbage and animates — no GPU scroll."""
+        from PyQt6.QtOpenGLWidgets import QOpenGLWidget
+        page = yt.Page()
+        for k in range(30):
+            page.v.addWidget(QLabel(f'Метка {k}'))
+        gl = QOpenGLWidget()
+        gl.setProperty('echoes_live', True)                     # as music_duel.ArenaCanvas
+        gl.setFixedHeight(200)
+        page.v.addWidget(gl)
+        self.inner.addWidget(page)
+        self.win.show()
+        pump(0.2)
+        self.assertIsNone(gpu_scroll.begin(page, page.verticalScrollBar()))
+        gl.hide()
+        pump(0.05)
+        self.assertIsNotNone(gpu_scroll.begin(page, page.verticalScrollBar()), 'hidden canvas does not matter')
+
     def test_covered_area_falls_back_to_raster(self):
         page = yt.Page()
         for k in range(40):

@@ -169,6 +169,13 @@ class OnlineTrackRow(QWidget):
     def enterEvent(self, e):
         self._hover = True
         self.update()
+        if not self.t.get("snip") and (self.t.get("url") or self.t.get("path")):   # навели — поток заранее
+            try:
+                import stream_core
+                t = self.t
+                self.shell.win.streams.hint(t if str(t.get("path", "")).startswith("stream:") else stream_core.make_track(t))
+            except Exception as ex:                            # noqa: BLE001
+                print("[stream] hint:", ex)
 
     def leaveEvent(self, e):
         self._hover = False

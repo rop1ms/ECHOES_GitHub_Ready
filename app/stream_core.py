@@ -17,19 +17,30 @@
 весь остальной плеер видит обычный путь трека.
 
 30-секундные превью SoundCloud (Go+) отбрасываются — тогда трек ищется на YouTube Music.
+
+Чтобы онлайн-трек включался почти сразу (раньше 2–5 с: поиск ~2.5 с + yt-dlp ~1.7 с):
+  * найденная для «исполнитель — название» страница запоминается на диске навсегда (stream_cache.json),
+    готовые ссылки на поток — до срока их жизни: после перезапуска и при повторе поиска уже нет;
+  * наведение мыши на онлайн-трек — подсказка (hint): отдельный поток готовит ссылку, пока курсор над
+    треком (берётся только последняя подсказка — проводили мышью по ряду — не копим очередь);
+  * клик (urgent) — в своём пуле, не ждёт заготовки следующих треков и подсказки.
 """
 from __future__ import annotations
 
+import json
+import os
 import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 PREFIX = "stream:"
 FIND = "stream:find:"
 _SEP = "\x1f"
 MIN_MATCH = 0.72                     # как в online_search.find_best
+CACHE_FILE = Path.home() / ".neon_player" / "stream_cache.json"
 
 
 def is_stream(path) -> bool:
@@ -98,7 +109,41 @@ class StreamResolver:
         self.cache = {}                                    # путь → {"url", "exp", "page", "match", "duration"}
         self.waiting = {}                                  # путь → [колбэки]
         self.pool = ThreadPoolExecutor(max_workers=3, thread_name_prefix="stream-resolve")
+        self.urgent = ThreadPoolExecutor(max_workers=2, thread_name_prefix="stream-play")
         self.errors = {}                                   # путь → (время, текст)
+        self.pages = {}                                    # путь «find:…» → найденная страница (без срока)
+        self._hint = None                                  # последняя подсказка (наведение мыши)
+        self._hint_ev = threading.Event()
+        self._hint_thread = None
+        self._saved = 0.0
+        self._load()
+
+    # ── кэш на диске ──
+    def _load(self):
+        try:
+            d = json.loads(CACHE_FILE.read_text("utf-8"))
+        except Exception:                                  # noqa: BLE001
+            return
+        now = time.time()
+        self.pages = {k: v for k, v in (d.get("pages") or {}).items() if isinstance(v, dict) and v.get("page")}
+        self.cache = {k: v for k, v in (d.get("urls") or {}).items()
+                      if isinstance(v, dict) and v.get("url") and float(v.get("exp") or 0) - 90 > now}
+
+    def _save(self, force=False):
+        now = time.time()
+        if not force and now - self._saved < 3.0:
+            return
+        self._saved = now
+        with self.lock:
+            pages = dict(list(self.pages.items())[-3000:])
+            urls = {k: v for k, v in self.cache.items() if float(v.get("exp") or 0) > now}
+        try:
+            CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            tmp = CACHE_FILE.with_suffix(".tmp")
+            tmp.write_text(json.dumps({"pages": pages, "urls": urls}, ensure_ascii=False), "utf-8")
+            os.replace(tmp, CACHE_FILE)
+        except Exception as e:                             # noqa: BLE001
+            print("[stream] cache:", e)
 
     # ── кэш ──
     def cached(self, path: str) -> str | None:
@@ -113,8 +158,9 @@ class StreamResolver:
             return dict(self.cache.get(path) or {})
 
     # ── разрешение ──
-    def resolve(self, track: dict, cb=None):
-        """Достать ссылку в фоне. cb(ok: bool, info_or_error) — в GUI-потоке (если задан ui_call)."""
+    def resolve(self, track: dict, cb=None, urgent=False):
+        """Достать ссылку в фоне. cb(ok: bool, info_or_error) — в GUI-потоке (если задан ui_call).
+        urgent — трек включают прямо сейчас: свой пул, без очереди за заготовками."""
         path = str(track.get("path", ""))
         if self.cached(path):
             if cb:
@@ -126,7 +172,73 @@ class StreamResolver:
                     self.waiting[path].append(cb)
                 return
             self.waiting[path] = [cb] if cb else []
-        self.pool.submit(self._work, dict(track))
+        (self.urgent if urgent else self.pool).submit(self._work, dict(track))
+
+    def hint(self, track: dict):
+        """Курсор над онлайн-треком: приготовить ссылку заранее — вдруг нажмут. Берётся только последняя
+        подсказка; уже готовые, ищущиеся и недавно не найденные пропускаются."""
+        path = str(track.get("path", ""))
+        if not is_stream(path) or self.cached(path):
+            return
+        with self.lock:
+            if path in self.waiting:
+                return
+            bad = self.errors.get(path)
+            if bad and time.time() - bad[0] < 120:
+                return
+            self._hint = dict(track)
+            if self._hint_thread is None:
+                self._hint_thread = threading.Thread(target=self._hint_loop, daemon=True, name="stream-hint")
+                self._hint_thread.start()
+        self._hint_ev.set()
+
+    def warm_pages(self, tracks, limit=24):
+        """В простое: для треков «исполнитель — название» заранее найти страницу (только поиск, без yt-dlp) —
+        первый клик по ним потом ~1.5 с вместо ~4–5. По одному, с паузами; в режиме геймера ждёт."""
+        todo = []
+        with self.lock:
+            for t in tracks[:limit]:
+                path = str(t.get("path", ""))
+                if path.startswith(FIND) and path not in self.pages and path not in self.waiting:
+                    todo.append(path)
+        if not todo:
+            return
+
+        def run():
+            import bgproc
+            for path in todo:
+                bgproc.idle_wait()
+                with self.lock:
+                    if path in self.pages:
+                        continue
+                a, t, d = (path[len(FIND):].split(_SEP) + ["", "", "0"])[:3]
+                try:
+                    found = self._find(a, t, float(d or 0))
+                except Exception:                          # noqa: BLE001
+                    time.sleep(1.5)
+                    continue
+                with self.lock:
+                    self.pages.setdefault(path, {"page": found["url"], "match": match_percent(found.get("score")),
+                                                 "found": {k: found.get(k) for k in ("title", "artist", "album",
+                                                                                     "thumb_url", "duration", "source")}})
+                time.sleep(1.5)
+            self._save(force=True)
+        threading.Thread(target=run, daemon=True, name="stream-warm").start()
+
+    def _hint_loop(self):
+        while True:
+            self._hint_ev.wait()
+            time.sleep(0.18)                               # курсор задержался, а не пролетел
+            with self.lock:
+                track, self._hint = self._hint, None
+                self._hint_ev.clear()
+                if track is None:
+                    continue
+                path = str(track.get("path", ""))
+                if path in self.waiting or (self.cache.get(path) or {}).get("exp", 0) - 90 > time.time():
+                    continue
+                self.waiting[path] = []
+            self._work(track)
 
     def prefetch(self, track: dict):
         if is_stream(track.get("path")) and not self.cached(str(track.get("path"))):
@@ -163,16 +275,36 @@ class StreamResolver:
         for cb in cbs:
             if cb:
                 self._call(cb, ok, dict(res) if ok else res)
+        if ok:
+            self._save()
 
     def _resolve_now(self, track) -> dict:
         path = str(track.get("path", ""))
         page, match, found = track.get("url") or "", track.get("match"), None
+        remembered = False
         if path.startswith(FIND) or not page:
-            a, t, d = (path[len(FIND):].split(_SEP) + ["", "", "0"])[:3] if path.startswith(FIND) else \
-                (track.get("artist", ""), track.get("title", ""), track.get("duration", 0))
-            found = self._find(a, t, float(d or 0))
-            page, match = found["url"], match_percent(found.get("score"))
-        direct, info = self._direct(page)
+            with self.lock:
+                hit = self.pages.get(path)
+            if hit:                                        # уже искали — страница известна, поиск не нужен
+                page, match, found, remembered = hit["page"], hit.get("match"), hit.get("found"), True
+            else:
+                a, t, d = (path[len(FIND):].split(_SEP) + ["", "", "0"])[:3] if path.startswith(FIND) else \
+                    (track.get("artist", ""), track.get("title", ""), track.get("duration", 0))
+                found = self._find(a, t, float(d or 0))
+                page, match = found["url"], match_percent(found.get("score"))
+        try:
+            direct, info = self._direct(page)
+        except Exception:                                  # noqa: BLE001
+            if not remembered:
+                raise
+            with self.lock:                                # запомненная страница пропала — найти заново
+                self.pages.pop(path, None)
+            return self._resolve_now(track)
+        if found or path.startswith(FIND):
+            with self.lock:
+                self.pages[path] = {"page": page, "match": match,
+                                    "found": {k: (found or {}).get(k) for k in
+                                              ("title", "artist", "album", "thumb_url", "duration", "source")}}
         if direct is None and "soundcloud.com" in page:    # превью/закрытый трек SoundCloud — ищем на YouTube
             found = self._find(track.get("artist", ""), track.get("title", ""), float(track.get("duration") or 0),
                                prefer=("ytm",))
@@ -184,6 +316,8 @@ class StreamResolver:
                "duration": float(info.get("duration") or 0)}
         if found:
             out["found"] = {k: found.get(k) for k in ("title", "artist", "album", "thumb_url", "duration", "source")}
+            if not out["found"].get("thumb_url"):
+                out["found"].pop("thumb_url", None)
         # обложка — в локальный кэш (её видят пластинка, обложечные темы, Discord-иконка не нужна)
         thumb = track.get("thumb_url") or (found or {}).get("thumb_url") or info.get("thumbnail") or ""
         if thumb:

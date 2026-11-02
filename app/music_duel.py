@@ -182,6 +182,7 @@ def _canvas_class():
         def __init__(self,arena):
             super().__init__(arena);self.arena=arena
             self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            self.setProperty('echoes_live',True)                             # живой холст: прокрутка — растром (gpu_scroll)
             fmt=self.format();fmt.setSamples(4);self.setFormat(fmt)          # сглаживание краёв (MSAA)
         def paintGL(self):
             self.arena._paint(QPainter(self))

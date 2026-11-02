@@ -1738,6 +1738,7 @@ class CardItem:
         self.size_, self._rad, self.circle, self.mix, self.mix_covers = size, rad, circle, mix, mix_covers
         self.seed = seed or title
         self.clicked = _Clicked()
+        self.hovered = _Clicked()                              # курсор на карточке (подсказка для онлайн-треков)
 
     @property
     def cover(self):
@@ -1821,6 +1822,7 @@ class NativeCardRow:
     def _hover(self, i):
         import ya_decor
         it = self.items[i]
+        it.hovered.emit()
         glow = ya_decor.on("card_glow")
         acc = ya_decor.accent()
         src = it.mix_covers[0] if it.mix and it.mix_covers else it.cover
@@ -2083,6 +2085,9 @@ class AmbientFrame(QFrame):
             ya_decor.paint_frame(self, p, self._surface, er)
         else:
             p.drawPixmap(0, 0, self._surface)
+        import wave_veil                                       # «Моя волна»: темнота и туман поверх стекла
+        if wave_veil.level() > 0:
+            wave_veil.paint(self, p, radius)
         p.end()
 
 
@@ -3205,6 +3210,11 @@ class YaShell(QWidget):
             self.win._listening_tools.dialog = self._listener_panel
         if key not in self.pages:
             return
+        try:                                                   # «Моя волна» — панели вокруг уходят в темноту
+            import wave_veil
+            wave_veil.install(self).set_on(key == "wave")
+        except Exception as e:                                 # noqa: BLE001
+            print("[veil]", e)
         if remember and self._cur_page != key:
             self._remember()
         self._cur_page = key
@@ -3323,6 +3333,13 @@ class YaShell(QWidget):
                 toast(tr(self.win, "Режим геймера включён: ", "Gamer mode on: ") + why)
             elif why == "game_closed":
                 toast(tr(self.win, "Игра закрыта — режим геймера выключен", "Game closed — gamer mode off"))
+
+    def _stream_hint(self, t):
+        try:
+            import stream_core
+            self.win.streams.hint(t if str(t.get("path", "")).startswith("stream:") else stream_core.make_track(t))
+        except Exception as e:                                 # noqa: BLE001
+            print("[stream] hint:", e)
 
     def _remember(self):
         """Запомнить текущую страницу (вызывать ДО перехода: страницы артиста/плейлиста грузятся заранее)."""
@@ -4045,12 +4062,21 @@ class YaShell(QWidget):
                     sub = f"{sub} · {t['because']}"
                 c = row.card(t.get("title", ""), sub, "", 150, seed=f"{t.get('artist')}|{t.get('title')}")
                 c.clicked.connect(lambda i=i, lst=tracks: self.win.stream_tracks(lst, start=i, playlist=self.FY_PL))
+                hov = getattr(c, "hovered", None)
+                if hov is not None:                            # навели — ссылку на поток готовим заранее
+                    hov.connect(lambda t=t: self._stream_hint(t))
                 self._fy_cover(c, t.get("cover_url", ""))
             page.v.addWidget(row.widget_)
 
         if trends:
             track_row("Тренды · Чарт России", trends.get("ru") or [])
             track_row("Тренды · Мировой чарт", trends.get("world") or [])
+            try:                                               # где эти треки на YouTube — заранее, в простое
+                import stream_core
+                warm = [stream_core.make_track(t) for t in ((trends.get("ru") or [])[:8] + (trends.get("world") or [])[:8])]
+                QTimer.singleShot(4000, lambda w=warm: self.win.streams.warm_pages(w))
+            except Exception as e:                             # noqa: BLE001
+                print("[stream] warm:", e)
         if recs:
             arts = recs.get("artists") or []
             if arts:

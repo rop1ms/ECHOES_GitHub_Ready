@@ -42,6 +42,8 @@ class Tabs(QWidget):
                 self.tab_btns[key]=button;row.addWidget(button)
         self.threads=SimpleNamespace(fill=lambda:self.fill('threads'))
     _refresh_tab=NetPage._refresh_tab
+    _refresh_soon=NetPage._refresh_soon
+    _EVENT_TABS=NetPage._EVENT_TABS
     def fill(self,key):
         self.builds[key]=self.builds.get(key,0)+1
         body=QWidget();layout=QVBoxLayout(body);layout.addWidget(QLabel(key+' title'))
@@ -122,6 +124,22 @@ class NetNavigationMotion(unittest.TestCase):
             for _ in range(10):self.view.show_tab('feed')
         self.assertEqual(self.view.builds,{'feed':1})
         self.assertNotIn(id(self.view.stack),ui_anim._OVERLAYS)
+    def test_stale_tab_shows_at_once_and_refreshes_after_transition(self):
+        """A network event marks a filled tab stale: the click shows it as is, the rebuild comes after the
+        slide; events only touch the tabs that show their data."""
+        self.show();self.view.show_tab('friends');self.view.show_tab('feed')
+        self.assertEqual(self.view.builds,{'feed':1,'friends':1})
+        self.view._tab_ver={'friends':1}                       # e.g. a presence event
+        self.view.show_tab('friends')
+        self.assertEqual(self.view.builds['friends'],1,'no rebuild before the tab is shown')
+        end=time.perf_counter()+0.6
+        while time.perf_counter()<end:APP.processEvents();time.sleep(0.005)
+        self.assertEqual(self.view.builds['friends'],2,'refreshed after the transition')
+        self.view.show_tab('feed')
+        end=time.perf_counter()+0.6
+        while time.perf_counter()<end:APP.processEvents();time.sleep(0.005)
+        self.assertEqual(self.view.builds['feed'],1,'feed was not touched by the event')
+        self.assertEqual(NetPage._EVENT_TABS['presence'],('friends','chats','net','room'))
     def test_profile_selection_and_tab_direction_follow_navigation(self):
         self.show();self.view.show_tab('friends');overlay=self.prepare()
         self.assertEqual(overlay.dir,1);overlay.finish()

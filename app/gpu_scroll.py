@@ -59,9 +59,23 @@ def enabled(win) -> bool:
         return False
 
 
+def _live_gl(content) -> bool:
+    """На странице живой GL-холст (арена дуэли: свойство echoes_live, сглаживание MSAA) — его снимок через
+    QWidget.render выходит мусором, да и он всё время анимирован — такую страницу листаем растром.
+    (format().samples() не годится: после показа это формат контекста, а MSAA — у буфера кадра.)"""
+    from PyQt6.QtOpenGLWidgets import QOpenGLWidget
+    for gl in content.findChildren(QOpenGLWidget):
+        try:
+            if gl.isVisible() and gl.property("echoes_live"):
+                return True
+        except RuntimeError:
+            pass
+    return False
+
+
 def _kind(area):
     if isinstance(area, QScrollArea):
-        return "area" if area.widget() is not None else None
+        return "area" if area.widget() is not None and not _live_gl(area.widget()) else None
     from yamusic_theme import TrackDelegate, TrackListView
     if isinstance(area, TrackListView) and not area._auto_height and isinstance(area.itemDelegate(), TrackDelegate):
         return "list"
