@@ -101,14 +101,14 @@ class _Smooth(QObject):
                     st[2] = st[1]
                 v = int(round(st[2]))
                 if v != bar.value():
-                    if st[5] is not None:                      # страница стоит, двигается только ползунок
+                    if st[5] is not None and st[5].live:       # страница стоит, двигается только ползунок
                         bar.blockSignals(True)
                         bar.setValue(v)
                         bar.blockSignals(False)
                     else:
                         bar.setValue(v)
                 st[3] = bar.value()
-                if st[5] is not None:
+                if st[5] is not None:                          # первые кадры — растр, пока готовятся полосы
                     st[5].frame(st[2])
                 if st[2] == st[1] or st[3] in (bar.minimum(), bar.maximum()) and abs(st[1] - st[3]) < 1:
                     self._drop(k)

@@ -162,6 +162,13 @@ class GpuScroll(unittest.TestCase):
         bar = area.verticalScrollBar()
         sess = gpu_scroll.begin(area, bar)
         self.assertIsNotNone(sess, 'GPU session should start')
+        self.assertFalse(sess.live, 'first frames stay raster while visible tiles are prepared')
+        self.assertFalse(self.layer.widget.isVisible())
+        for _ in range(50):                                    # visible tiles, a few ms per frame
+            if sess.live:
+                break
+            sess.frame(float(bar.value()))
+        self.assertTrue(sess.live, 'GPU takes over once visible tiles are ready')
         before = area.widget().pos() if hasattr(area, 'widget') and area.widget() is not None else None
         for pos in positions:
             bar.blockSignals(True)
@@ -275,11 +282,14 @@ class GpuScroll(unittest.TestCase):
         pump(0.3)
         vp = page.viewport()
         pos = QPointF(vp.width() / 2, vp.height() / 2)
-        for _ in range(4):
+        for _ in range(8):
             ev = QWheelEvent(pos, vp.mapToGlobal(pos), QPoint(0, 0), QPoint(0, -120), Qt.MouseButton.NoButton,
                              Qt.KeyboardModifier.NoModifier, Qt.ScrollPhase.NoScrollPhase, False)
             wheel_guard.smooth_scroll(page, ev)
-        pump(0.06)
+        end = time.perf_counter() + 0.5
+        while not self.layer.widget.isVisible() and time.perf_counter() < end:
+            pump(0.005)
+        pump(0.03)
         bar = page.verticalScrollBar()
         self.assertTrue(self.layer.widget.isVisible(), 'glide should be on the GPU')
         self.assertNotEqual(page.widget().y(), -bar.value())
@@ -287,7 +297,7 @@ class GpuScroll(unittest.TestCase):
         self.assertEqual(page.widget().y(), -bar.value())
         self.assertFalse(self.layer.widget.isVisible())
         pump(1.2)                                              # the rest of the glide — raster
-        target = min(400, bar.maximum())
+        target = min(800, bar.maximum())
         self.assertEqual(bar.value(), target)
         self.assertEqual(page.widget().y(), -target)
 

@@ -7,7 +7,11 @@
 144–240 Гц кадров не хватало, прокрутка шла рывками.
 
 Теперь на время доводки:
-  * фон под содержимым (стекло панели — так же, как его рисует AmbientFrame) — одной текстурой;
+  * первые кадры жеста идут растром, как раньше, а тем временем (не дольше PREP_BUDGET_S за кадр)
+    готовятся видимые полосы; когда готовы — дальше рисует видеокарта (полосы — в координатах
+    содержимого, подмена без скачка). Раньше их рисовали сразу, и первый кадр жеста ждал 50–70 мс;
+  * фон под содержимым (стекло панели — так же, как его рисует AmbientFrame) — одной текстурой
+    (запоминается на панели, пока не сменится стекло или место области);
     в скруглённых углах панели слой прозрачен, там виден растр окна;
   * содержимое — полосами по TILE пикселей: видимые — сразу, следующие по ходу — заранее, понемногу
     в каждом кадре (не дольше BUDGET_S), чтобы новая полоса не давала рывка;
@@ -36,6 +40,7 @@ from PyQt6.QtWidgets import QScrollArea, QStyle, QStyleOptionViewItem, QWidget
 TILE = 256                                                     # высота полосы содержимого, лог. пиксели
 AHEAD = 3                                                      # столько полос готовить впрок по ходу прокрутки
 BUDGET_S = 0.003                                               # на заготовку впрок — не дольше за кадр
+PREP_BUDGET_S = 0.004                                          # на видимые полосы, пока кадры идут растром
 KEEP_SCREENS = 3                                               # полосы дальше стольких экранов — освобождаются
 REFRESH_S = 0.05                                               # видимые полосы с новыми обложками — не чаще
 
@@ -149,6 +154,7 @@ class Session:
         self.stale: set = set()                                # готовые, но под ними догрузились обложки
         self.refreshed = 0.0
         self.job = None                                        # полоса, которая рисуется по частям
+        self.live = False                                      # кадры уже рисует видеокарта
         self.last = float(bar.value())
         self.sections = []
         if kind == "area":
@@ -164,23 +170,36 @@ class Session:
         self.layer.backdrop(self._backdrop())
         self.layer.widget.setGeometry(QRect(vp.mapTo(self.win, QPoint(0, 0)), self.size))
         self.layer.frame(self.last, TILE)
-        self._need(self.last)
         self.win._gpu_scroll_busy = True
         global ACTIVE
         ACTIVE = self
+
+    def _go_live(self):
+        """Видимые полосы готовы — кадры дальше рисует видеокарта, страница стоит."""
+        self.live = True
         self.layer.widget.show()
         self.layer.widget.raise_()
-        if kind == "list":
-            vp.setUpdatesEnabled(False)                        # под слоем список не перерисовывается
+        if self.kind == "list":
+            self.vp.setUpdatesEnabled(False)                   # под слоем список не перерисовывается
 
     # ── что под содержимым: стекло панели, как в AmbientFrame.paintEvent (без пересборки стекла) ──
     def _backdrop(self):
         import ya_decor
         from ya_skin import interface_radius
         fr = self.panel
+        o = self.vp.mapTo(fr, QPoint(0, 0))
+        stretch = bool(getattr(fr, "_glass_stretch", False))
+        if ya_decor.CURRENT is not None and not stretch:
+            glass = ya_decor.decorate_surface(fr, fr._surface).cacheKey()
+        else:
+            glass = fr._surface.cacheKey()
+        key = (glass, ya_decor.CURRENT is None, stretch, o.x(), o.y(), self.size.width(), self.size.height(),
+               self.dpr, interface_radius())
+        hit = fr.__dict__.get("_gs_back")
+        if hit is not None and hit[0] == key and o.y() > 3:   # у верхнего края — кант за мышью, не запоминаем
+            return hit[1]
         img = _image(self.size.width(), self.size.height(), self.dpr)
         p = QPainter(img)
-        o = self.vp.mapTo(fr, QPoint(0, 0))
         p.translate(-o.x(), -o.y())
         clip = QPainterPath()
         r = interface_radius()
@@ -191,6 +210,7 @@ class Session:
         else:
             p.drawPixmap(0, 0, fr._surface)
         p.end()
+        fr._gs_back = (key, img)
         return img
 
     # ── кусок содержимого [y0, y0+h) ──
@@ -198,9 +218,12 @@ class Session:
         img = _image(self.size.width(), h, self.dpr)
         p = QPainter(img)
         if self.kind == "area":
-            self._cover_sections(y0, y0 + h)
+            moved = self._cover_sections(y0, y0 + h)
             x0 = self.area.horizontalScrollBar().value()
             self.content.render(p, QPoint(0, 0), QRegion(QRect(x0, y0, self.size.width(), h)), _R.DrawChildren)
+            if not self.live:                                  # страница ещё на экране — списки обратно
+                for sec in moved:
+                    sec._sync()
         else:
             for r in self._rows(y0, h):
                 self._paint_row(p, r, y0)
@@ -230,6 +253,7 @@ class Session:
     def _cover_sections(self, y0, y1):
         """Списки «высотой в страницу» держат строки только у видимой части — на время снимка полосы
         растягиваем окно списка на неё (после прокрутки TrackSection._sync вернёт как было)."""
+        moved = []
         for s in self.sections:
             try:
                 top = s.mapTo(self.content, QPoint(0, 0)).y()
@@ -251,6 +275,8 @@ class Session:
                 v.verticalScrollBar().setValue(start)
             finally:
                 s._syncing = False
+            moved.append(s)
+        return moved
 
     def _need(self, pos, direction=0.0):
         vh = self.size.height()
@@ -269,35 +295,52 @@ class Session:
             self.layer.drop(i)
 
     def _ahead(self, first, last, direction):
-        """Следующие по ходу полосы — заранее и понемногу: строки списка по одной, пока не вышло время кадра."""
+        """Следующие по ходу полосы — заранее и понемногу, пока не вышло время кадра."""
         t_end = time.perf_counter() + BUDGET_S
         order = range(last + 1, last + 1 + AHEAD) if direction > 0 else range(first - 1, first - 1 - AHEAD, -1)
+        self._build_some(order, t_end)
+
+    def _build_some(self, order, t_end) -> bool:
+        """Полосы order по порядку, пока есть время; True — все готовы."""
+        order = [i for i in order if 0 <= i and i * TILE < self.extent]
         for i in order:
-            if i < 0 or i * TILE >= self.extent:
-                break
             if i in self.tiles:
                 continue
-            if self.kind == "area":                            # страница — снимок целиком (дешёвый, ~2 мс)
-                self._put([i])
-            else:
-                if self.job is None or self.job[0] != i:
-                    if self.job is not None:
-                        self.job[2].end()
-                    y0 = i * TILE
-                    h = min(TILE, self.extent - y0)
-                    img = _image(self.size.width(), h, self.dpr)
-                    self.job = [i, img, QPainter(img), iter(self._rows(y0, h)), y0]
-                i_, img, p, rows, y0 = self.job
-                for r in rows:
-                    self._paint_row(p, r, y0)
-                    if time.perf_counter() >= t_end:
-                        return
-                p.end()
-                self.job = None
-                self.tiles.add(i)
-                self.layer.tile(i, img)
+            if not self._build(i, t_end) or time.perf_counter() >= t_end:
+                break
+        return all(i in self.tiles for i in order)
+
+    def _build(self, i, t_end) -> bool:
+        """Полоса i: страница — снимком целиком (~2 мс), список — по строке, пока есть время. True — готова."""
+        if self.kind == "area":
+            self._put([i])
+            return True
+        if self.job is None or self.job[0] != i:
+            if self.job is not None:
+                self.job[2].end()
+            y0 = i * TILE
+            h = min(TILE, self.extent - y0)
+            img = _image(self.size.width(), h, self.dpr)
+            self.job = [i, img, QPainter(img), iter(self._rows(y0, h)), y0]
+        i_, img, p, rows, y0 = self.job
+        for r in rows:
+            self._paint_row(p, r, y0)
             if time.perf_counter() >= t_end:
-                return
+                return False
+        p.end()
+        self.job = None
+        self.tiles.add(i)
+        self.layer.tile(i, img)
+        return True
+
+    def _prepare(self, pos, direction) -> bool:
+        """Пока кадры идут растром: видимые полосы (и одна по ходу) — понемногу. True — можно на GPU."""
+        vh = self.size.height()
+        first, last = int(pos // TILE), int((pos + vh - 1) // TILE)
+        order = list(range(max(0, first), last + 1))
+        if direction:
+            order.append(last + 1 if direction > 0 else first - 1)
+        return self._build_some(order, time.perf_counter() + PREP_BUDGET_S)
 
     def _put(self, idx):
         """Недостающие полосы: каждый непрерывный кусок — одним снимком (у QWidget.render свой обход
@@ -363,6 +406,10 @@ class Session:
         self.layer.frame(pos, TILE)
         if self.stale:
             self._refresh(pos)
+        if not self.live:
+            if self._prepare(pos, d):
+                self._go_live()
+            return
         self._need(pos, d)
 
     def end(self):
@@ -381,11 +428,12 @@ class Session:
                 self.vp.setUpdatesEnabled(True)
         except RuntimeError:
             pass
-        try:
-            bar = self.bar
-            bar.valueChanged.emit(bar.value())
-        except RuntimeError:
-            pass
+        if self.live:
+            try:
+                bar = self.bar
+                bar.valueChanged.emit(bar.value())
+            except RuntimeError:
+                pass
         try:
             self.win._gpu_scroll_busy = False
             self.layer.widget.hide()
