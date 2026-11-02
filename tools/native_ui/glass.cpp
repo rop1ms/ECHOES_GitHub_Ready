@@ -8,6 +8,7 @@
 // eui_grab_from_window — снимок области виджета из буфера окна (то, что уже нарисовано на экране),
 // без повторной отрисовки всей страницы (ui_anim._grab_area для уходящей страницы).
 #include <QtWidgets/QWidget>
+#include <QtOpenGLWidgets/QOpenGLWidget>
 #include <QtGui/QBackingStore>
 #include <QtGui/QLinearGradient>
 #include <QtGui/QPainter>
@@ -201,6 +202,10 @@ EUI_API int eui_liquid_surface_take(int ticket, QPixmap *out) {
 // экрана не 100 %, буфер не картинка): тогда Python рендерит страницу по-старому.
 EUI_API int eui_grab_from_window(QWidget *w, QPixmap *out) {
     if (!w || !out || !w->isVisible()) return 0;
+    // OpenGL-виджеты (туманность «Моей волны») рисуют мимо буфера окна — такую область только рендерить
+    if (qobject_cast<QOpenGLWidget *>(w)) return 0;
+    for (QOpenGLWidget *gl : w->findChildren<QOpenGLWidget *>())
+        if (gl->isVisible()) return 0;
     QWidget *top = w->window();
     QBackingStore *bs = top ? top->backingStore() : nullptr;
     QPaintDevice *dev = bs ? bs->paintDevice() : nullptr;

@@ -466,38 +466,51 @@ class NebulaField:
             out.append((bx, by, 1.0 / (rr * rr), col, inten * (1.0 + 0.25 * self.kick)))
         return out
 
+    def params(self, W, H, cx, cy, R, beat, dt, x0=0, dpr=1.0):
+        """Следующий кадр: продвинуть время и вернуть NebParams (для C++ на CPU и шейдера на GPU)."""
+        T = self._advance(beat, dt)
+        Wd, Hd = max(8, int(W * dpr)), max(8, int(H * dpr))
+        return self._native_params(T, Wd, Hd, cx, cy, R, x0, dpr)
+
+    def _native_params(self, T, Wd, Hd, cx, cy, R, x0, dpr):
+        blobs = self._blobs(T)
+        fil = np.clip(self.cols[0] * 0.5 + 0.55, 0, 1)
+        ring_col = np.clip(self.cols[0] * 0.6 + 0.25, 0, 1)
+        P = _NF.NebParams()
+        P.W, P.H, P.x0 = Wd, Hd, int(x0 * dpr)
+        cols = Wd - P.x0
+        P.gw = int(max(96, min(560, cols / 3.0)))
+        P.gh = int(max(64, P.gw * Hd / max(1, cols)))
+        P.cx, P.cy, P.R = cx * dpr, cy * dpr, R * dpr
+        P.T, P.flow, P.energy, P.kick = T, 0.55, self.energy, self.kick
+        P.gain, P.fil_amt, P.ray_amt, P.grain = 1.15, 0.20 + 0.22 * self.energy, 0.18 + 0.25 * self.kick, 1.2 / 255
+        for k in range(3):
+            P.fil_col[k] = float(fil[k])
+            P.ring_col[k] = float(ring_col[k])
+        P.nblobs = len(blobs)
+        for i, (bx, by, ib, col, inten) in enumerate(blobs):
+            P.blobs[i * 7:i * 7 + 7] = [bx, by, ib, float(col[0]), float(col[1]), float(col[2]), inten]
+        P.nrings = len(self.rings)
+        for i, (rr, a) in enumerate(self.rings):
+            P.rings[i * 2], P.rings[i * 2 + 1] = rr, a
+        P.seed = self.frame
+        P.env_r = 0.90 + 0.06 * self.energy + 0.07 * self.kick
+        P.lobe = 0.08
+        return P
+
     def render(self, W, H, cx, cy, R, beat, dt, x0=0, dpr=1.0) -> QImage:
         """Кадр размером с окно (пиксели устройства); cx, cy, R — в пикселях окна."""
         T = self._advance(beat, dt)
         Wd, Hd = max(8, int(W * dpr)), max(8, int(H * dpr))
-        blobs = self._blobs(T)
-        fil = np.clip(self.cols[0] * 0.5 + 0.55, 0, 1)
-        ring_col = np.clip(self.cols[0] * 0.6 + 0.25, 0, 1)
         if _NATIVE and hasattr(_NF, "nebula_render"):
-            P = _NF.NebParams()
-            P.W, P.H, P.x0 = Wd, Hd, int(x0 * dpr)
-            cols = Wd - P.x0
-            P.gw = int(max(96, min(560, cols / 3.0)))
-            P.gh = int(max(64, P.gw * Hd / max(1, cols)))
-            P.cx, P.cy, P.R = cx * dpr, cy * dpr, R * dpr
-            P.T, P.flow, P.energy, P.kick = T, 0.55, self.energy, self.kick
-            P.gain, P.fil_amt, P.ray_amt, P.grain = 1.15, 0.20 + 0.22 * self.energy, 0.18 + 0.25 * self.kick, 1.2 / 255
-            for k in range(3):
-                P.fil_col[k] = float(fil[k])
-                P.ring_col[k] = float(ring_col[k])
-            P.nblobs = len(blobs)
-            for i, (bx, by, ib, col, inten) in enumerate(blobs):
-                P.blobs[i * 7:i * 7 + 7] = [bx, by, ib, float(col[0]), float(col[1]), float(col[2]), inten]
-            P.nrings = len(self.rings)
-            for i, (rr, a) in enumerate(self.rings):
-                P.rings[i * 2], P.rings[i * 2 + 1] = rr, a
-            P.seed = self.frame
-            P.env_r = 0.90 + 0.06 * self.energy + 0.07 * self.kick
-            P.lobe = 0.08
+            P = self._native_params(T, Wd, Hd, cx, cy, R, x0, dpr)
             img = QImage(Wd, Hd, QImage.Format.Format_RGB32)
             _NF.nebula_render(P, img)
             img.setDevicePixelRatio(dpr)
             return img
+        blobs = self._blobs(T)
+        fil = np.clip(self.cols[0] * 0.5 + 0.55, 0, 1)
+        ring_col = np.clip(self.cols[0] * 0.6 + 0.25, 0, 1)
         return self._render_numpy(W, H, cx, cy, R, T, blobs, fil, ring_col, x0)
 
     def _render_numpy(self, W, H, cx, cy, R, T, blobs, fil, ring_col, x0):
@@ -683,6 +696,7 @@ class WaveWheel(QWidget):
         self._rows_ver = 0                   # меняется вместе с картинками строк (аватары, размер, пункты)
         self._layer = None
         self._layer_k = None
+        self._clear_from = None              # GPU-туманность: правее этого x — прозрачно (её видно сквозь)
 
     def set_items(self, items):
         self._timer.stop()
@@ -904,9 +918,12 @@ class WaveWheel(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-        p.fillRect(self.rect(), QColor(0, 0, 0))
-        if self._backdrop is not None:
-            self._backdrop(p)
+        if self._clear_from is not None:             # под нами туманность на GPU: чёрное — только слева от неё
+            p.fillRect(QRect(0, 0, int(self._clear_from), self.height()), QColor(0, 0, 0))
+        else:
+            p.fillRect(self.rect(), QColor(0, 0, 0))
+            if self._backdrop is not None:
+                self._backdrop(p)
         if self._timer.isActive():                   # круг крутится — пункты рисуются прямо в кадр
             self._paint_items(p)
             p.end()
@@ -1169,6 +1186,80 @@ class WavePage(QWidget):
         self._timer = FrameTimer(self)
         self._timer.setInterval(16)
         self._timer.timeout.connect(self._tick)
+        self._gl = None                         # туманность на видеокарте (echoes_ui.dll), если есть OpenGL
+        self._gl_state = "untried"              # untried → trying → on / off
+        self._overlay_k = None
+
+    # ── туманность на GPU ── #
+
+    def _gl_try(self):
+        """Первый показ: создать GL-виджет под всем остальным. OpenGL не завёлся — остаёмся на CPU."""
+        if self._gl_state != "untried":
+            return
+        self._gl_state = "off"
+        import os
+        if os.environ.get("ECHOES_NO_GPU_NEBULA") == "1" or not (_NATIVE and hasattr(_NF, "NebParams")):
+            return
+        try:
+            import native_ui
+            if not native_ui.available():
+                return
+            gl = native_ui.NebulaGL()
+            gl.widget.setParent(self)
+            gl.widget.setGeometry(self.rect())
+            gl.widget.lower()
+            gl.widget.show()
+            self._gl = gl
+            self._gl_state = "trying"
+            QTimer.singleShot(0, self._gl_check)
+        except Exception as e:                       # noqa: BLE001
+            print("[wave] gpu:", e)
+
+    def _gl_check(self):
+        gl = self._gl
+        if gl is None:
+            return
+        if gl.ok():
+            self._gl_state = "on"
+            self.wheel._clear_from = int(self.width() * self.LEFT)
+            self.wheel.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
+            self._gl_mask()
+            self._overlay_k = None
+            self.update()
+            self.wheel.update()
+            return
+        print("[wave] gpu: OpenGL недоступен — туманность на CPU")
+        self._gl_state = "off"
+        gl.widget.hide()
+        gl.widget.deleteLater()
+        self._gl = None
+
+    def _gl_mask(self):
+        if self._gl is None:
+            return
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(0, 0, self.width(), self.height()), 16, 16)
+        self._gl.widget.setMask(QRegion(path.toFillPolygon().toPolygon()))
+
+    def _gl_overlay(self):
+        """Всё, что поверх туманности и меняется редко: чёрная полоса под списком, градиент, заголовок."""
+        W, H = self.width(), self.height()
+        dpr = self.devicePixelRatioF()
+        if self._title_pm is None:
+            self._title_pm = self._make_title(W)
+        key = (W, H, dpr, id(self._title_pm))
+        if key == self._overlay_k:
+            return
+        self._overlay_k = key
+        pm = QPixmap(max(1, int(W * dpr)), max(1, int(H * dpr)))
+        pm.setDevicePixelRatio(dpr)
+        pm.fill(Qt.GlobalColor.transparent)
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        self._paint_decor(p, W, H)
+        p.end()
+        self._gl.overlay(pm)
 
     # ── API ── #
 
@@ -1197,6 +1288,9 @@ class WavePage(QWidget):
     def _apply_scheme(self, sch, instant=False):
         self._scheme = sch
         self._worker.set_scheme(sch, instant)
+        if self._gl_state == "on":
+            with self._worker.lock:
+                self.neb.set_scheme(sch, instant)
         self._style_chips()
 
     def _style_chips(self):
@@ -1213,6 +1307,7 @@ class WavePage(QWidget):
 
     def showEvent(self, e):
         super().showEvent(e)
+        self._gl_try()
         self._last = time.monotonic()
         self._timer.start()
 
@@ -1255,6 +1350,11 @@ class WavePage(QWidget):
         W, H = self.width(), self.height()
         self.wheel.setGeometry(0, 0, int(W * 0.34), H)
         self._title_pm = None
+        if self._gl is not None:
+            self._gl.widget.setGeometry(self.rect())
+            self._gl_mask()
+            if self._gl_state == "on":
+                self.wheel._clear_from = int(W * self.LEFT)
         self._layout()
 
     def _tick(self):
@@ -1283,10 +1383,27 @@ class WavePage(QWidget):
         a = 1.0 - math.exp(-dt * 1.9)
         self._avg = avg * (1.0 - a) + lvl * a
         self._cool = max(0.0, getattr(self, "_cool", 0.0) - dt)
+        gpu = self._gl_state == "on"
         if lvl > 0.04 and lvl > avg * 1.32 and self._cool <= 0:
-            self._worker.hit(min(1.0, (lvl / max(avg, 1e-3) - 1.0) * 1.5 + 0.3))
+            strength = min(1.0, (lvl / max(avg, 1e-3) - 1.0) * 1.5 + 0.3)
+            if gpu:
+                with self._worker.lock:
+                    self.neb.hit(strength)
+            else:
+                self._worker.hit(strength)
             self._cool = 0.28
         W, H, cx, cy, R = self._geom()
+        if gpu:                                      # кадр считает видеокарта; здесь — только параметры
+            acc = min(.1, getattr(self, "_acc_dt", 0.0) + dt)
+            if acc >= 1 / max(30, min(240, __import__("frameclock").clock().rate)):
+                self._gl_overlay()
+                with self._worker.lock:                  # прежний кадр CPU мог ещё считаться в фоне
+                    P = self.neb.params(W, H, cx, cy, R, self._beat, acc, W * self.LEFT, self.devicePixelRatioF())
+                self._gl.params(P)
+                self._acc_dt = 0.0
+            else:
+                self._acc_dt = acc
+            return
         res = self._worker.take()
         if res is not None:
             self._img = res
@@ -1394,20 +1511,7 @@ class WavePage(QWidget):
         p.fillRect(QRectF(x0, 0, overlap, H), g)
         p.restore()
 
-    def paintEvent(self, _):
-        p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-        W, H = self.width(), self.height()
-        if getattr(self, "_clip_key", None) != (W, H):
-            path = QPainterPath()
-            path.addRoundedRect(QRectF(0, 0, W, H), 16, 16)
-            self._clip_rgn = QRegion(path.toFillPolygon().toPolygon())
-            self._clip_key = (W, H)
-        p.setClipRegion(self._clip_rgn)
-        p.fillRect(self.rect(), QColor(0, 0, 0))
-        if self._img is not None:
-            p.drawImage(QRectF(0, 0, W, H), self._img)
+    def _paint_decor(self, p, W, H):
         x0 = int(W * self.LEFT)
         p.fillRect(QRectF(0, 0, x0 + 1, H), QColor(0, 0, 0))
         g = QLinearGradient(x0, 0, W * 0.44, 0)            # мягкий переход от списка к туманности
@@ -1422,6 +1526,24 @@ class WavePage(QWidget):
         tx, ty = cx - tw / 2, cy - th / 2
         p.drawPixmap(QPointF(tx, ty), pm)
         self._title_rect = QRectF(tx + th * 0.2, ty + th * 0.15, tw - th * 0.4, th * 0.7)
+
+    def paintEvent(self, _):
+        if self._gl_state == "on":                   # всё рисует GPU-виджет (туманность + накладка)
+            return
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        W, H = self.width(), self.height()
+        if getattr(self, "_clip_key", None) != (W, H):
+            path = QPainterPath()
+            path.addRoundedRect(QRectF(0, 0, W, H), 16, 16)
+            self._clip_rgn = QRegion(path.toFillPolygon().toPolygon())
+            self._clip_key = (W, H)
+        p.setClipRegion(self._clip_rgn)
+        p.fillRect(self.rect(), QColor(0, 0, 0))
+        if self._img is not None:
+            p.drawImage(QRectF(0, 0, W, H), self._img)
+        self._paint_decor(p, W, H)
         p.end()
 
 

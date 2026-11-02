@@ -65,7 +65,7 @@ _STRIP_CB = ctypes.CFUNCTYPE(None, ctypes.c_int, ctypes.c_int)
 
 
 def _setup(lib):
-    P, I, U, W, D = ctypes.c_void_p, ctypes.c_int, ctypes.c_uint, ctypes.c_wchar_p, ctypes.c_double
+    P, I, W, D = ctypes.c_void_p, ctypes.c_int, ctypes.c_wchar_p, ctypes.c_double
     sig = {
         "eui_version": (I, []),
         "eui_probe_new": (P, [P]),
@@ -89,6 +89,10 @@ def _setup(lib):
         "eui_liquid_surface_callback": (None, [_STRIP_CB]),
         "eui_liquid_surface_async": (None, [I, I, I, D]),
         "eui_liquid_surface_take": (I, [I, P]),
+        "eui_nebula_new": (P, []),
+        "eui_nebula_ok": (I, [P]),
+        "eui_nebula_params": (None, [P, P]),
+        "eui_nebula_overlay": (None, [P, P]),
         "eui_text_cache_new": (P, []),
         "eui_text_cache_free": (None, [P]),
         "eui_draw_wrapped": (None, [P, P, I, I, I, I, I, W]),
@@ -318,3 +322,22 @@ def liquid_arrays(chars, tr=lambda s: s):
     keep = [tr(c[0]) for c in chars]
     arr = (ctypes.c_wchar_p * max(1, n))(*keep)
     return (n, arr, col(1), col(2), col(3), col(5), col(6))
+
+
+# ── туманность «Моей волны» на видеокарте (nebula_gl.cpp) ─────────────── #
+
+class NebulaGL:
+    """QOpenGLWidget с шейдером туманности. params — native_fx.NebParams (как для CPU-рендера);
+    overlay — QPixmap поверх (полоса, градиент, заголовок). ok() — после первого показа: GL есть."""
+
+    def __init__(self):
+        self.widget = _wrap(_lib.eui_nebula_new())
+
+    def ok(self) -> bool:
+        return bool(_lib.eui_nebula_ok(_ptr(self.widget)))
+
+    def params(self, p):
+        _lib.eui_nebula_params(_ptr(self.widget), ctypes.byref(p))
+
+    def overlay(self, pm):
+        _lib.eui_nebula_overlay(_ptr(self.widget), _ptr(pm))
