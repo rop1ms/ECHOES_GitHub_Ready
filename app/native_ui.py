@@ -89,6 +89,11 @@ def _setup(lib):
         "eui_liquid_surface_callback": (None, [_STRIP_CB]),
         "eui_liquid_surface_async": (None, [I, I, I, D]),
         "eui_liquid_surface_take": (I, [I, P]),
+        "eui_trans_new": (P, []),
+        "eui_trans_ok": (I, [P]),
+        "eui_trans_old": (None, [P, P]),
+        "eui_trans_new_image": (None, [P, P]),
+        "eui_trans_frame": (None, [P, I, ctypes.c_float, ctypes.c_float, ctypes.c_float]),
         "eui_nebula_new": (P, []),
         "eui_nebula_ok": (I, [P]),
         "eui_nebula_params": (None, [P, P]),
@@ -351,3 +356,34 @@ class NebulaGL:
     def burst(self, value: float):
         """Вспышка при включении волны: 1 — лучи вылетают, 0 — спокойно."""
         _lib.eui_nebula_burst(_ptr(self.widget), float(value))
+
+
+# ── кадры смены страниц на видеокарте (transition_gl.cpp) ──────────────── #
+
+class TransitionGL:
+    """GL-слой поверх стека страниц на время перехода: снимки — текстурами, кадр смешивает GPU."""
+
+    def __init__(self):
+        self.widget = _wrap(_lib.eui_trans_new())
+
+    def ok(self) -> bool:
+        return bool(_lib.eui_trans_ok(_ptr(self.widget)))
+
+    def old(self, pm):
+        _lib.eui_trans_old(_ptr(self.widget), _ptr(pm) if pm is not None and not pm.isNull() else None)
+
+    def new_image(self, pm):
+        _lib.eui_trans_new_image(_ptr(self.widget), _ptr(pm) if pm is not None and not pm.isNull() else None)
+
+    def frame(self, kind: int, e: float, dx: float = 0.0, dy: float = 0.0):
+        _lib.eui_trans_frame(_ptr(self.widget), int(kind), float(e), float(dx), float(dy))
+
+    def grab(self):
+        """Текущий кадр перехода (для снимка, если переход прерывают новым)."""
+        from PyQt6.QtOpenGLWidgets import QOpenGLWidget
+        return QPixmap_from(sip.wrapinstance(_ptr(self.widget), QOpenGLWidget).grabFramebuffer())
+
+
+def QPixmap_from(img):
+    from PyQt6.QtGui import QPixmap
+    return QPixmap.fromImage(img)

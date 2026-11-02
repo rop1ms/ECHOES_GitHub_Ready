@@ -88,6 +88,31 @@ def _grab_area(stack: QWidget, backdrop=True) -> QPixmap | None:
         return None
 
 
+def _gpu_layer(stack):
+    """GL-слой кадров перехода для этого стека (echoes_ui.dll) — если окно уже на GPU-совмещении."""
+    if stack.__dict__.get('_gpu_trans_bad'):
+        return None
+    anchor = getattr(stack.window(), '_gpu_anchor', None)
+    try:
+        if anchor is None or not anchor.ok():
+            return None
+    except RuntimeError:
+        return None
+    layer = stack.__dict__.get('_gpu_trans')
+    if layer is None:
+        try:
+            import native_ui
+            layer = native_ui.TransitionGL()
+            layer.widget.setParent(stack)
+            layer.widget.hide()
+            stack._gpu_trans = layer
+        except Exception as e:                             # noqa: BLE001
+            print('[ui_anim] gpu:', e)
+            stack._gpu_trans_bad = True
+            return None
+    return layer
+
+
 class _Transition(QWidget):
     """Слой поверх стека на время перехода: рисует два снимка (старый и новый) — сами страницы в каждом
     кадре не перерисовываются, поэтому плавно даже на тяжёлых страницах.
@@ -111,6 +136,14 @@ class _Transition(QWidget):
         self.setGeometry(stack.rect())
         self.show()
         self.raise_()
+        # кадры рисует видеокарта: снимки — текстурами, смешивание и сдвиг — шейдер
+        self._gl = _gpu_layer(stack)
+        if self._gl is not None:
+            self._gl.widget.setGeometry(stack.rect())
+            self._gl.old(old_pm)
+            self._gl.frame(3, 0.0)
+            self._gl.widget.show()
+            self._gl.widget.raise_()
         QApplication.instance().installEventFilter(self)
 
     def eventFilter(self, obj, event):
@@ -118,6 +151,7 @@ class _Transition(QWidget):
         kind = event.type()
         if obj is self.parentWidget() and kind==QEvent.Type.Resize and (self.new is None or self._preparing):
             self.setGeometry(self.parentWidget().rect())
+            if self._gl is not None:self._gl.widget.setGeometry(self.parentWidget().rect())
             return False
         inside=isinstance(obj,QWidget) and (obj is self.parentWidget() or self.parentWidget().isAncestorOf(obj))
         if (obj is self.parentWidget() and kind in (QEvent.Type.Resize,QEvent.Type.Hide,QEvent.Type.Close)) or \
@@ -128,7 +162,26 @@ class _Transition(QWidget):
 
     def set_t(self, v):
         self.t = float(v)
+        if self._gl is not None:
+            self._gl_frame()
+            return
         self.update()
+
+    def _gl_frame(self):
+        """Те же формулы, что в paintEvent, — параметры кадра для шейдера."""
+        H, t = self.height(), self.t
+        if self.new is None:
+            self._gl.frame(3, 0.0)
+        elif self.kind == "up":
+            e = _ease_out_quint(t)
+            self._gl.frame(1, e, 0.0, H * (1 - e))
+        elif self.kind == "down":
+            e = _ease_out(t)
+            self._gl.frame(2, e, 0.0, H * e)
+        else:
+            e = _ease_out(t)
+            import motion
+            self._gl.frame(0, e, 28 * motion.strength(_WIN) * self.dir * (1 - e), 0.0)
 
     def start(self,duration):
         import motion
@@ -168,6 +221,7 @@ class _Transition(QWidget):
             if self._finished or sip.isdeleted(self) or sip.isdeleted(target):return
             self.setGeometry(target.rect())
             self.hide()
+            if self._gl is not None:self._gl.widget.hide()           # снимок новой страницы — без слоя перехода
             snapshot=_grab_area(target)
             # Rendering/polishing a cold page can synchronously resize/hide
             # its parents. Never resurrect a cancelled or deleted overlay.
@@ -175,6 +229,11 @@ class _Transition(QWidget):
             self.new=snapshot if snapshot is not None else self.old
             self._started=time.perf_counter()
             self.show();self.raise_()
+            if self._gl is not None:
+                self._gl.widget.setGeometry(target.rect())
+                self._gl.new_image(self.new)
+                self._gl.widget.show();self._gl.widget.raise_()
+                self._gl_frame()
         finally:self._preparing=False
 
     @pyqtSlot()
@@ -191,9 +250,14 @@ class _Transition(QWidget):
             try:self.animation.finished.disconnect(self.finish)
             except (TypeError,RuntimeError):pass
         if self.frame_timer is not None:self.frame_timer.stop()
+        if self._gl is not None:
+            try:self._gl.widget.hide()
+            except RuntimeError:pass
         self.hide();self.old=self.new=QPixmap();self.deleteLater()
 
     def paintEvent(self, _):
+        if self._gl is not None and not self._finished and self._gl.widget.isVisible():
+            return                                         # кадр — на GL-слое поверх
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
         W, H, t = self.width(), self.height(), self.t
@@ -286,7 +350,12 @@ def _outgoing_snapshot(target):
     if previous is None:return _on_screen(target) or _grab_area(target)
     # Continue from the currently visible blend; an unprepared transition
     # already has exactly the right outgoing image and needs no extra render.
-    snapshot=previous.old if previous.new is None else _grab_area(previous,backdrop=False)
+    if previous.new is None:
+        snapshot=previous.old
+    elif previous._gl is not None and previous._gl.widget.isVisible():
+        snapshot=previous._gl.grab()                   # текущий кадр перехода — с видеокарты
+    else:
+        snapshot=_grab_area(previous,backdrop=False)
     previous.finish()
     return snapshot
 
