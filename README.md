@@ -115,6 +115,10 @@ In an isolated Windows test of **400 track-row images at 1440 × 56**, the forme
 
 ![Memory and rendering controls](docs/screenshots/performance-memory.png)
 
+
+### Gamer mode
+
+The gamepad button in the top bar. In a game ECHOES only plays music: animations stop while its window is not focused, background work waits, the game gets CPU priority, and the audio thread runs time-critical so music never stutters. Image caches and AI models are unloaded. By default the mode turns on by itself while a game is running (fullscreen mode, Steam, Epic, Riot, Xbox, GOG and other game folders, well-known games) and off when the game closes; switch that in **Settings → Performance → Gamer mode**.
 ### Private bug reports to staff
 
 Use the drawn **bug button in the top bar**, or **Report a bug** in Echoes.NET. Select a verified administrator/moderator, enter a subject, describe the issue, and optionally add reproduction steps. Friendship is not required. Reports are private to the selected recipient; logs and files are not attached automatically.

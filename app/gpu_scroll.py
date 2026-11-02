@@ -118,17 +118,19 @@ def _image(w, h, dpr):
 
 
 def warm(win):
-    """Один раз в простое после запуска, чтобы первая прокрутка была без рывка:
+    """Один раз в простое после запуска (warmup.start), чтобы первый переход и первая прокрутка были без рывка:
       * первый QWidget.render отдаёт всем скрытым виджетам окна (собранные заранее страницы)
-        отложенные Move/Resize — ~0.2–0.4 с;
+        отложенные Move/Resize — ~0.2–0.8 с; раньше это доставалось первому клику по разделу;
       * GL-слою нужен контекст и шейдеры (~0.1 с) — показываем его на кадр точкой 1×1 (прозрачной)."""
-    if win.__dict__.get("_gpu_scroll_warm") or not enabled(win):
+    if win.__dict__.get("_gpu_scroll_warm"):
         return
     win._gpu_scroll_warm = True
     img = _image(1, 1, 1.0)
     p = QPainter(img)
     win.render(p, QPoint(0, 0), QRegion(QRect(0, 0, 1, 1)), _R.DrawChildren)
     p.end()
+    if not enabled(win):
+        return
     lay = _layer(win)
     lay.widget.setGeometry(0, 0, 1, 1)
     lay.widget.show()

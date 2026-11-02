@@ -163,10 +163,37 @@ class Sprite:
         self.tweens=[]
 
 
+def _gl_possible(win):
+    """Окно уже на GPU-совмещении (ya_wave.gpu_anchor) — арену можно рисовать видеокартой."""
+    import os
+    if os.environ.get('ECHOES_NO_GPU_DUEL')=='1' or (os.environ.get('QT_QPA_PLATFORM') or '').startswith('offscreen'):return False
+    anchor=getattr(win,'_gpu_anchor',None)
+    try:return anchor is not None and anchor.ok()
+    except RuntimeError:return False
+
+
+def _canvas_class():
+    from PyQt6.QtOpenGLWidgets import QOpenGLWidget
+
+    class ArenaCanvas(QOpenGLWidget):
+        """GL-холст поверх арены: тот же Arena._paint, но QPainter рисует видеокартой (наклон карточек в 3D,
+        прозрачность, текст), огонь — шейдером (native_ui.fire_draw). Окно не перекачивает в видеокарту
+        растровую арену каждый кадр. Мышь и клавиши — у самой арены."""
+        def __init__(self,arena):
+            super().__init__(arena);self.arena=arena
+            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            fmt=self.format();fmt.setSamples(4);self.setFormat(fmt)          # сглаживание краёв (MSAA)
+        def paintGL(self):
+            self.arena._paint(QPainter(self))
+    return ArenaCanvas
+
+
 class Arena(QWidget):
+    """Арена дуэли. Рисует себя растром (QPainter по процессору) или, когда окно на GPU-совмещении, — через
+    GL-холст поверх себя (_canvas): та же отрисовка _paint, но видеокартой."""
     voted=pyqtSignal(int);preview=pyqtSignal(int);start_clicked=pyqtSignal()
     def __init__(self,page):
-        super().__init__();self.page=page
+        super().__init__();self.page=page;self._canvas=None
         self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, True)
         self.setMinimumHeight(470);self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -349,8 +376,27 @@ class Arena(QWidget):
         return super().event(e)
     def showEvent(self,e):
         super().showEvent(e);self.last=time.perf_counter();self.timer.start(16)
+        if self._canvas is None and _gl_possible(self.window()):
+            try:
+                self._canvas=_canvas_class()(self);self._canvas.setGeometry(self.rect());self._canvas.show()
+            except Exception as ex:                                   # noqa: BLE001
+                print('[duel] gpu:',ex);self._canvas=None
+    def resizeEvent(self,e):
+        super().resizeEvent(e)
+        if self._canvas is not None:self._canvas.setGeometry(self.rect())
+    def update(self,*a):
+        if self._canvas is not None and not a:self._canvas.update()
+        else:super().update(*a)
     def hideEvent(self,e):
         self.timer.stop();super().hideEvent(e)
+        if self._canvas is not None:                                  # скрыта 20 с — GL-контекст отдать (~19 МБ)
+            if self.__dict__.get('_canvas_t') is None:
+                self._canvas_t=QTimer(self);self._canvas_t.setSingleShot(True);self._canvas_t.timeout.connect(self._drop_canvas)
+            self._canvas_t.start(20000)
+    def _drop_canvas(self):
+        if self.isVisible() or self._canvas is None:return
+        c,self._canvas=self._canvas,None
+        c.hide();c.deleteLater()
     def _tick(self):
         colors = tuple(s.color.rgb() for s in self.sprites if s.side is not None)
         if colors != getattr(self, '_page_colors', None):
@@ -407,7 +453,8 @@ class Arena(QWidget):
             self.start_hover+=((1.0 if self.start_rect().contains(self.mouse) else 0.0)-self.start_hover)*min(1.0,dt*12)
         self.progress_shown+=(self.progress-self.progress_shown)*min(1.0,dt*6)
         busy|=abs(self.progress-self.progress_shown)>0.001 or 0<self.champ<1
-        want=16 if busy or (self.champ_on and now<self.rain_until) else 33                    # в покое — 30 кадров на «дыхание» VS
+        # в покое — 30 кадров на «дыхание» VS растром; на GL-холсте кадр ~3 мс — плавно на полной частоте
+        want=16 if busy or self._canvas is not None or (self.champ_on and now<self.rain_until) else 33
         if self.timer.interval()!=want:self.timer.setInterval(want)
         self.update()
 
@@ -499,7 +546,9 @@ class Arena(QWidget):
             p.setPen(QColor(200,200,214));p.drawText(tr,Qt.AlignmentFlag.AlignCenter,'ИНТЕРНЕТ')
         p.end();s.card=pm;s.card_key=key;return pm
     def paintEvent(self,e):
-        p=QPainter(self);p.setRenderHints(QPainter.RenderHint.Antialiasing|QPainter.RenderHint.SmoothPixmapTransform|QPainter.RenderHint.TextAntialiasing)
+        if self._canvas is None:self._paint(QPainter(self))
+    def _paint(self,p):
+        p.setRenderHints(QPainter.RenderHint.Antialiasing|QPainter.RenderHint.SmoothPixmapTransform|QPainter.RenderHint.TextAntialiasing)
         surface = self.page.widget()
         offset = self.mapTo(surface, QPoint(0, 0))
         p.drawPixmap(-offset.x(), -offset.y(), self._background(surface.size()))
@@ -523,7 +572,7 @@ class Arena(QWidget):
             g.setColorAt(0,c);c2=QColor(255,255,255,0);g.setColorAt(1,c2);p.fillRect(self.rect(),QBrush(g))
         p.setFont(_font(11,QFont.Weight.DemiBold));p.setPen(QColor(255,255,255,90))
         hint='← / →  выбрать   ·   1 / 2  послушать   ·   Backspace  отменить'+('   ·   S  другая пара' if not self.king else '')
-        if self.sprites and not self.champ_on:p.drawText(QRectF(0,H-30,W,22),Qt.AlignmentFlag.AlignCenter,hint)
+        if self.sprites and not self.champ_on:self._text(p,QRectF(0,H-30,W,22),Qt.AlignmentFlag.AlignCenter,hint)
         p.end()
     def _paint_header(self,p,now):
         W=self.width()
@@ -536,7 +585,7 @@ class Arena(QWidget):
             gl=QColor(GOLD);gl.setAlpha(int(90+60*math.sin(now*4)));p.setBrush(gl);p.drawEllipse(QPointF(fr.right(),fr.center().y()),7,7)
         if self.round_text and self.sprites:
             p.setFont(_font(13,QFont.Weight.Black));p.setPen(QColor(235,235,245,210))
-            p.drawText(QRectF(0,34,W,24),Qt.AlignmentFlag.AlignCenter,self.round_text.upper())
+            self._text(p,QRectF(0,34,W,24),Qt.AlignmentFlag.AlignCenter,self.round_text.upper())
     def _paint_sprite(self,p,s,now):
         a=s.v['alpha']
         if a<=0.01:return
@@ -552,7 +601,14 @@ class Arena(QWidget):
         from duel_settings import fire_tier
         tier=fire_tier(wins)
         if self.fire_enabled and tier:
-            self.fire_cache.draw(p,QRectF(-cw/2-44,-ch/2-44,cw+88,ch+88),cw,ch,wins,now)
+            gpu=False
+            if self._canvas is not None:                             # на GL-холсте — шейдером
+                from performance import config
+                import native_ui
+                q={'low':0,'balanced':1,'high':2}.get(config()['aura_quality'],1)
+                from duel_fire import COLORS
+                gpu=native_ui.fire_draw(p,cw,ch,60,COLORS[tier-1],tier,now,q)
+            if not gpu:self.fire_cache.draw(p,QRectF(-cw/2-44,-ch/2-44,cw+88,ch+88),cw,ch,wins,now)
         glow=max(s.v['glow'],s.hover*0.55)
         halo = self._halo(s, glow > .01)
         if glow > .01: p.setOpacity(a * glow)
@@ -568,7 +624,7 @@ class Arena(QWidget):
             color=QColor(COLORS[fire_tier(wins)-1]);p.setPen(QPen(color,1.5));p.setBrush(QColor(9,11,17,220))
             badge=QRectF(-cw/2+22,-ch/2+cw-74,142,24);p.drawRoundedRect(badge,12,12)
             p.setFont(_font(11,QFont.Weight.Bold));p.setPen(color)
-            p.drawText(badge,Qt.AlignmentFlag.AlignCenter,tr(self.page.win,'Ур. ','Lv. ')+str(tier)+' · '+str(wins)+tr(self.page.win,' побед',' wins'))
+            self._text(p,badge,Qt.AlignmentFlag.AlignCenter,tr(self.page.win,'Ур. ','Lv. ')+str(tier)+' · '+str(wins)+tr(self.page.win,' побед',' wins'))
         pad=16;cs=cw-2*pad
         if s.hover>0.01:                                             # блик, бегущий за курсором
             sx=-cw/2+cw*(0.5+s.tilt[0]/18);g=QRadialGradient(QPointF(sx,-ch/2+ch*(0.5-s.tilt[1]/14)),cw*0.8)
@@ -599,31 +655,56 @@ class Arena(QWidget):
                 g.setColorAt(0,c1);g.setColorAt(1,c2);p.setBrush(QBrush(g));p.drawRoundedRect(br,14,14)
                 p.setFont(_font(14,QFont.Weight.Black));p.setPen(INK if hv>0.5 else QColor(235,235,240))
                 arrow='←' if s.side==0 else '→'
-                p.drawText(br,Qt.AlignmentFlag.AlignCenter,(arrow+'   ВЫБРАТЬ' if s.side==0 else 'ВЫБРАТЬ   '+arrow))
+                self._text(p,br,Qt.AlignmentFlag.AlignCenter,(arrow+'   ВЫБРАТЬ' if s.side==0 else 'ВЫБРАТЬ   '+arrow))
         if s.side==0 and self.king and not s.leaving and len([x for x in self.sprites if x.side is not None])==2 and self.streak>0:
             self._paint_crown(p,QPointF(0,-ch/2-6),0.8,now)
             txt=f'ЧЕМПИОН · {self.streak} ' + ('ПОБЕДА' if self.streak%10==1 and self.streak%100!=11 else 'ПОБЕДЫ' if 2<=self.streak%10<=4 and not 12<=self.streak%100<=14 else 'ПОБЕД')
             from duel_settings import tr
             txt=tr(self.page.win,txt,f'CHAMPION · {self.streak} WINS')
-            p.setFont(_font(11,QFont.Weight.Black));fm=QFontMetrics(p.font());tw=fm.horizontalAdvance(txt)+22
+            p.setFont(_font(11,QFont.Weight.Black));tw=self._adv(p.font(),txt)+22
             tr=QRectF(-tw/2,-ch/2+pad+8,tw,22);p.setPen(Qt.PenStyle.NoPen);p.setBrush(GOLD);p.drawRoundedRect(tr,11,11)
-            p.setPen(INK);p.drawText(tr,Qt.AlignmentFlag.AlignCenter,txt)
+            p.setPen(INK);self._text(p,tr,Qt.AlignmentFlag.AlignCenter,txt)
         if s.v['dim']>0.01:
             path=QPainterPath();path.addRoundedRect(r,24,24);p.fillPath(path,QColor(10,10,14,int(200*s.v['dim'])))
         st=s.v['stamp']
         if st>0.01:                                                  # штамп «ПОБЕДА»
             p.save();p.translate(0,-ch*0.12);p.rotate(-12);p.scale(max(0.01,st),max(0.01,st))
             p.setOpacity(a*min(1.0,st));f=_font(max(22,cw*0.15),QFont.Weight.Black);p.setFont(f)
-            fm=QFontMetrics(f);tw=fm.horizontalAdvance('ПОБЕДА')+36;th=fm.height()+12
+            tw=self._adv(f,'ПОБЕДА')+36;th=QFontMetrics(f).height()+12
             box=QRectF(-tw/2,-th/2,tw,th);p.setPen(QPen(GOLD,4));p.setBrush(QColor(14,13,18,200));p.drawRoundedRect(box,12,12)
-            p.setPen(GOLD);p.drawText(box,Qt.AlignmentFlag.AlignCenter,'ПОБЕДА');p.restore()
+            p.setPen(GOLD);self._text(p,box,Qt.AlignmentFlag.AlignCenter,'ПОБЕДА');p.restore()
         p.restore()
         if self.champ>0 and s.side==0 and not s.leaving and len([x for x in self.sprites if not x.leaving])==1:
             p.save();p.setOpacity(self.champ)
             self._paint_crown(p,QPointF(c.x(),c.y()-ch*sc/2-14+math.sin(now*2.2)*4),1.5,now)
             p.setFont(_font(30,QFont.Weight.Black));p.setPen(GOLD)
-            p.drawText(QRectF(0,c.y()+ch*sc/2+4,self.width(),40),Qt.AlignmentFlag.AlignCenter,'ВАШ ЧЕМПИОН')
+            self._text(p,QRectF(0,c.y()+ch*sc/2+4,self.width(),40),Qt.AlignmentFlag.AlignCenter,'ВАШ ЧЕМПИОН')
             p.restore()
+    def _text(self,p,rect,flags,text):
+        """Надпись арены — готовой картинкой (в 2× плотности, чтобы не мылилась при наклоне и масштабе).
+        drawText по карточке, наклонённой в 3D, рисовал каждую букву кривыми (~0.6 мс на надпись)."""
+        rect=QRectF(rect);font=p.font();col=p.pen().color()
+        w,h=max(1,int(math.ceil(rect.width()))),max(1,int(math.ceil(rect.height())))
+        k=2*self.devicePixelRatioF()
+        key=(text,font.key(),col.rgba(),w,h,int(flags.value if hasattr(flags,'value') else flags),k)
+        cache=self.__dict__.setdefault('_text_cache',{})
+        pm=cache.get(key)
+        if pm is None:
+            pm=QPixmap(int(w*k),int(h*k));pm.setDevicePixelRatio(k);pm.fill(Qt.GlobalColor.transparent)
+            q=QPainter(pm);q.setRenderHint(QPainter.RenderHint.TextAntialiasing);q.setFont(font);q.setPen(col)
+            q.drawText(QRectF(0,0,w,h),flags,text);q.end()
+            if len(cache)>=160:cache.clear()
+            cache[key]=pm
+        p.drawPixmap(QRectF(rect.x(),rect.y(),w,h),pm,QRectF(0,0,pm.width(),pm.height()))
+    def _adv(self,font,text):
+        cache=self.__dict__.setdefault('_adv_cache',{})
+        key=(font.key(),text)
+        v=cache.get(key)
+        if v is None:
+            if len(cache)>=200:cache.clear()
+            v=cache[key]=QFontMetrics(font).horizontalAdvance(text)
+        return v
+
     def _halo(self, sprite, glowing):
         cw, ch = self.card_size()
         dpr = self.devicePixelRatioF()
@@ -691,7 +772,7 @@ class Arena(QWidget):
         p.drawPixmap(QPointF(-44,-28),self._vs_surface)
         p.setFont(_font(22,QFont.Weight.DemiBold))
         p.setPen(GOLD)
-        p.drawText(QRectF(-44,-28,88,56),Qt.AlignmentFlag.AlignCenter,'VS')
+        self._text(p,QRectF(-44,-28,88,56),Qt.AlignmentFlag.AlignCenter,'VS')
         p.restore()
     def _paint_empty(self,p,now):
         W,H=self.width(),self.height();cw,ch=self.card_size()
@@ -700,7 +781,7 @@ class Arena(QWidget):
             r=QRectF(c.x()-cw/2,c.y()-ch/2+bob,cw,ch)
             pen=QPen(QColor(255,255,255,50),2,Qt.PenStyle.DashLine);pen.setDashPattern([6,6]);pen.setDashOffset(now*12*(1 if i else -1))
             p.setPen(pen);p.setBrush(QColor(255,255,255,8));p.drawRoundedRect(r,24,24)
-            p.setFont(_font(cw*0.42,QFont.Weight.Black));p.setPen(QColor(255,255,255,40));p.drawText(r,Qt.AlignmentFlag.AlignCenter,'?')
+            p.setFont(_font(cw*0.42,QFont.Weight.Black));p.setPen(QColor(255,255,255,40));self._text(p,r,Qt.AlignmentFlag.AlignCenter,'?')
         r=self.start_rect();h=self.start_hover
         p.setPen(Qt.PenStyle.NoPen)
         for i in range(4,0,-1):
@@ -708,7 +789,7 @@ class Arena(QWidget):
             p.drawRoundedRect(r.adjusted(-i*4,-i*4,i*4,i*4),27+i*4,27+i*4)
         g=QLinearGradient(r.topLeft(),r.topRight());g.setColorAt(0,GOLD);g.setColorAt(1,QColor(255,150,40))
         p.setBrush(QBrush(g));p.drawRoundedRect(r,27,27)
-        p.setFont(_font(17,QFont.Weight.Black));p.setPen(INK);p.drawText(r,Qt.AlignmentFlag.AlignCenter,'НАЧАТЬ ДУЭЛЬ')
+        p.setFont(_font(17,QFont.Weight.Black));p.setPen(INK);self._text(p,r,Qt.AlignmentFlag.AlignCenter,'НАЧАТЬ ДУЭЛЬ')
 
 
 class Leaders(QWidget):

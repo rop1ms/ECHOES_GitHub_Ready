@@ -2,14 +2,20 @@
 """
 ИИ-синхронизация текста с треком (локально, аудио никуда не отправляется).
 
-1. Вокал отделяется от бита нейросетью (daw_sep, Kim Vocal 2 — та же, что у мэшап-бота; результат кэшируется).
-   Распознавание по чистому голосу намного точнее, чем по миксу с битом.
-2. Whisper (faster-whisper, small, int8) слушает только участки, где есть голос (VAD) — проигрыши и тишина
-   пропускаются, поэтому трек считается за десятки секунд, а не минуты.
-3. Слова текста выравниваются с услышанными (Нидлман — Вунш, нечёткое сравнение + транслит: Whisper иногда
-   пишет русский рэп латиницей). Начало строки — по нескольким совпавшим словам с учётом темпа речи.
-4. Начало строки «прилипает» к настоящему началу голоса (вступление по огибающей вокала), строки без
-   совпадений раскладываются по местам, где голос реально звучит, а не равномерно по времени.
+Текст уже известен — поэтому Whisper его не распознаёт, а ВЫРАВНИВАЕТ (force_align): по карте внимания
+модели (CTranslate2 align) находит, где в звуке спето каждое слово текста. Раньше Whisper распознавал пение
+(рэп — с ошибками), а потом услышанное сопоставлялось с текстом: долго (2–11 мин на трек, отделение голоса
+на процессоре + распознавание) и криво (медиана ошибки начала строки 0.33 с, худшие 10 % — до минуты,
+часть треков падала по лимиту времени). Сейчас (замер на 6 треках с ручной разметкой LRCLIB): медиана 0.23 с,
+61 % строк точнее 0.3 с, худшие 10 % — до 2.3 с, без сбоев; само выравнивание — 15–30 с на процессоре.
+
+1. Звук: чистый вокал (daw_sep, Kim Vocal 2), если он уже в кэше или есть видеокарта для разделения
+   (onnxruntime с DirectML); иначе — сам трек: на миксе чуть менее точно (медиана 0.25 с), зато без
+   минут разделения на процессоре.
+2. Окна по 30 с: в окно подаётся весь оставшийся текст (с запасом), берутся слова, которые уверенно
+   легли внутрь окна (не ближе TAIL к краю), следующее окно — с последнего взятого слова.
+3. Начало слова у Whisper в среднем на ~0.15 с раньше голоса — сдвиг WORD_BIAS.
+4. Результат — LRC с метками каждого слова (<мм:сс.сс>): «жидкая» заливка текста идёт по настоящим словам.
 
 Модель скачивается один раз при первом запуске (small ≈ 460 МБ); сеть вокала (~67 МБ) — тоже.
 """
@@ -30,6 +36,9 @@ _SECTION = re.compile(r"^\s*[\[(][^\])]{1,40}[\])]\s*$")       # [Припев],
 _WORD = re.compile(r"[^\W_]+", re.UNICODE)
 
 MODEL_DEFAULT = "small"
+WORD_BIAS = 0.12                # Whisper ставит начало слова раньше голоса
+TAIL = 2.5                      # слова ближе к краю окна — в следующее окно
+MAX_TOKENS = 200                # текста в одно окно (запас: лишнее ляжет к краю и не будет взято)
 MATCH_MIN = 0.7                 # похожесть слов, с которой считаем их «тем же словом»
 SR = 16000
 HOP = 0.02                      # шаг огибающей вокала, с
@@ -295,11 +304,22 @@ def align_lines(lines: list[str], heard: list[tuple[str, float, float]], env=Non
     return out
 
 
-def build_lrc(lines: list[str], times: list[float]) -> str:
+def _stamp(t: float) -> str:
+    m, s = divmod(max(0.0, t), 60)
+    return f"{int(m):02d}:{s:05.2f}"
+
+
+def build_lrc(lines: list[str], times: list[float], words: list | None = None) -> str:
+    """words[i] — начала слов строки i (по split()) или None: тогда строка без пословных меток."""
     rows = []
-    for line, t in zip(lines, times):
-        m, s = divmod(t, 60)
-        rows.append(f"[{int(m):02d}:{s:05.2f}] {line}")
+    for i, (line, t) in enumerate(zip(lines, times)):
+        ws = words[i] if words is not None and i < len(words) else None
+        parts = line.split()
+        if ws and len(ws) == len(parts) and len(parts) > 1:
+            body = parts[0] + "".join(f" <{_stamp(max(t, w))}>{p}" for w, p in zip(ws[1:], parts[1:]))
+            rows.append(f"[{_stamp(t)}]{body}")
+        else:
+            rows.append(f"[{_stamp(t)}] {line}")
     return "\n".join(rows)
 
 
@@ -370,6 +390,11 @@ def envelope(audio):
     return np.convolve(rms, np.ones(k) / k, mode="same")
 
 
+def release():
+    """Модели (~0.5 ГБ) — из памяти (режим геймера, после синхронизации)."""
+    _MODEL.clear()
+
+
 def _load_model(size: str, progress, local_only=False):
     if size in _MODEL:
         return _MODEL[size]
@@ -403,27 +428,138 @@ def transcribe_words(mdl, audio, language=None, prompt="", cancel=None, progress
     return heard
 
 
+def _vocals_cheap(path: str) -> bool:
+    """Чистый вокал без минут на процессоре: уже в кэше или разделение на видеокарте."""
+    try:
+        import daw_sep
+        return daw_sep.have_runtime() and (daw_sep.cached(path) or (daw_sep.model_ready() and daw_sep.gpu_available()))
+    except Exception:                                # noqa: BLE001
+        return False
+
+
+def force_align(mdl, audio, lines: list[str], language: str, cancel=None, progress=None):
+    """Слова текста → [(строка, слово, (начало, конец) с | None)]. Окна по 30 с, текст подаётся с запасом,
+    берутся слова, уверенно легшие внутрь окна; следующее окно — с последнего взятого слова."""
+    import numpy as np
+    from faster_whisper.audio import pad_or_trim
+    from faster_whisper.tokenizer import Tokenizer
+    progress = progress or (lambda s: None)
+    tok = Tokenizer(mdl.hf_tokenizer, mdl.model.is_multilingual, task="transcribe", language=language or "en")
+    words = []
+    for li, line in enumerate(lines):
+        for w in line.split():
+            t = tok.encode(" " + w)
+            words.append((li, w, t))
+    feats = mdl.feature_extractor(audio)
+    nf = feats.shape[-1]
+    fps = 100.0
+    env = envelope(audio)
+    pos = 0
+    if len(env):
+        thr = max(float(np.percentile(env, 35)) * 2.0, float(env.max()) * 0.06)
+        loud = np.nonzero(env > thr)[0]
+        if len(loud):
+            pos = max(0, int((loud[0] * HOP - 0.3) * fps))      # с начала голоса, не со вступления
+    res: list = [None] * len(words)
+    i, guard = 0, 0
+    while i < len(words) and pos < nf - 30 and guard < 400:
+        guard += 1
+        if cancel is not None and cancel.is_set():
+            raise SyncCancelled()
+        if not words[i][2]:
+            i += 1
+            continue
+        seg = feats[:, pos:pos + 3000]
+        nfr = seg.shape[-1]
+        enc = mdl.encode(pad_or_trim(seg))
+        toks, j = [], i
+        while j < len(words) and len(toks) + len(words[j][2]) <= MAX_TOKENS:
+            toks += words[j][2]
+            j += 1
+        al = mdl.find_alignment(tok, [toks], enc, nfr)[0] if toks else []
+        starts, cum = {}, 0
+        for a in al:
+            starts.setdefault(cum, (float(a["start"]), float(a["end"])))
+            cum += len(a["tokens"])
+        last_window = pos + nfr >= nf
+        wend = nfr / fps
+        took, acc = 0, 0
+        for k in range(i, j):
+            if not words[k][2]:
+                took += 1
+                continue
+            hit = starts.get(acc)
+            acc += len(words[k][2])
+            if hit is None or (not last_window and hit[1] > wend - TAIL):
+                break
+            res[k] = (pos / fps + hit[0], pos / fps + hit[1])
+            took += 1
+        progress(f"Выравниваю текст по голосу… {min(99, int((pos + nfr) / nf * 100))}%")
+        if took == 0:
+            pos += int((wend - TAIL) * fps) if not last_window else nf
+            continue
+        i += took
+        last = next((res[k] for k in range(i - 1, -1, -1) if res[k] is not None), None)
+        pos = max(pos + 50, int(last[1] * fps) - 20) if last else pos + 1500
+    return [(li, w, r) for (li, w, _t), r in zip(words, res)]
+
+
+def aligned_times(lines: list[str], aligned):
+    """Начало каждой строки и начала её слов (с учётом WORD_BIAS); строки без слов — между соседями."""
+    first: dict = {}
+    per_line: dict = {}
+    for li, _w, r in aligned:
+        per_line.setdefault(li, []).append(None if r is None else r[0] + WORD_BIAS)
+        if r is not None and li not in first:
+            first[li] = r[0] + WORD_BIAS
+    known = sorted(first)
+    times = []
+    for li in range(len(lines)):
+        if li in first:
+            times.append(first[li])
+            continue
+        prev = [first[k] for k in known if k < li]
+        nxt = [first[k] for k in known if k > li]
+        times.append(prev[-1] + 2.0 if prev else (max(0.0, nxt[0] - 2.0) if nxt else 0.0))
+    out, prev = [], -1.0
+    for t in times:                                   # строго по возрастанию
+        t = max(float(t), prev + 0.2)
+        out.append(t)
+        prev = t
+    words = []
+    for li in range(len(lines)):
+        ws = per_line.get(li)
+        if not ws or any(w is None for w in ws):
+            words.append(None)
+            continue
+        fixed, p = [], out[li]
+        for w in ws:
+            p = max(p, w)
+            fixed.append(p)
+        words.append(fixed)
+    return out, words
+
+
 def sync_lyrics(audio_path: str, text: str, progress=None, cancel: threading.Event | None = None,
                 model: str = MODEL_DEFAULT, use_vocals: bool = True) -> str:
-    """Возвращает LRC-текст. progress(str) — статус для интерфейса."""
+    """Возвращает LRC-текст (с метками слов). progress(str) — статус для интерфейса."""
     progress = progress or (lambda s: None)
     lines = plain_lines(text)
     if not lines:
         raise ValueError("Сначала впишите или найдите текст песни")
     if not Path(audio_path).exists():
         raise FileNotFoundError("Файл трека не найден")
-    voc = vocals_16k(audio_path, progress, cancel) if use_vocals else None
+    voc = vocals_16k(audio_path, progress, cancel) if use_vocals and _vocals_cheap(audio_path) else None
     if cancel is not None and cancel.is_set():
         raise SyncCancelled()
+    progress("Читаю трек…")
     audio = voc if voc is not None else _decode(audio_path)
-    mdl = _load_model(model, progress)
-    progress("Слушаю трек… 0%")
     import numpy as np
-    dur = len(audio) / SR if isinstance(audio, np.ndarray) else 0.0
-    heard = transcribe_words(mdl, audio, _guess_language(text), " ".join(lines[:2])[:200], cancel, progress, dur)
-    if not [h for h in heard if h[0]]:
-        raise RuntimeError("В треке не удалось расслышать слова (инструментал или очень тихий вокал)")
-    progress("Сопоставляю с текстом…")
-    env = envelope(voc) if voc is not None else None
-    times = align_lines(lines, heard, env, require_confidence=True)
-    return build_lrc(lines, times)
+    if not isinstance(audio, np.ndarray) or not len(audio):
+        raise RuntimeError("Не удалось прочитать звук трека")
+    mdl = _load_model(model, progress)
+    aligned = force_align(mdl, audio, lines, _guess_language(text) or "en", cancel, progress)
+    if not any(r is not None for _li, _w, r in aligned):
+        raise RuntimeError("Не удалось найти в треке голос с этим текстом (инструментал или другой текст?)")
+    times, words = aligned_times(lines, aligned)
+    return build_lrc(lines, times, words)

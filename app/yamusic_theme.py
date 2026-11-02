@@ -438,6 +438,14 @@ def _draw_icon(p: QPainter, name: str, col: QColor):
         path.cubicTo(7, 7.5, 9.2, 5.2, 12, 5.2); path.cubicTo(14.8, 5.2, 17, 7.5, 17, 10.5)
         path.cubicTo(17, 13, 17, 15, 18, 16.5); path.closeSubpath(); p.drawPath(path)
         p.drawLine(QPointF(10.2, 19.2), QPointF(13.8, 19.2))
+    elif name == "gamepad":
+        body = QPainterPath(); body.moveTo(7.2, 7.5); body.lineTo(16.8, 7.5)
+        body.cubicTo(19.6, 7.5, 21.2, 10.5, 21.6, 14.5); body.cubicTo(22, 17.6, 19.8, 19, 18.2, 17.4)
+        body.lineTo(16, 15.2); body.lineTo(8, 15.2); body.lineTo(5.8, 17.4)
+        body.cubicTo(4.2, 19, 2, 17.6, 2.4, 14.5); body.cubicTo(2.8, 10.5, 4.4, 7.5, 7.2, 7.5)
+        body.closeSubpath(); p.drawPath(body)
+        p.drawLine(QPointF(7.6, 9.9), QPointF(7.6, 13)); p.drawLine(QPointF(6.05, 11.45), QPointF(9.15, 11.45))
+        p.drawEllipse(QPointF(15.6, 10.4), 0.75, 0.75); p.drawEllipse(QPointF(17.6, 12.4), 0.75, 0.75)
     elif name == "folder":
         path = QPainterPath(); path.moveTo(3.5, 7); path.lineTo(9, 7); path.lineTo(11, 9); path.lineTo(20.5, 9)
         path.lineTo(20.5, 18); path.lineTo(3.5, 18); path.closeSubpath()
@@ -2745,6 +2753,19 @@ class YaShell(QWidget):
         srch.setIconSize(QSize(20, 20))
         th.addWidget(srch)
         from duel_settings import tr as _duel_tr
+        # режим геймера — на виду: кнопкой или сам, когда запущена игра (game_mode.py)
+        self.gamer_btn = QPushButton()
+        self.gamer_btn.setObjectName("YaTopRound")
+        self.gamer_btn.setCheckable(True)
+        self.gamer_btn.setFixedSize(44, 44)
+        self.gamer_btn.setIconSize(QSize(22, 22))
+        self.gamer_btn.setIcon(ya_icon("gamepad", 22))
+        self.gamer_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.gamer_btn.setToolTip(_duel_tr(win, "Режим геймера: ECHOES только играет музыку и не мешает игре",
+                                           "Gamer mode: ECHOES only plays music and stays out of the game's way"))
+        self.gamer_btn.clicked.connect(self._gamer_clicked)
+        th.addWidget(self.gamer_btn)
+        QTimer.singleShot(1200, self._gamer_setup)
         bug=icon_button('bug',_duel_tr(win,'Сообщить об ошибке','Report a bug'),38,18)
         bug.clicked.connect(lambda:self.pages['net'].open_bug_report())
         th.addWidget(bug)
@@ -3258,6 +3279,50 @@ class YaShell(QWidget):
         if k == "playlist":
             return ("playlist", self._pl_kind, self._pl_name)
         return (k,)
+
+    # ── режим геймера (game_mode.py) ──
+    def _gamer_setup(self):
+        try:
+            import game_mode
+            gm = game_mode.install(self.win)
+            gm.changed.connect(self._gamer_changed)
+            self._gamer_changed(gm.active, "")
+        except Exception as e:                                 # noqa: BLE001
+            print("[gamer]", e)
+
+    def _gamer_clicked(self):
+        gm = getattr(self.win, "_game_mode", None)
+        if gm is None:
+            self.gamer_btn.setChecked(False)
+            return
+        gm.toggle()
+
+    def _gamer_changed(self, on, why):
+        b = getattr(self, "gamer_btn", None)
+        if b is None:
+            return
+        b.setChecked(bool(on))
+        b.setIcon(ya_icon("gamepad", 22, YELLOW if on else "#ffffff"))
+        from duel_settings import tr
+        gm = getattr(self.win, "_game_mode", None)
+        game = gm.game[0] if gm is not None and gm.game[0] else ""
+        if on:
+            b.setToolTip(tr(self.win, "Режим геймера включён", "Gamer mode is on") + (f" — {game}" if game else "") +
+                         tr(self.win, ". Анимации стоят, пока окно не в фокусе; фоновые задачи ждут; игра — в приоритете."
+                                      "\nНажмите, чтобы выключить.",
+                            ". Animations stop while the window is not focused; background work waits; the game comes first."
+                            "\nClick to turn off."))
+        else:
+            b.setToolTip(tr(self.win, "Режим геймера: ECHOES только играет музыку и не мешает игре."
+                                      "\nВключается и сам, когда запущена игра (Настройки → Производительность).",
+                            "Gamer mode: ECHOES only plays music and stays out of the game's way."
+                            "\nTurns on by itself while a game is running (Settings → Performance)."))
+        toast = getattr(self.win, "_toast", None)
+        if callable(toast) and why and why != "manual":
+            if on:
+                toast(tr(self.win, "Режим геймера включён: ", "Gamer mode on: ") + why)
+            elif why == "game_closed":
+                toast(tr(self.win, "Игра закрыта — режим геймера выключен", "Game closed — gamer mode off"))
 
     def _remember(self):
         """Запомнить текущую страницу (вызывать ДО перехода: страницы артиста/плейлиста грузятся заранее)."""

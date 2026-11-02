@@ -271,14 +271,28 @@ class ProfilePage(Page):
             tier_revision = tier_path.stat().st_mtime_ns
         except OSError:
             tier_revision = None
-        sig = (len(w.library), int(d0.get("total", 0) // 60), len(d0.get("tracks") or {}),
+        # общее время прослушивания — не в подписи: пока играет музыка, оно меняется каждую минуту, и профиль
+        # пересобирался целиком (с записью статистики на диск) почти на каждом показе; его меняем на месте
+        sig = (len(w.library), len(d0.get("tracks") or {}),
                json.dumps(w.profile, sort_keys=True, ensure_ascii=False, default=str), self.tab,
                hash(json.dumps(w.settings.get("ya_profile_deco") or {}, sort_keys=True, default=str)),
                json.dumps(social, sort_keys=True, ensure_ascii=False, default=str), tier_revision)
         net_ = self.shell.pages.get("net")
         sig = sig + (net_ is not None and net_.__dict__.get("_sc_tools") is not None,)
+        if self.tab == "time":                                 # вкладка времени — графики по минутам
+            sig = sig + (int(d0.get("total", 0) // 60),)
         if not force and sig == getattr(self, "_sig", None) and self.v.count():
-            return                                             # ничего не поменялось — не пересобирать
+            hdr = getattr(self, "_hdr", None)                  # ничего не поменялось — не пересобирать
+            minutes = int(d0.get("total", 0) // 60)
+            if hdr is not None and minutes != getattr(self, "_minutes", None):
+                self._minutes = minutes
+                try:
+                    st0 = w.profile.get("status", "")
+                    sub = f"{len(w.library)} треков в коллекции  ·  прослушано {fmt_dur(d0['total'])}"
+                    hdr.sub.setText(sub if not st0 else f"{st0}  ·  {sub}")
+                except RuntimeError:
+                    pass
+            return
         self._sig = sig
         st.save()
         self._req += 1
@@ -286,6 +300,8 @@ class ProfilePage(Page):
         self.clear()
         d = st.data
         hdr = ProfileHeader(self)
+        self._hdr = hdr
+        self._minutes = int(d.get("total", 0) // 60)
         n_plays = sum(v.get("plays", 0) for v in d["tracks"].values())
         hdr.set_profile(w.profile.get("nickname", "user"), w.profile.get("status", ""),
                         w.profile.get("avatar", ""),

@@ -101,6 +101,8 @@ def _img_path(url: str) -> Path:
 
 
 _FOUND: dict = {}                                  # url → путь уже скачанной картинки (без stat на каждый показ)
+_MISS: dict = {}                                   # url → когда проверяли, что картинки ещё нет
+_MISS_S = 30.0
 
 
 def cached_image(url: str) -> str:
@@ -110,13 +112,19 @@ def cached_image(url: str) -> str:
     hit = _FOUND.get(url)
     if hit:
         return hit
+    import time
+    now = time.monotonic()
+    if now - _MISS.get(url, -1e9) < _MISS_S:             # недавно не было — не трогать диск снова
+        return ""
     path = _img_path(url)
     try:
         if path.stat().st_size > 200:
             _FOUND[url] = str(path)
+            _MISS.pop(url, None)
             return str(path)
     except OSError:
         pass
+    _MISS[url] = now
     return ""
 
 
@@ -135,6 +143,7 @@ def image(url: str) -> str:
             tmp.write_bytes(r.content)
             tmp.replace(path)
             _FOUND[url] = str(path)
+            _MISS.pop(url, None)
             return str(path)
     except Exception:                              # noqa: BLE001
         pass
@@ -145,19 +154,31 @@ def _slug(name):
     return hashlib.md5(norm(name).encode()).hexdigest()
 
 
+_ART_MEMO: dict = {}                               # slug → данные (или None — файла нет); пишет только _save
+
+
 def cached(name):
-    p = ART_DIR / f"{_slug(name)}.json"
+    """Сохранённые сведения об исполнителе. В памяти: профиль и «Для вас» спрашивают каждого исполнителя
+    при каждом показе — раньше это было чтение и разбор JSON с диска на каждый вызов (сотни мс на клик)."""
+    slug = _slug(name)
+    if slug in _ART_MEMO:
+        return _ART_MEMO[slug]
+    p = ART_DIR / f"{slug}.json"
     try:
         d = json.loads(p.read_text("utf-8"))
-        return d
     except Exception:                              # noqa: BLE001
-        return None
+        d = None
+    if len(_ART_MEMO) > 4000:
+        _ART_MEMO.clear()
+    _ART_MEMO[slug] = d
+    return d
 
 
 def _save(name, data):
     try:
         ART_DIR.mkdir(parents=True, exist_ok=True)
         (ART_DIR / f"{_slug(name)}.json").write_text(json.dumps(data, ensure_ascii=False), "utf-8")
+        _ART_MEMO[_slug(name)] = data
     except Exception:                              # noqa: BLE001
         pass
 

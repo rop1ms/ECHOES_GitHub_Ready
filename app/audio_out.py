@@ -52,6 +52,20 @@ def _log(msg):
         pass
 
 
+def _boost_thread():
+    """Поток звуковой карты — «критичный по времени»: игра или тяжёлая работа на процессоре (и режим
+    геймера с приоритетом процесса ниже среднего) не должны давать щелчков и заиканий."""
+    if os.name != "nt":
+        return
+    try:
+        k32 = ctypes.windll.kernel32
+        k32.GetCurrentThread.restype = ctypes.c_void_p
+        k32.SetThreadPriority.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        k32.SetThreadPriority(k32.GetCurrentThread(), 15)   # THREAD_PRIORITY_TIME_CRITICAL
+    except Exception as e:                               # noqa: BLE001
+        _log(f"thread priority: {e!r}")
+
+
 # ------------------------------------------------------------------ #
 #  Дека: очередь PCM одной копии VLC                                  #
 # ------------------------------------------------------------------ #
@@ -541,6 +555,7 @@ class SoundDeviceBackend:
 
     def _open(self):
         sd = self.sd
+        self._prio = False                               # новый поток звука — снова поднять приоритет
         self.stream = sd.OutputStream(samplerate=SR, channels=CH, dtype="float32",
                                       blocksize=self.BLOCK, latency=self.LATENCY,
                                       callback=self._cb, finished_callback=self._finished)
@@ -552,6 +567,9 @@ class SoundDeviceBackend:
         _log(f"output open: {SR} Hz, latency {self.latency_s * 1000:.0f} ms")
 
     def _cb(self, outdata, frames, time_info, status):
+        if not self._prio:
+            self._prio = True
+            _boost_thread()
         dac = None
         try:
             d = float(time_info.outputBufferDacTime) - float(time_info.currentTime)

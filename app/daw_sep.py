@@ -66,6 +66,15 @@ def have_runtime() -> bool:
         return False
 
 
+def gpu_available() -> bool:
+    """onnxruntime с DirectML (onnxruntime-directml): сети MDX считаются на видеокарте — секунды вместо минут."""
+    try:
+        import onnxruntime as ort
+        return "DmlExecutionProvider" in ort.get_available_providers()
+    except Exception:                 # noqa: BLE001
+        return False
+
+
 def model_ready(key="kim") -> bool:
     f = model_file(key)
     return f.exists() and f.stat().st_size == MODELS_INFO[key]["size"]
@@ -108,7 +117,17 @@ def _session(key="kim"):
         n = os.cpu_count() or 4
         so.intra_op_num_threads = max(1, min(n - 1, max(2, n // 2 - 1)))
         so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        s = ort.InferenceSession(str(model_file(key)), so, providers=["CPUExecutionProvider"])
+        s = None
+        if gpu_available():                                    # DirectML: без шаблонов памяти, по порядку
+            so.enable_mem_pattern = False
+            so.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+            try:
+                s = ort.InferenceSession(str(model_file(key)), so,
+                                         providers=["DmlExecutionProvider", "CPUExecutionProvider"])
+            except Exception as e:                             # noqa: BLE001  видеокарта не подошла — процессор
+                _log(f"DirectML: {e}")
+        if s is None:
+            s = ort.InferenceSession(str(model_file(key)), so, providers=["CPUExecutionProvider"])
         _SESSIONS[key] = s
     return s
 

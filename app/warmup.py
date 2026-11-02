@@ -10,7 +10,7 @@ from __future__ import annotations
 import threading
 import time
 
-from PyQt6.QtCore import QObject, QTimer, QEvent
+from PyQt6.QtCore import QObject, QTimer, QEvent, Qt
 from PyQt6.QtWidgets import QApplication
 
 START_AFTER_MS = 2500                                          # после показа окна (и заставки)
@@ -51,6 +51,37 @@ def _warm_intel(library):
 def start(win):
     """Запустить прогрев (вызывать один раз после показа окна)."""
     from performance import config
+    if not getattr(win, "_warm_render_started", False):         # лёгкий прогрев — всегда (см. gpu_scroll.warm)
+        win._warm_render_started = True
+        idle0 = _Idle(win)
+
+        # и профиль с Echoes.NET — их первое открытие раньше стоило 0.5–1.5 с (создание и стили виджетов)
+        steps = ["render", "profile", "net"]
+
+        def light():
+            if not steps:
+                return
+            if time.monotonic() - idle0.t < IDLE_S or QApplication.mouseButtons() != Qt.MouseButton.NoButton:
+                QTimer.singleShot(STEP_MS, light)
+                return
+            step_ = steps.pop(0)
+            try:
+                sh = getattr(win, "_ya", None)
+                if step_ == "render":
+                    import gpu_scroll
+                    gpu_scroll.warm(win)
+                elif sh is not None and getattr(sh, "_cur_page", None) != step_:
+                    page = sh.pages.get(step_)
+                    if step_ == "profile":
+                        page.refresh()
+                    elif step_ == "net" and hasattr(page, "_refresh_tab"):
+                        page._refresh_tab(page._tab or "feed")
+                    if page is not None:
+                        page.ensurePolished()
+            except Exception as e:                             # noqa: BLE001
+                print("[warmup]", step_, e)
+            QTimer.singleShot(STEP_MS, light)
+        QTimer.singleShot(START_AFTER_MS, light)
     if not config(win.settings)['warm_pages'] or getattr(win, "_warmup_started", False):
         return
     win._warmup_started = True
@@ -65,7 +96,7 @@ def start(win):
         sh = getattr(win, "_ya", None)
         if sh is None or not order:
             return
-        if time.monotonic() - idle.t < IDLE_S or QApplication.mouseButtons() != 0:
+        if time.monotonic() - idle.t < IDLE_S or QApplication.mouseButtons() != Qt.MouseButton.NoButton:
             QTimer.singleShot(STEP_MS, step)                   # пользователь что-то делает — подождём
             return
         key = order.pop(0)
@@ -107,7 +138,7 @@ def start(win):
         if sh is None:
             return
         try:
-            if time.monotonic() - idle.t >= IDLE_S * 2 and QApplication.mouseButtons() == 0 and win.isVisible():
+            if time.monotonic() - idle.t >= IDLE_S * 2 and QApplication.mouseButtons() == Qt.MouseButton.NoButton and win.isVisible():
                 for key in ("foryou", "wave", "collection", "albums"):
                     if key in sh._dirty and key != sh._cur_page:
                         sh._rebuild(key)

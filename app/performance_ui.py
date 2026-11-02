@@ -43,6 +43,17 @@ class PerformanceCard(GlassFrame):
         self.combo('chorus_seconds','Бюджет анализа припева','Chorus analysis budget',[(v,str(v)+' '+self.t('сек','sec'),str(v)+' sec') for v in (120,240,360,600)])
         self.check('video_hw','Аппаратное декодирование видео','Hardware video decoding',global_=True,default=True)
         self.check('native_fx','Нативные эффекты C++ (нужен перезапуск)','Native C++ effects (restart required)',global_=True,default=True)
+        self.heading('Режим геймера','Gamer mode')
+        self.check('gamer_mode_auto','Включать автоматически, когда запущена игра','Turn on automatically while a game is running',global_=True,default=True)
+        about=QLabel(self.t('Кнопка с геймпадом наверху. В игре ECHOES только играет музыку: анимации стоят, пока окно не в фокусе, '
+                            'фоновые задачи ждут, игра получает приоритет процессора (звук — нет, он не заикается), кэши и модели ИИ '
+                            'выгружаются из памяти. Игры узнаются по полноэкранному режиму и папкам Steam, Epic, Riot, Xbox и других; '
+                            'режим выключается, когда игра закрыта.',
+                            'The gamepad button at the top. In a game ECHOES only plays music: animations stop while its window is not focused, '
+                            'background work waits, the game gets CPU priority (audio keeps its own, so it never stutters), caches and AI models '
+                            'are unloaded. Games are recognised by fullscreen mode and Steam, Epic, Riot, Xbox and other game folders; '
+                            'the mode turns off when the game closes.'))
+        about.setWordWrap(True);about.setStyleSheet('color:#9faac0;font-size:11px;');self.form.addRow(about)
         note=QLabel(self.t('Маленький кэш экономит ОЗУ, но чаще пересоздаёт картинки. Высокая детализация ауры и кэш всех кадров GIF требуют больше памяти.',
                           'Smaller caches save RAM but rebuild images more often. High aura detail and caching every GIF frame use more memory.'))
         note.setWordWrap(True);note.setStyleSheet('color:#9faac0;font-size:11px;');body.addWidget(note)

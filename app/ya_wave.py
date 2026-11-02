@@ -1045,6 +1045,32 @@ def gpu_enabled() -> bool:
         return False
 
 
+GL_RELEASE_MS = 20000                  # страница скрыта дольше — её GL-контекст отдаём (≈19 МБ у драйвера)
+
+
+def release_gl_later(owner):
+    """owner (WavePage / WaveHero) скрыт: через GL_RELEASE_MS, если он всё ещё скрыт, удалить его GL-виджет.
+    У драйвера видеокарты каждый контекст OpenGL — ~19 МБ памяти процесса; при следующем показе виджет
+    создаётся заново тем же путём, что и в первый раз (_gl_try)."""
+    t = owner.__dict__.get("_gl_release_t")
+    if t is None:
+        t = owner._gl_release_t = QTimer(owner)
+        t.setSingleShot(True)
+
+        def fire():
+            try:
+                if owner.isVisible() or owner._gl is None or owner._gl_state != "on":
+                    return
+                gl, owner._gl = owner._gl, None
+                owner._gl_state = "untried"
+                gl.widget.hide()
+                gl.widget.deleteLater()
+            except RuntimeError:
+                pass
+        t.timeout.connect(fire)
+    t.start(GL_RELEASE_MS)
+
+
 def gpu_anchor(win):
     """Крошечный GL-виджет в главном окне до его показа: окно сразу создаётся с GPU-совмещением.
     Без него первый GPU-слой заставлял Qt спрятать окно и создать его заново (окно «мигало»)."""
@@ -1371,6 +1397,7 @@ class WavePage(QWidget):
     def hideEvent(self, e):
         super().hideEvent(e)
         self._timer.stop()
+        release_gl_later(self)
 
     def shutdown(self):
         self._timer.stop()
@@ -1715,6 +1742,7 @@ class WaveHero(QWidget):
     def hideEvent(self, e):
         super().hideEvent(e)
         self._timer.stop()
+        release_gl_later(self)
 
     def enterEvent(self, e):
         self._hover = 1.0

@@ -111,6 +111,11 @@ class Governor(QObject):
         settings=dict(self.win.settings);values=config(settings)
         if values['background_limit'] and (self.win.isMinimized() or QApplication.applicationState()!=Qt.ApplicationState.ApplicationActive):
             settings['fps_limit']=values['background_fps']
+        import game_mode
+        if game_mode.active(self.win):                       # режим геймера: окно в фокусе — не чаще 60 к/с
+            try:lim=int(settings.get('fps_limit',0))
+            except (TypeError,ValueError):lim=0
+            settings['fps_limit']=60 if lim<=0 or lim>60 else lim
         frameclock.configure(settings,self.win)
     def eventFilter(self,obj,event):
         kind=event.type()

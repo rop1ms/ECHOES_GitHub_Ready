@@ -101,6 +101,9 @@ def _setup(lib):
         "eui_scroll_drop": (None, [P, I]),
         "eui_scroll_release": (None, [P]),
         "eui_scroll_frame": (None, [P, ctypes.c_float, I]),
+        "eui_fire_draw": (I, [P] + [ctypes.c_float] * 6 + [P, I, ctypes.c_float, ctypes.c_float, I]),
+        "eui_foreground_info": (I, [ctypes.c_wchar_p, I, ctypes.POINTER(I), ctypes.POINTER(I)]),
+        "eui_process_alive": (I, [I]),
         "eui_nebula_new": (P, []),
         "eui_nebula_ok": (I, [P]),
         "eui_nebula_params": (None, [P, P]),
@@ -389,6 +392,21 @@ class TransitionGL:
         """Текущий кадр перехода (для снимка, если переход прерывают новым)."""
         from PyQt6.QtOpenGLWidgets import QOpenGLWidget
         return QPixmap_from(sip.wrapinstance(_ptr(self.widget), QOpenGLWidget).grabFramebuffer())
+
+
+def fire_draw(painter, cw: float, ch: float, margin: float, color, tier: int, now: float, quality: int) -> bool:
+    """Огонь вокруг карточки дуэли шейдером (fire_gl.cpp) — внутри paintGL, с текущим преобразованием
+    QPainter (центр карточки в 0,0). False — нарисовать не вышло (рисуйте по-старому)."""
+    dev = painter.device()
+    dpr = dev.devicePixelRatioF()
+    t = painter.combinedTransform()
+    col = QColor(color)
+    painter.beginNativePainting()
+    try:
+        return bool(_lib.eui_fire_draw(_ptr(t), dpr, dev.width() * dpr, dev.height() * dpr, cw, ch, margin,
+                                       _ptr(col), int(tier), float(now % 900.0), float(painter.opacity()), int(quality)))
+    finally:
+        painter.endNativePainting()
 
 
 class ScrollGL:
