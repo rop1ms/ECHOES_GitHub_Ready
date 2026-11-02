@@ -93,6 +93,8 @@ def _setup(lib):
         "eui_nebula_ok": (I, [P]),
         "eui_nebula_params": (None, [P, P]),
         "eui_nebula_overlay": (None, [P, P]),
+        "eui_nebula_burst": (None, [P, ctypes.c_float]),
+        "eui_nebula_scale": (None, [P, ctypes.c_float]),
         "eui_text_cache_new": (P, []),
         "eui_text_cache_free": (None, [P]),
         "eui_draw_wrapped": (None, [P, P, I, I, I, I, I, W]),
@@ -341,3 +343,11 @@ class NebulaGL:
 
     def overlay(self, pm):
         _lib.eui_nebula_overlay(_ptr(self.widget), _ptr(pm))
+
+    def scale(self, value: float):
+        """>1 — облако компактнее; 1 — обычный масштаб."""
+        _lib.eui_nebula_scale(_ptr(self.widget), float(value))
+
+    def burst(self, value: float):
+        """Вспышка при включении волны: 1 — лучи вылетают, 0 — спокойно."""
+        _lib.eui_nebula_burst(_ptr(self.widget), float(value))

@@ -8540,6 +8540,15 @@ if __name__=="__main__":
     # Qt logical scaling covers all themes, custom painting and native controls.
     import ui_scale
     ui_scale.configure_environment(SETTINGS_FILE)
+    try:                                               # GPU-слои (туманность и т. п.): без вертикальной синхронизации
+        # OpenGL — кадры и так идут в ритме экрана (frameclock); со «swap interval 1» поток интерфейса
+        # ждал кадр второй раз и терял половину частоты
+        from PyQt6.QtGui import QSurfaceFormat
+        _fmt = QSurfaceFormat.defaultFormat()
+        _fmt.setSwapInterval(0)
+        QSurfaceFormat.setDefaultFormat(_fmt)
+    except Exception as _e:                            # noqa: BLE001
+        print("[gpu] format:", _e)
     app=QApplication(sys.argv)
     try:                                               # без случайных «окошек» у кнопок (noflash)
         noflash.install_qt_guard(app)
@@ -8577,6 +8586,11 @@ if __name__=="__main__":
             intro_anim.play(win)
     except Exception as _e:                            # noqa: BLE001
         print("[intro]", _e)
+    try:                                               # окно сразу с GPU-совмещением: иначе первый GPU-слой
+        import ya_wave                                 # («Моя волна») пересоздавал окно — оно мигало
+        ya_wave.gpu_anchor(win)
+    except Exception as _e:                            # noqa: BLE001
+        print("[gpu] anchor:", _e)
     win.show()
     try:                  # прогрев: первое открытие разделов — без подлагиваний (warmup.py)
         import warmup

@@ -46,6 +46,7 @@ HERO_MAX_FPS = 30.0                     # баннер «Моя волна» н�
 # Туманность считается сразу в размер окна (в фоновом потоке, C++): поток интерфейса только копирует
 # готовый кадр 1:1. Раньше кадр в 75 % размера растягивался в каждом кадре на потоке интерфейса.
 NEBULA_RENDER_SCALE = 1.0
+GPU_PAGE_SCALE = 2.2                    # GPU-туманность на странице «Моя волна»: компактнее (баннер — 1.0)
 
 
 def _tr(s):
@@ -1032,6 +1033,45 @@ class _ShadowLabel(QLabel):
         p.end()
 
 
+def gpu_enabled() -> bool:
+    import os
+    if os.environ.get("ECHOES_NO_GPU_NEBULA") == "1" or not (_NATIVE and hasattr(_NF, "NebParams")):
+        return False
+    try:
+        import native_ui
+        return native_ui.available()
+    except Exception:                                      # noqa: BLE001
+        return False
+
+
+def gpu_anchor(win):
+    """Крошечный GL-виджет в главном окне до его показа: окно сразу создаётся с GPU-совмещением.
+    Без него первый GPU-слой заставлял Qt спрятать окно и создать его заново (окно «мигало»)."""
+    if not gpu_enabled() or win.__dict__.get("_gpu_anchor") is not None:
+        return
+    import native_ui
+    host = win.centralWidget() or win
+    a = native_ui.NebulaGL()
+    a.widget.setParent(host)
+    a.widget.setGeometry(max(0, host.width() // 2), max(0, host.height() // 2), 1, 1)
+    a.widget.lower()                                       # под непрозрачным фоном интерфейса — не виден
+    a.widget.show()
+    win._gpu_anchor = a
+
+    def check(tries=[0]):
+        if a.ok():
+            return
+        tries[0] += 1
+        if tries[0] < 30 and not win.isVisible() or tries[0] < 12:   # OpenGL готов не сразу после show()
+            QTimer.singleShot(150, check)
+            return
+        print("[gpu] OpenGL недоступен — GPU-слои выключены")
+        a.widget.hide()
+        a.widget.deleteLater()
+        win._gpu_anchor = None
+    QTimer.singleShot(150, check)
+
+
 _GLOW_WORKERS=weakref.WeakSet()
 
 def shutdown_workers():
@@ -1197,8 +1237,7 @@ class WavePage(QWidget):
         if self._gl_state != "untried":
             return
         self._gl_state = "off"
-        import os
-        if os.environ.get("ECHOES_NO_GPU_NEBULA") == "1" or not (_NATIVE and hasattr(_NF, "NebParams")):
+        if not gpu_enabled():
             return
         try:
             import native_ui
@@ -1221,7 +1260,8 @@ class WavePage(QWidget):
             return
         if gl.ok():
             self._gl_state = "on"
-            self.wheel._clear_from = int(self.width() * self.LEFT)
+            gl.scale(GPU_PAGE_SCALE)                    # на странице облако компактнее, чем на баннере
+            self.wheel._clear_from = 0                  # туманность видна и под списком (лучи без обреза)
             self.wheel.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
             self._gl_mask()
             self._overlay_k = None
@@ -1257,15 +1297,31 @@ class WavePage(QWidget):
         p = QPainter(pm)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-        self._paint_decor(p, W, H)
+        self._paint_decor(p, W, H, soft=True)
         p.end()
         self._gl.overlay(pm)
 
     # ── API ── #
 
+    def burst(self):
+        """Волну включили: лучи света вылетают и через пару секунд успокаиваются (на GPU)."""
+        self._burst_t0 = time.monotonic()
+
+    def _burst_level(self) -> float:
+        t0 = self.__dict__.get("_burst_t0")
+        if t0 is None:
+            return 0.0
+        el = time.monotonic() - t0
+        if el > 4.0:
+            self._burst_t0 = None
+            return 0.0
+        return (1.0 - math.exp(-el / 0.08)) * math.exp(-el / 0.9)   # быстрый выброс, плавное затухание
+
     def set_mood(self, title, kind, arg, instant=False):
         self.kind = kind
         self.mood_title = title
+        if not instant:
+            self.burst()
         self._mood_scheme = scheme_for(kind, arg)
         # «Моя волна» — в цветах обложки играющего трека; выбранное настроение/жанр — в своих цветах
         self._apply_scheme(self._cover_scheme if (kind == "my" and self._cover_scheme) else self._mood_scheme,
@@ -1354,7 +1410,7 @@ class WavePage(QWidget):
             self._gl.widget.setGeometry(self.rect())
             self._gl_mask()
             if self._gl_state == "on":
-                self.wheel._clear_from = int(W * self.LEFT)
+                self.wheel._clear_from = 0
         self._layout()
 
     def _tick(self):
@@ -1393,16 +1449,14 @@ class WavePage(QWidget):
                 self._worker.hit(strength)
             self._cool = 0.28
         W, H, cx, cy, R = self._geom()
-        if gpu:                                      # кадр считает видеокарта; здесь — только параметры
-            acc = min(.1, getattr(self, "_acc_dt", 0.0) + dt)
-            if acc >= 1 / max(30, min(240, __import__("frameclock").clock().rate)):
-                self._gl_overlay()
-                with self._worker.lock:                  # прежний кадр CPU мог ещё считаться в фоне
-                    P = self.neb.params(W, H, cx, cy, R, self._beat, acc, W * self.LEFT, self.devicePixelRatioF())
-                self._gl.params(P)
-                self._acc_dt = 0.0
-            else:
-                self._acc_dt = acc
+        if gpu:                                      # кадр считает видеокарта; темп задаёт FrameTimer (частота экрана)
+            self._gl_overlay()
+            b = self._burst_level()
+            with self._worker.lock:                      # прежний кадр CPU мог ещё считаться в фоне
+                P = self.neb.params(W, H, cx, cy, R, self._beat, dt * (1.0 + 1.8 * b), 0,
+                                    self.devicePixelRatioF())
+            self._gl.burst(b)
+            self._gl.params(P)
             return
         res = self._worker.take()
         if res is not None:
@@ -1489,6 +1543,8 @@ class WavePage(QWidget):
 
     def mousePressEvent(self, e):
         if e.button() == Qt.MouseButton.LeftButton and self._title_rect.contains(e.position()):
+            if not self._playing:
+                self.burst()                                   # «▶ Моя волна» — включили
             self.title_clicked.emit()
             return
         super().mousePressEvent(e)
@@ -1511,14 +1567,23 @@ class WavePage(QWidget):
         p.fillRect(QRectF(x0, 0, overlap, H), g)
         p.restore()
 
-    def _paint_decor(self, p, W, H):
+    def _paint_decor(self, p, W, H, soft=False):
         x0 = int(W * self.LEFT)
-        p.fillRect(QRectF(0, 0, x0 + 1, H), QColor(0, 0, 0))
-        g = QLinearGradient(x0, 0, W * 0.44, 0)            # мягкий переход от списка к туманности
-        g.setColorAt(0.0, QColor(0, 0, 0, 255))
-        g.setColorAt(0.4, QColor(0, 0, 0, 170))
-        g.setColorAt(1.0, QColor(0, 0, 0, 0))
-        p.fillRect(QRectF(x0, 0, W * 0.44 - x0, H), g)
+        if soft:
+            # GPU: туманность идёт на всю ширину, лучи уходят под список и гаснут плавно (без обреза у края списка)
+            g = QLinearGradient(0, 0, W * 0.46, 0)
+            g.setColorAt(0.0, QColor(0, 0, 0, 236))
+            g.setColorAt(x0 / max(1.0, W * 0.46) * 0.55, QColor(0, 0, 0, 214))
+            g.setColorAt(x0 / max(1.0, W * 0.46), QColor(0, 0, 0, 150))
+            g.setColorAt(1.0, QColor(0, 0, 0, 0))
+            p.fillRect(QRectF(0, 0, W * 0.46, H), g)
+        else:
+            p.fillRect(QRectF(0, 0, x0 + 1, H), QColor(0, 0, 0))
+            g = QLinearGradient(x0, 0, W * 0.44, 0)        # мягкий переход от списка к туманности
+            g.setColorAt(0.0, QColor(0, 0, 0, 255))
+            g.setColorAt(0.4, QColor(0, 0, 0, 170))
+            g.setColorAt(1.0, QColor(0, 0, 0, 0))
+            p.fillRect(QRectF(x0, 0, W * 0.44 - x0, H), g)
         _W, _H, cx, cy, _R = self._geom()
         if self._title_pm is None:
             self._title_pm = self._make_title(W)
@@ -1578,12 +1643,71 @@ class WaveHero(QWidget):
         self._worker.start()
         self.destroyed.connect(self._worker.stop)
         self._acc_dt=0.
+        self._gl = None                                        # туманность баннера на видеокарте
+        self._gl_state = "untried"
+        self._gl_ov_k = None
 
     def set_scheme(self, cols):
         self._worker.set_scheme(cols)
+        if self._gl_state == "on":
+            with self._worker.lock:
+                self.neb.set_scheme(cols)
+
+    def _gl_try(self):
+        if self._gl_state != "untried":
+            return
+        self._gl_state = "off"
+        if not gpu_enabled():
+            return
+        try:
+            import native_ui
+            gl = native_ui.NebulaGL()
+            gl.widget.setParent(self)
+            gl.widget.setGeometry(self.rect())
+            gl.widget.show()
+            self._gl, self._gl_state = gl, "trying"
+            QTimer.singleShot(0, self._gl_check)
+        except Exception as e:                             # noqa: BLE001
+            print("[wave hero] gpu:", e)
+
+    def _gl_check(self):
+        gl = self._gl
+        if gl is None:
+            return
+        if gl.ok():
+            self._gl_state = "on"
+            self._gl_mask()
+            self._timer.setInterval(16)                    # на GPU кадр почти бесплатный — в ритме экрана
+            return
+        self._gl_state = "off"
+        gl.widget.hide()
+        gl.widget.deleteLater()
+        self._gl = None
+
+    def _gl_mask(self):
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(0, 0, self.width(), self.height()), 22, 22)
+        self._gl.widget.setMask(QRegion(path.toFillPolygon().toPolygon()))
+
+    def _gl_overlay(self):
+        W, H = self.width(), self.height()
+        dpr = self.devicePixelRatioF()
+        key = (W, H, dpr, bool(self._hover), _tr("Моя волна"), _tr(self.sub))
+        if key == self._gl_ov_k:
+            return
+        self._gl_ov_k = key
+        pm = QPixmap(max(1, int(W * dpr)), max(1, int(H * dpr)))
+        pm.setDevicePixelRatio(dpr)
+        pm.fill(Qt.GlobalColor.transparent)
+        q = QPainter(pm)
+        q.setRenderHint(QPainter.RenderHint.Antialiasing)
+        self._paint_text(q, W, H)
+        q.end()
+        self._gl.overlay(pm)
 
     def showEvent(self, e):
         super().showEvent(e)
+        self._gl_try()
         self._last = time.monotonic()
         self._timer.start()
 
@@ -1606,6 +1730,10 @@ class WaveHero(QWidget):
     def resizeEvent(self, e):
         super().resizeEvent(e)
         self._title = None
+        if self._gl is not None:
+            self._gl.widget.setGeometry(self.rect())
+            if self._gl_state == "on":
+                self._gl_mask()
 
     def _tick(self):
         now = time.monotonic()
@@ -1621,6 +1749,13 @@ class WaveHero(QWidget):
         except Exception:                                  # noqa: BLE001
             lvl = 0.0
         W, H = max(8, self.width()), max(8, self.height())
+        if self._gl_state == "on":                         # кадр считает видеокарта
+            self._gl_overlay()
+            with self._worker.lock:
+                P = self.neb.params(W, H, W * .5, H * .52, max(W * .26, H * 1.05), lvl, dt, 0,
+                                    self.devicePixelRatioF())
+            self._gl.params(P)
+            return
         ready=self._worker.take()
         if ready is not None:
             self._img=ready
@@ -1640,6 +1775,9 @@ class WaveHero(QWidget):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         W, H = self.width(), self.height()
         p.fillRect(self.rect(), self.corner)                   # непрозрачный виджет: углы — цветом панели
+        if self._gl_state == "on":                             # туманность и надписи — на GPU-виджете
+            p.end()
+            return
         path = QPainterPath()
         path.addRoundedRect(QRectF(0, 0, W, H), 22, 22)
         p.setClipPath(path)

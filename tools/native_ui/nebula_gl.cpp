@@ -51,94 +51,123 @@ attribute vec2 pos;
 void main() { gl_Position = vec4(pos, 0.0, 1.0); }
 )";
 
-// Перенос nebula_render: u, v — координаты в долях R от центра облака.
+// «Моя волна» на GPU (в духе экрана Яндекс Музыки): яркие насыщенные цветовые поля, перетекающие
+// в закрученном поле течения, тёмные «провалы» между ними, мягкие световые складки, ядро-звезда в центре. uBurst (1 → 0 за пару секунд после включения волны): лучи вылетают длинными
+// и яркими, поле расширяется и течёт быстрее, потом всё успокаивается. Цвета и положения пятен
+// приходят из Python (NebulaField: схема настроения / обложки, орбиты, удар баса, кольца).
 const char *FRAG = R"(
 #ifdef GL_ES
 precision highp float;
 #endif
-uniform vec2 uSize;            // пиксели устройства
+uniform vec2 uSize;
 uniform float uX0;
 uniform vec3 uCenter;          // cx, cy, R
-uniform vec4 uTime;            // t = T*flow, energy, kick, gain
+uniform vec4 uTime;            // t, energy, kick, gain
 uniform vec4 uAmt;             // fil_amt, ray_amt, grain, env_r
 uniform float uLobe;
 uniform vec3 uFilCol;
 uniform vec3 uRingCol;
 uniform int uNB;
-uniform vec3 uBPos[12];        // x, y, 1/r^2
-uniform vec4 uBCol[12];        // r, g, b, сила
+uniform vec3 uBPos[12];
+uniform vec4 uBCol[12];
 uniform int uNR;
-uniform vec2 uRings[6];        // радиус, сила
+uniform vec2 uRings[6];
 uniform float uSeed;
+uniform float uBurst;
+uniform float uScale;          // >1 — облако компактнее (страница «Моя волна»), 1 — как на баннере
 
-float c01(float x) { return clamp(x, 0.0, 1.0); }
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233)) + uSeed) * 43758.5453); }
+float n2(vec2 p, float t) {
+    return sin(p.x * 1.7 + t * 0.6 + sin(p.y * 1.3 - t * 0.4)) * cos(p.y * 1.9 - t * 0.5 + sin(p.x * 1.1 + t * 0.3));
+}
+vec2 warp(vec2 p, float t) {
+    vec2 q = p + 0.34 * vec2(n2(p * 1.05, t), n2(p * 1.05 + 5.2, t * 1.1));
+    q += 0.16 * vec2(n2(q * 2.2 + 1.7, t * 1.3), n2(q * 2.2 + 9.1, t * 0.9));
+    return q;
+}
+
+// Один слой туманности по координатам q (уже с течением): цвет масс, провалы, складки.
+vec3 nebulaLayer(vec2 q, float t, float energy, float kick, out float dens) {
+    vec3 acc = vec3(0.0);
+    float wsum = 0.0, w2sum = 0.0;
+    for (int b = 0; b < 12; ++b) {
+        if (b >= uNB) break;
+        vec2 d = q - uBPos[b].xy * 1.5;
+        float w = exp(-dot(d, d) * uBPos[b].z * 0.40) * uBCol[b].w;
+        acc += w * w * uBCol[b].rgb;
+        wsum += w;
+        w2sum += w * w;
+    }
+    vec3 hue = acc / max(w2sum, 1e-4);
+    float lum = dot(hue, vec3(0.299, 0.587, 0.114));
+    hue = clamp(mix(vec3(lum), hue, 1.5), 0.0, 1.0);    // насыщеннее
+    dens = 1.0 - exp(-wsum * 1.8);
+    float pocket = 0.5 + 0.5 * n2(q * 1.35 + 3.0, t * 0.6);
+    dens *= mix(0.88, 1.0, smoothstep(0.18, 0.80, pocket));   // лёгкая неоднородность, без тёмных провалов
+    float band = 0.5 + 0.5 * sin(q.x * 2.3 + q.y * 1.5 + t * 0.32 + 2.2 * n2(q * 1.25, t * 0.8));
+    float fold = pow(band, 6.0) * smoothstep(0.40, 0.90, 0.5 + 0.5 * n2(q * 0.9 + 7.0, t * 0.5));
+    return hue * dens + mix(hue, vec3(1.0), 0.5) * fold * dens * (0.22 + uAmt.x * 0.8);
+}
 
 void main() {
     float px = gl_FragCoord.x;
     float py = uSize.y - gl_FragCoord.y;
-    if (px < uX0) { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
-    float invR = 1.0 / max(1.0, uCenter.z);
-    float u = (px - uCenter.x) * invR;
-    float v = (py - uCenter.y) * invR;
-    float t = uTime.x;
-    float w1x = u + 0.22 * sin(v * 1.9 + t * 0.70) + 0.11 * sin(v * 3.7 - t * 0.50 + u * 1.3);
-    float w1y = v + 0.22 * sin(u * 1.7 - t * 0.60) + 0.11 * sin(u * 3.3 + t * 0.45 - v * 1.1);
-    float w2x = w1x + 0.10 * sin(w1y * 5.1 + t * 0.90);
-    float w2y = w1y + 0.10 * sin(w1x * 4.7 - t * 0.80);
-    vec3 a = vec3(0.0);
-    for (int b = 0; b < 12; ++b) {
-        if (b >= uNB) break;
-        float dx = (u + (w2x - u) * 0.55) - uBPos[b].x;
-        float dy = (v + (w2y - v) * 0.55) - uBPos[b].y;
-        float e = exp(-(dx * dx + dy * dy) * uBPos[b].z) * uBCol[b].w;
-        a += e * uBCol[b].rgb;
+    float t = uTime.x, energy = uTime.y, kick = uTime.z;
+    float R = max(1.0, uCenter.z);
+    vec2 p = vec2(px - uCenter.x, py - uCenter.y) / R;
+    p *= uScale;
+    p /= 1.0 + 0.35 * uBurst;                       // при включении — поле шире и ближе
+    // Течение из ядра: два слоя узора непрерывно расходятся из центра наружу (масштаб растёт вдвое
+    // за цикл) и сменяют друг друга без скачков — узор рождается в ядре и гаснет у краёв.
+    float tf = t * 0.18;                                // своё перетекание — слабое, главное движение — из ядра
+    float flow = t * 0.07;                              // скорость вылета из ядра
+    vec3 lay = vec3(0.0);
+    float wl = 0.0, dl = 0.0;
+    for (int i = 0; i < 2; ++i) {
+        float cyc = flow + 0.5 * float(i);
+        float ph = fract(cyc);
+        float w = sin(3.14159 * ph);
+        float d;                                        // новый цикл — другой узор (в момент смены вес слоя 0)
+        vec3 c = nebulaLayer(warp(p / exp2(ph), tf + floor(cyc) * 11.0), tf, energy, kick, d);
+        lay += c * w;
+        dl += d * w;
+        wl += w;
     }
-    float lum = max(a.r, max(a.g, a.b));
-    float f = sin((sin(w1x * 2.3 + sin(w1y * 1.7 + t * 0.3)) + sin(w1y * 2.1 - sin(w1x * 1.9 - t * 0.25))) * 2.6);
-    float fq = f * (1.0 / 0.16);
-    float fw = f * (1.0 / 0.55);
-    float fil = exp(-fq * fq) * 0.6 + exp(-fw * fw) * 0.25;
-    fil *= c01(lum * 1.6) * (1.0 - 0.45 * c01(lum - 0.7)) * uAmt.x;
-    float inv = 1.0 / max(lum, 0.05);
-    a += fil * (0.4 * uFilCol + 0.6 * clamp(a * inv, 0.0, 1.0));
-    float r = sqrt(u * u + v * v);
-    for (int k = 0; k < 6; ++k) {
+    lay /= max(wl, 1e-3);
+    dl /= max(wl, 1e-3);
+    float r = length(p);
+    vec3 hue = lay / max(dl, 1e-3);
+    float dens = max(dl, exp(-r * r * 0.9) * 0.85);              // внутри туманности темно не бывает — гаснет только край
+    float edge = exp(-pow(r / (1.5 + 0.2 * energy + 0.5 * uBurst), 3.0));
+    vec3 col = max(lay, hue * dens) * edge * (1.0 + 0.4 * energy + 0.5 * kick);
+    // центр — как ядро звезды: широкое светлое свечение в цвет волны и горячая почти белая середина
+    float pulse = 1.0 + 0.25 * energy + 0.35 * kick + 0.6 * uBurst;
+    col += mix(hue, vec3(1.0), 0.35) * exp(-r * r * 2.4) * 0.55 * pulse;
+    col += mix(hue, vec3(1.0), 0.75) * exp(-r * r * 9.0) * 0.95 * pulse;
+    col += vec3(1.0) * exp(-r * r * 40.0) * 0.8 * pulse;
+    float ang = atan(p.y, p.x);
+    // яркие пучки: тонкие лучи разной силы из самого центра, медленно плавают;
+    // при включении волны — длинные и яркие, потом гаснут
+    float beams = 0.0;
+    for (int k = 0; k < 9; ++k) {
+        float fk = float(k);
+        float a0 = fk * 2.39996 + 0.45 * sin(t * (0.04 + fk * 0.011) + fk * 2.1);   // золотой угол — без «цветка»
+        float c = max(cos(ang - a0), 0.0);
+        float sharp = 140.0 + 900.0 * pow(0.5 + 0.5 * sin(fk * 3.7 + 1.1), 2.0);
+        float wgt = 0.15 + 0.85 * pow(0.5 + 0.5 * sin(fk * 12.9 + t * 0.07), 3.0);
+        beams += (pow(c, sharp) + 0.25 * pow(c, sharp * 0.12)) * wgt;              // ядро луча + мягкий ореол
+    }
+    float len = 0.55 + 2.8 * uBurst + 0.4 * kick + 0.25 * energy;
+    float rfall = smoothstep(0.22, 0.55, r) * exp(-max(r - 0.35, 0.0) / len * 1.25);
+    vec3 rcol = mix(vec3(1.0), hue, 0.45);
+    col += rcol * beams * rfall * (0.06 + 0.5 * uAmt.y + 2.4 * uBurst);
+    for (int k = 0; k < 6; ++k) {                   // кольца на удар баса
         if (k >= uNR) break;
-        float d = (r - uRings[k].x) * (1.0 / 0.14);
-        a += exp(-d * d) * uRings[k].y * uRingCol;
+        float d = (r - uRings[k].x) / 0.13;
+        col += uRingCol * exp(-d * d) * uRings[k].y * edge * 0.8;
     }
-    float ang = atan(v, u);
-    float rs = uAmt.w * (1.0 + uLobe * (0.55 * sin(3.0 * ang + t * 0.30) + 0.35 * sin(5.0 * ang - t * 0.42) +
-                                       0.25 * sin(2.0 * ang + t * 0.21 + 1.7)));
-    rs = max(rs, 0.05);
-    float e2 = r / rs;
-    e2 *= e2;
-    float vig = exp(-e2 * e2 * 1.1);
-    vec3 bb = (vec3(1.0) - exp(-a * uTime.w)) * vig;
-    float rw = sqrt(w1x * w1x + w1y * w1y) / rs;
-    float m1 = 0.5 + 0.5 * sin(2.0 * ang + t * 0.35 + 1.3 * sin(3.0 * ang - t * 0.2));
-    float m2 = 0.5 + 0.5 * sin(3.0 * ang - t * 0.28 + 2.1);
-    float d1 = (rw - 0.86) * (1.0 / 0.045), d1w = (rw - 0.86) * (1.0 / 0.17);
-    float d2 = (rw - 1.04) * (1.0 / 0.04), d2w = (rw - 1.04) * (1.0 / 0.14);
-    float rim = (exp(-d1 * d1) * 0.45 + exp(-d1w * d1w) * 0.30) * (0.15 + 0.85 * m1 * m1) +
-                (exp(-d2 * d2) * 0.22 + exp(-d2w * d2w) * 0.14) * m2 * m2 * m2;
-    rim *= uAmt.x * 2.2;
-    float ray = 0.0;
-    if (uAmt.y > 0.0) {
-        float q = 0.5 + 0.5 * sin(ang * 5.0 + 2.0 * sin(ang * 2.0 + t * 0.10) + t * 0.03);
-        q *= q; q *= q; q *= q; q *= q; q *= q;
-        float q2 = 0.5 + 0.5 * sin(ang * 11.0 - 1.5 * sin(ang * 3.0 - t * 0.08) - t * 0.05);
-        q2 *= q2; q2 *= q2; q2 *= q2; q2 *= q2; q2 *= q2; q2 *= q2; q2 *= q2;
-        float ca = abs(u) / max(r, 1e-4);
-        float hw = ca * ca; hw *= hw; hw *= hw; hw *= ca;
-        float dr = r - rs * 0.65;
-        float fall = dr > 0.0 ? c01(dr * 2.0) * exp(-dr * 0.85) : 0.0;
-        ray = (q + 0.35 * q2) * hw * fall * uAmt.y * 2.2;
-    }
-    vec3 xc = 0.55 + 0.45 * uFilCol;
-    vec3 ex = rim * (0.3 * xc + 0.7 * clamp(a * inv + 0.1, 0.0, 1.0)) + ray * (0.6 * xc + 0.4 * clamp(a * inv, 0.0, 1.0));
-    vec3 col = vec3(1.0) - (vec3(1.0) - bb) * exp(-ex * 1.4);
+    col *= 1.0 + 0.6 * uBurst;
+    col = vec3(1.0) - exp(-col * (1.35 + 0.15 * energy));          // мягкое сжатие яркости
     float n = (hash(gl_FragCoord.xy) + hash(gl_FragCoord.yx + 17.0) - 1.0) * uAmt.z;
     gl_FragColor = vec4(clamp(col + n, 0.0, 1.0), 1.0);
 }
@@ -177,6 +206,8 @@ public:
     bool have_ = false;
     QImage overlay_;
     bool overlay_dirty_ = false;
+    float burst_ = 0.f;                                     // вспышка при включении волны (1 → 0)
+    float scale_ = 1.f;
     bool ok_ = true;                                        // шейдер собрался
 
 protected:
@@ -231,6 +262,8 @@ protected:
             prog_->setUniformValue("uNR", nr);
             prog_->setUniformValueArray("uRings", rings, MAXR);
             prog_->setUniformValue("uSeed", float(p_.seed % 997) * 0.618f);
+            prog_->setUniformValue("uBurst", burst_);
+            prog_->setUniformValue("uScale", scale_);
             vbo_.bind();
             prog_->enableAttributeArray(0);
             prog_->setAttributeBuffer(0, GL_FLOAT, 0, 2);
@@ -298,6 +331,9 @@ EUI_API void eui_nebula_params(void *w, const void *params) {
     n->have_ = true;
     n->update();
 }
+
+EUI_API void eui_nebula_burst(void *w, float burst) { N(w)->burst_ = burst; }
+EUI_API void eui_nebula_scale(void *w, float scale) { N(w)->scale_ = scale; N(w)->update(); }
 
 EUI_API void eui_nebula_overlay(void *w, const QPixmap *pm) {
     NebulaGL *n = N(w);
