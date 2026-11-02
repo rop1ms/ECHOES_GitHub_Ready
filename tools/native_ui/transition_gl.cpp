@@ -9,6 +9,7 @@
 #include <QtOpenGL/QOpenGLBuffer>
 #include <QtOpenGL/QOpenGLShaderProgram>
 #include <QtOpenGL/QOpenGLTexture>
+#include <QtOpenGL/QOpenGLPixelTransferOptions>
 #include <QtOpenGLWidgets/QOpenGLWidget>
 #include <QtGui/QOpenGLFunctions>
 #include <QtGui/QImage>
@@ -32,7 +33,7 @@ precision mediump float;
 uniform sampler2D uOld;
 uniform sampler2D uNew;
 uniform vec2 uSize;            // пиксели устройства
-uniform vec4 uP;               // kind (0 slide, 1 up, 2 down, 3 только старая), e, сдвиг x, сдвиг y (пиксели)
+uniform vec4 uP;               // kind (0 slide, 1 up, 2 down, 3 только старая, 4 старая тает над живой), e, dx, dy
 uniform float uDpr;
 
 vec4 tex(sampler2D s, vec2 px) {          // px — пиксели устройства сверху-слева
@@ -45,6 +46,10 @@ void main() {
     vec2 px = vec2(gl_FragCoord.x, uSize.y - gl_FragCoord.y);
     float kind = uP.x, e = uP.y;
     vec3 col;
+    if (kind > 3.5) {                                          // новая страница уже живая под слоем:
+        gl_FragColor = tex(uOld, px - vec2(uP.z, 0.0)) * (1.0 - e);   // старая тает и уходит в сторону
+        return;
+    }
     if (kind > 2.5) {
         col = tex(uOld, px).rgb;
     } else if (kind < 0.5) {                                   // slide
@@ -73,6 +78,7 @@ class TransitionGL final : public QOpenGLWidget, protected QOpenGLFunctions {
 public:
     TransitionGL() {
         setAttribute(Qt::WA_TransparentForMouseEvents);
+        setAttribute(Qt::WA_AlwaysStackOnTop);              // полупрозрачный слой над живой страницей
         setUpdateBehavior(QOpenGLWidget::NoPartialUpdate);
     }
     ~TransitionGL() override {
@@ -105,21 +111,26 @@ protected:
     static QOpenGLTexture *upload(QOpenGLTexture *t, const QImage &src) {
         delete t;
         if (src.isNull()) return nullptr;
-        QImage img = src.convertToFormat(QImage::Format_RGBA8888_Premultiplied);
+        // RGB32 / ARGB32 (премультипл.) в памяти — это BGRA: грузим как есть, без перекодирования снимка
+        QImage img = (src.format() == QImage::Format_RGB32 || src.format() == QImage::Format_ARGB32_Premultiplied)
+                         ? src : src.convertToFormat(QImage::Format_ARGB32_Premultiplied);
         auto *tex = new QOpenGLTexture(QOpenGLTexture::Target2D);
         tex->setFormat(QOpenGLTexture::RGBA8_UNorm);
         tex->setSize(img.width(), img.height());
         tex->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
         tex->setWrapMode(QOpenGLTexture::ClampToEdge);
         tex->allocateStorage();
-        tex->setData(QOpenGLTexture::RGBA, QOpenGLTexture::UInt8, img.constBits());
+        QOpenGLPixelTransferOptions opt;
+        opt.setRowLength(img.bytesPerLine() / 4);
+        tex->setData(QOpenGLTexture::BGRA, QOpenGLTexture::UInt8, img.constBits(), &opt);
         return tex;
     }
     void paintGL() override {
         const qreal dpr = devicePixelRatioF();
         const int W = int(width() * dpr), H = int(height() * dpr);
         glViewport(0, 0, W, H);
-        glClearColor(0.043f, 0.051f, 0.063f, 1);              // #0b0d10 — фон снимков _grab_area
+        if (kind_ > 3.5f) glClearColor(0, 0, 0, 0);            // режим «над живой страницей» — прозрачный
+        else glClearColor(0.043f, 0.051f, 0.063f, 1);          // #0b0d10 — фон снимков _grab_area
         glClear(GL_COLOR_BUFFER_BIT);
         if (old_dirty_) { told_ = upload(told_, old_img_); old_dirty_ = false; old_img_ = QImage(); }
         if (new_dirty_) { tnew_ = upload(tnew_, new_img_); new_dirty_ = false; new_img_ = QImage(); }
@@ -131,7 +142,7 @@ protected:
         prog_->setUniformValue("uNew", 1);
         prog_->setUniformValue("uSize", QVector2D(W, H));
         prog_->setUniformValue("uDpr", float(dpr));
-        float kind = tnew_ ? kind_ : 3.f;
+        float kind = (tnew_ || kind_ > 3.5f) ? kind_ : 3.f;
         prog_->setUniformValue("uP", QVector4D(kind, e_, dx_ * dpr, dy_ * dpr));
         vbo_.bind();
         prog_->enableAttributeArray(0);

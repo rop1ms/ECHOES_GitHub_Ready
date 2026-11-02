@@ -138,12 +138,18 @@ class _Transition(QWidget):
         self.raise_()
         # кадры рисует видеокарта: снимки — текстурами, смешивание и сдвиг — шейдер
         self._gl = _gpu_layer(stack)
+        # Обычная смена страниц на GPU: новая страница уже показана вживую (рисуется один раз, без снимка),
+        # поверх неё слой растворяет снимок старой. Шторки («Текст», «Очередь») — по-прежнему снимками.
+        self._live = self._gl is not None and kind == "slide"
         if self._gl is not None:
             self._gl.widget.setGeometry(stack.rect())
             self._gl.old(old_pm)
-            self._gl.frame(3, 0.0)
+            self._gl.frame(4 if self._live else 3, 0.0)
             self._gl.widget.show()
             self._gl.widget.raise_()
+        if self._live:
+            self.new = old_pm                              # снимок новой не нужен
+            self.hide()
         QApplication.instance().installEventFilter(self)
 
     def eventFilter(self, obj, event):
@@ -170,7 +176,11 @@ class _Transition(QWidget):
     def _gl_frame(self):
         """Те же формулы, что в paintEvent, — параметры кадра для шейдера."""
         H, t = self.height(), self.t
-        if self.new is None:
+        if self._live:
+            import motion
+            e = _ease_out(t)
+            self._gl.frame(4, e, -28 * motion.strength(_WIN) * self.dir * e, 0.0)
+        elif self.new is None:
             self._gl.frame(3, 0.0)
         elif self.kind == "up":
             e = _ease_out_quint(t)
@@ -195,6 +205,11 @@ class _Transition(QWidget):
         self.frame_timer.start()
 
     def _frame(self):
+        if self._live and not self.__dict__.get('_live_started'):
+            # первый кадр — живая новая страница только что нарисовалась: отсчёт анимации — отсюда
+            self._live_started = True
+            self._started = time.perf_counter()
+            return
         if self.new is None:
             # Let Qt deliver first-show layouts before the incoming capture.
             # A queued frame-clock tick may precede those posted layout events.
@@ -352,6 +367,10 @@ def _outgoing_snapshot(target):
     # already has exactly the right outgoing image and needs no extra render.
     if previous.new is None:
         snapshot=previous.old
+    elif previous._live:
+        # живая новая страница под тающим слоем: её и снимаем (из буфера окна, без слоя)
+        previous._gl.widget.hide()
+        snapshot=_on_screen(target) or _grab_area(target)
     elif previous._gl is not None and previous._gl.widget.isVisible():
         snapshot=previous._gl.grab()                   # текущий кадр перехода — с видеокарты
     else:
