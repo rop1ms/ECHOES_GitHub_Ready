@@ -31,7 +31,7 @@ from frameclock import FrameTimer, animation_delta
 from PyQt6.QtGui import (QRegion, QColor, QFont, QPainter, QPainterPath, QPixmap, QImage, QPen,
                          QLinearGradient, QRadialGradient, QFontMetrics)
 from PyQt6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QFrame,
-                             QGraphicsBlurEffect, QGraphicsOpacityEffect)
+                             QGraphicsBlurEffect, QGraphicsOpacityEffect, QStyle, QStyleOptionButton)
 
 try:                                                       # C++-ядро сияния (echoes_fx.dll)
     import native_fx as _NF
@@ -43,7 +43,9 @@ YELLOW = "#ffdb1a"
 FAM = ["YS Text", "Inter", "Segoe UI Variable Display", "Segoe UI", "Arial"]
 NEBULA_MAX_FPS = 60.0
 HERO_MAX_FPS = 30.0                     # баннер «Моя волна» на «Для вас» — маленький, ему хватает 30
-NEBULA_RENDER_SCALE = 0.75
+# Туманность считается сразу в размер окна (в фоновом потоке, C++): поток интерфейса только копирует
+# готовый кадр 1:1. Раньше кадр в 75 % размера растягивался в каждом кадре на потоке интерфейса.
+NEBULA_RENDER_SCALE = 1.0
 
 
 def _tr(s):
@@ -678,9 +680,13 @@ class WaveWheel(QWidget):
         self._timer = FrameTimer(self)
         self._timer.setInterval(16)
         self._timer.timeout.connect(self._tick)
+        self._rows_ver = 0                   # меняется вместе с картинками строк (аватары, размер, пункты)
+        self._layer = None
+        self._layer_k = None
 
     def set_items(self, items):
         self._timer.stop()
+        self._rows_ver += 1
         self._hover = -1
         self._generation += 1
         for future in self._pending.values():
@@ -714,6 +720,7 @@ class WaveWheel(QWidget):
     def resizeEvent(self, e):
         self._rows.clear()
         self._row_bytes = 0
+        self._rows_ver += 1
         super().resizeEvent(e)
 
     def _start_scroll(self):
@@ -827,6 +834,7 @@ class WaveWheel(QWidget):
             if key[0] == i:
                 pm = self._rows.pop(key)
                 self._row_bytes -= pm.width() * pm.height() * 4
+        self._rows_ver += 1
         self.update()
 
     def _row_pixmap(self, i, active):
@@ -899,6 +907,28 @@ class WaveWheel(QWidget):
         p.fillRect(self.rect(), QColor(0, 0, 0))
         if self._backdrop is not None:
             self._backdrop(p)
+        if self._timer.isActive():                   # круг крутится — пункты рисуются прямо в кадр
+            self._paint_items(p)
+            p.end()
+            return
+        # Круг стоит, а фон под ним (туманность) меняется каждый кадр: пункты — одна готовая картинка.
+        dpr = self.devicePixelRatioF()
+        key = (self.off, self._hover, self.active, self.width(), self.height(), dpr, self._rows_ver,
+               len(self.items))
+        if key != self._layer_k or self._layer is None:
+            layer = QPixmap(max(1, int(self.width() * dpr)), max(1, int(self.height() * dpr)))
+            layer.setDevicePixelRatio(dpr)
+            layer.fill(Qt.GlobalColor.transparent)
+            lp = QPainter(layer)
+            lp.setRenderHint(QPainter.RenderHint.Antialiasing)
+            lp.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+            self._paint_items(lp)
+            lp.end()
+            self._layer, self._layer_k = layer, key
+        p.drawPixmap(0, 0, self._layer)
+        p.end()
+
+    def _paint_items(self, p):
         for i, slot, x, y, alpha, sc in self._visible_items():
             it = self.items[i]
             self._request_avatar(i, it)
@@ -911,12 +941,79 @@ class WaveWheel(QWidget):
             p.scale(s, s)
             p.drawPixmap(QPointF(0, -self.ITEM_H / 2), self._row_pixmap(i, act))
             p.restore()
-        p.end()
 
 
 # ══════════════════════════════════════════════════════════════════════════ #
 #  Страница «Моя волна»
 # ══════════════════════════════════════════════════════════════════════════ #
+
+class _CachedButton(QPushButton):
+    """Кнопка поверх живой туманности перерисовывается с каждым её кадром. Вид кнопки (QSS-стекло,
+    текст, иконка, наведение/нажатие) рисуется стилем один раз в картинку, дальше — копия."""
+
+    def paintEvent(self, _):
+        opt = QStyleOptionButton()
+        self.initStyleOption(opt)
+        dpr = self.devicePixelRatioF()
+        key = (self.width(), self.height(), dpr, opt.state.value, opt.text, self.styleSheet(),
+               opt.icon.cacheKey(), opt.iconSize.width(), opt.iconSize.height())
+        if key != self.__dict__.get("_ck"):
+            pm = QPixmap(max(1, int(self.width() * dpr)), max(1, int(self.height() * dpr)))
+            pm.setDevicePixelRatio(dpr)
+            pm.fill(Qt.GlobalColor.transparent)
+            q = QPainter(pm)
+            self.style().drawControl(QStyle.ControlElement.CE_PushButton, opt, q, self)
+            q.end()
+            self._ck, self._cpm = key, pm
+        p = QPainter(self)
+        p.drawPixmap(0, 0, self._cpm)
+        p.end()
+
+
+class _ShadowLabel(QLabel):
+    """Подпись с мягкой тенью над туманностью. QGraphicsDropShadowEffect размывал тень заново
+    на каждом кадре туманности; здесь текст с тенью — готовая картинка, пересобирается при смене
+    текста или размера."""
+    BLUR = 10
+    OFFSET = 1
+    SHADOW = QColor(0, 0, 0, 150)
+
+    def paintEvent(self, e):
+        dpr = self.devicePixelRatioF()
+        key = (self.text(), self.width(), self.height(), dpr, self.styleSheet())
+        if key != self.__dict__.get("_ck"):
+            W, H = max(1, int(self.width() * dpr)), max(1, int(self.height() * dpr))
+            text = QImage(W, H, QImage.Format.Format_ARGB32_Premultiplied)
+            text.setDevicePixelRatio(dpr)
+            text.fill(0)
+            q = QPainter(text)                                 # как QLabel: текст стилем, цвет из QSS
+            q.setFont(self.font())
+            self.style().drawItemText(q, self.contentsRect(), int(self.alignment().value), self.palette(),
+                                      self.isEnabled(), self.text(), self.foregroundRole())
+            q.end()
+            shadow = QImage(text)
+            q = QPainter(shadow)
+            q.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+            q.fillRect(shadow.rect(), self.SHADOW)
+            q.end()
+            try:
+                from blur_fx import blur_image
+                shadow = blur_image(shadow, self.BLUR * 0.5 * dpr)
+                shadow.setDevicePixelRatio(dpr)
+            except Exception:                                  # noqa: BLE001
+                pass
+            pm = QPixmap(W, H)
+            pm.setDevicePixelRatio(dpr)
+            pm.fill(Qt.GlobalColor.transparent)
+            q = QPainter(pm)
+            q.drawImage(QRectF(0, self.OFFSET, self.width(), self.height()), shadow)
+            q.drawImage(QRectF(0, 0, self.width(), self.height()), text)
+            q.end()
+            self._ck, self._cpm = key, pm
+        p = QPainter(self)
+        p.drawPixmap(0, 0, self._cpm)
+        p.end()
+
 
 _GLOW_WORKERS=weakref.WeakSet()
 
@@ -1049,27 +1146,21 @@ class WavePage(QWidget):
             v.addWidget(w_)
 
         # «Настроить» (пилюля, когда настроение не выбрано, или круглая кнопка рядом с чипом)
-        self.tune_btn = QPushButton("  Настроить", self)
+        self.tune_btn = _CachedButton("  Настроить", self)
         self.tune_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.tune_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.tune_btn.setFixedHeight(40)
         # чип выбранного настроения/жанра/исполнителя: щелчок — вернуться к «Моей волне»
-        self.mood_chip = QPushButton("", self)
+        self.mood_chip = _CachedButton("", self)
         self.mood_chip.setCursor(Qt.CursorShape.PointingHandCursor)
         self.mood_chip.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.mood_chip.setFixedHeight(40)
         self.mood_chip.setToolTip("Вернуться к «Моей волне»")
         self.mood_chip.clicked.connect(self.reset_mood.emit)
         self.mood_chip.hide()
-        self.hint = QLabel("", self)
+        self.hint = _ShadowLabel("", self)
         self.hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.hint.setStyleSheet("color:rgba(255,255,255,0.82);font-size:12px;font-weight:600;background:transparent;")
-        from PyQt6.QtWidgets import QGraphicsDropShadowEffect
-        _sh = QGraphicsDropShadowEffect(self.hint)
-        _sh.setBlurRadius(10)
-        _sh.setOffset(0, 1)
-        _sh.setColor(QColor(0, 0, 0, 150))
-        self.hint.setGraphicsEffect(_sh)
         self._scheme = SCHEMES["my"]
         self._mood_scheme = SCHEMES["my"]
         self._cover_scheme = None
@@ -1205,8 +1296,7 @@ class WavePage(QWidget):
         acc = min(.1, getattr(self, "_acc_dt", 0.0) + dt)
         target = __import__("frameclock").clock().rate
         step = 1 / min(NEBULA_MAX_FPS, max(30, target)) if _NATIVE else 1 / 30
-        # Рендер туманности ограничен 60 к/с и 75% размера: меньше пикселей для C++,
-        # а Qt сглаженно растягивает готовый кадр до размера окна.
+        # Рендер туманности ограничен 60 к/с и идёт в фоновом потоке сразу в размер окна.
         if acc >= step and self._worker.submit(max(8, int(W * NEBULA_RENDER_SCALE)),
                                                 max(8, int(H * NEBULA_RENDER_SCALE)),
                                                 cx * NEBULA_RENDER_SCALE, cy * NEBULA_RENDER_SCALE,
@@ -1434,6 +1524,21 @@ class WaveHero(QWidget):
         p.fillRect(self.rect(), QColor(0, 0, 0))
         if self._img is not None:
             p.drawImage(QRectF(0, 0, W, H), self._img)
+        dpr = self.devicePixelRatioF()
+        key = (W, H, dpr, bool(self._hover), _tr("Моя волна"), _tr(self.sub))
+        if key != self.__dict__.get("_ov_k"):              # надписи не меняются от кадра к кадру туманности
+            ov = QPixmap(max(1, int(W * dpr)), max(1, int(H * dpr)))
+            ov.setDevicePixelRatio(dpr)
+            ov.fill(Qt.GlobalColor.transparent)
+            q = QPainter(ov)
+            q.setRenderHint(QPainter.RenderHint.Antialiasing)
+            self._paint_text(q, W, H)
+            q.end()
+            self._ov, self._ov_k = ov, key
+        p.drawPixmap(0, 0, self._ov)
+        p.end()
+
+    def _paint_text(self, p, W, H):
         if self._title is None:
             f = _font(max(30, min(58, H * 0.23)), QFont.Weight.Bold)
             fm = QFontMetrics(f)
@@ -1466,4 +1571,3 @@ class WaveHero(QWidget):
         p.drawRoundedRect(pr, 17, 17)
         p.setPen(QColor(255, 255, 255, 235))
         p.drawText(pr, Qt.AlignmentFlag.AlignCenter, sub)
-        p.end()
