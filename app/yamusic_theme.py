@@ -2025,12 +2025,13 @@ class AmbientFrame(QFrame):
         self._surface = None
 
     def paintEvent(self, e):
-        from echo_glass import liquid_surface, surface_for
+        from echo_glass import liquid_surface, surface_for, surface_ready
         from ya_skin import interface_radius
         radius = interface_radius()
         if getattr(self, "_surface_radius", None) != radius:
             self._surface_radius, self._surface = radius, None
-        if getattr(self, "_glass_stretch", False) and not self._glass_timer.isActive():
+        if getattr(self, "_glass_stretch", False) and not self._glass_timer.isActive() and \
+                surface_ready(self.size(), radius, self):     # чёткое стекло считается в фоне (echoes_ui.dll)
             self._glass_stretch = False                         # окно перестало меняться — чёткое стекло
             self._surface = liquid_surface(self.size(), radius)
         elif self._surface is None or self._surface.size() != self.size():

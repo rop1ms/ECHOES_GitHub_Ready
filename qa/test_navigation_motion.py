@@ -190,13 +190,16 @@ class NavigationMotion(unittest.TestCase):
 
     def test_fast_event_burst_captures_only_final_incoming_page(self):
         stack,a,b=self.stack()
-        with patch.object(ui_anim,'_grab_area',wraps=ui_anim._grab_area) as capture:
+        # Outgoing snapshot: a copy of the window (echoes_ui.dll) or a render.
+        with patch.object(ui_anim,'_grab_area',wraps=ui_anim._grab_area) as capture,                 patch.object(ui_anim,'_on_screen',wraps=ui_anim._on_screen) as screen:
             for index in range(30):ui_anim.switch(stack,b if index%2==0 else a)
-            self.assertEqual(capture.call_count,1)
+            self.assertEqual(screen.call_count,1)
+            self.assertLessEqual(capture.call_count,1)
+            outgoing=capture.call_count
             overlay=ui_anim._OVERLAYS[id(stack)]
             self.assertIsNone(overlay.new)
             overlay._prepare()
-            self.assertEqual(capture.call_count,2)
+            self.assertEqual(capture.call_count,outgoing+1)
             self.assertEqual(overlay.new.toImage().pixelColor(500,200).name(),a.color)
 
     def test_external_navigation_click_preserves_visible_transition_until_switch(self):
@@ -233,11 +236,13 @@ class NavigationMotion(unittest.TestCase):
 
     def test_early_clock_tick_waits_for_first_layout_turn(self):
         stack,a,b=self.stack()
-        with patch.object(ui_anim,'_grab_area',wraps=ui_anim._grab_area) as capture:
+        with patch.object(ui_anim,'_grab_area',wraps=ui_anim._grab_area) as capture,                 patch.object(ui_anim,'_on_screen',wraps=ui_anim._on_screen) as screen:
             ui_anim.switch(stack,b)
+            outgoing=capture.call_count
+            self.assertEqual(screen.call_count,1)
             overlay=ui_anim._OVERLAYS[id(stack)]
             overlay._frame()
-            self.assertEqual(capture.call_count,1)
+            self.assertEqual(capture.call_count,outgoing)
             self.assertIsNone(overlay.new)
             APP.processEvents()
             self.assertIsNotNone(overlay.new)

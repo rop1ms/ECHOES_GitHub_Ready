@@ -155,6 +155,36 @@ def liquid_surface(size, radius=22):
     return QPixmap(pm)
 
 
+_PENDING: dict = {}                                            # (w, h, radius) → виджеты, ждущие стекло
+
+
+def surface_ready(size, radius, widget) -> bool:
+    """Чёткое стекло этого размера уже готово (или считать придётся здесь же — без C++)? Иначе оно
+    заказано в фоновом потоке echoes_ui.dll, а widget перерисуется, когда будет готово; до тех пор
+    вызывающий рисует растянутое прежнее."""
+    import native_ui
+    key = (max(1, size.width()), max(1, size.height()), radius)
+    if key in _SURF_CACHE or not native_ui.available():
+        return True
+    import weakref
+    waiting = _PENDING.get(key)
+    if waiting is None:
+        waiting = _PENDING[key] = weakref.WeakSet()
+
+        def done(pm, key=key):
+            if len(_SURF_CACHE) > 48:
+                _SURF_CACHE.pop(next(iter(_SURF_CACHE)))
+            _SURF_CACHE[key] = pm
+            for w in list(_PENDING.pop(key, ())):
+                try:
+                    w.update()
+                except RuntimeError:
+                    pass
+        native_ui.liquid_surface_later(key[0], key[1], radius, done)
+    waiting.add(widget)
+    return False
+
+
 def surface_for(widget, cur, radius=22):
     """Для paintEvent: пока окно меняет размер — растянуть прежнее стекло (быстро), а чёткое
     нарисовать через ~150 мс после остановки (или сразу, если такое уже было в кэше)."""
@@ -179,6 +209,9 @@ def surface_for(widget, cur, radius=22):
 
 def _liquid_surface(size, radius=22):
     """Black optical glass: layered reflections, etched grain and refracted rims."""
+    import native_ui
+    if native_ui.available():                                  # то же стекло на C++ (echoes_ui.dll)
+        return native_ui.liquid_surface(size.width(), size.height(), radius)
     import random
     from PyQt6.QtCore import QPointF
     from PyQt6.QtGui import QRadialGradient

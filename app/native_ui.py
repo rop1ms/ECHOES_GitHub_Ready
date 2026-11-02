@@ -81,11 +81,17 @@ def _setup(lib):
         "eui_strip_count": (I, [P]),
         "eui_strip_card_pos": (None, [P, I, ctypes.POINTER(I), ctypes.POINTER(I)]),
         "eui_strip_card_pixmap": (None, [P, I, P]),
+        "eui_liquid_surface": (None, [I, I, D, P]),
+        "eui_grab_from_window": (I, [P, P]),
+        "eui_liquid_surface_callback": (None, [_STRIP_CB]),
+        "eui_liquid_surface_async": (None, [I, I, I, D]),
+        "eui_liquid_surface_take": (I, [I, P]),
     }
     for name, (res, args) in sig.items():
         fn = getattr(lib, name)
         fn.restype, fn.argtypes = res, args
     lib.eui_strip_callbacks(_on_click, _on_hover, _on_gone, _on_need)
+    lib.eui_liquid_surface_callback(_on_glass)
 
 
 def available() -> bool:
@@ -155,7 +161,20 @@ def _gone(sid, _index):
         s.widget = None
 
 
+_GLASS: dict = {}                                          # билет → колбэк(QPixmap)
+
+
+def _glass(ticket, _ok):
+    fn = _GLASS.pop(ticket, None)
+    if fn is not None:
+        from PyQt6.QtGui import QPixmap
+        pm = QPixmap()
+        if _lib.eui_liquid_surface_take(ticket, _ptr(pm)):
+            fn(pm)
+
+
 _on_click, _on_hover, _on_gone, _on_need = _guard(_click), _guard(_hover), _guard(_gone), _guard(_need)
+_on_glass = _guard(_glass)
 
 
 def _ptr(obj):
@@ -225,3 +244,28 @@ class Strip:
         if self.alive:
             _lib.eui_strip_card_pixmap(self._p, i, _ptr(pm))
         return pm
+
+
+# ── фон окна и снимки переходов (glass.cpp) ─────────────────────────────── #
+
+def liquid_surface(w: int, h: int, radius: float):
+    """echo_glass._liquid_surface на C++ (тот же рисунок, включая зерно)."""
+    from PyQt6.QtGui import QPixmap
+    pm = QPixmap()
+    _lib.eui_liquid_surface(int(w), int(h), float(radius), _ptr(pm))
+    return pm
+
+
+def liquid_surface_later(w: int, h: int, radius: float, done):
+    """liquid_surface в фоновом потоке C++; done(QPixmap) — в потоке интерфейса."""
+    _next_id[0] += 1
+    ticket = _next_id[0]
+    _GLASS[ticket] = done
+    _lib.eui_liquid_surface_async(ticket, int(w), int(h), float(radius))
+
+
+def grab_from_window(widget):
+    """Область виджета, как она уже нарисована в окне (без повторной отрисовки), или None."""
+    from PyQt6.QtGui import QPixmap
+    pm = QPixmap()
+    return pm if _lib.eui_grab_from_window(_ptr(widget), _ptr(pm)) else None

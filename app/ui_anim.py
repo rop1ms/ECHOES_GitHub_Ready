@@ -271,9 +271,19 @@ def _finish_related(target):
             overlay.finish()
 
 
+def _on_screen(target):
+    """The outgoing page is already painted in the window: copy it from the
+    window buffer (echoes_ui.dll) instead of rendering the page again."""
+    budget=900_000 if getattr(_WIN,'settings',{}).get('motion_profile')=='eco' else 2_100_000
+    if target.width()*target.height()>budget:return None
+    import native_ui
+    if not native_ui.available():return None
+    return native_ui.grab_from_window(target)
+
+
 def _outgoing_snapshot(target):
     previous=_OVERLAYS.get(id(target))
-    if previous is None:return _grab_area(target)
+    if previous is None:return _on_screen(target) or _grab_area(target)
     # Continue from the currently visible blend; an unprepared transition
     # already has exactly the right outgoing image and needs no extra render.
     snapshot=previous.old if previous.new is None else _grab_area(previous,backdrop=False)
