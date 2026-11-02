@@ -58,14 +58,13 @@ def whisper_installed() -> bool:
         return False
 
 
-def install_whisper(log=None) -> bool:
-    """pip install faster-whisper в тот же Python, на котором работает плеер."""
+def _pip(args, log=None) -> bool:
+    """pip в тот же Python, на котором работает плеер."""
     exe = Path(sys.executable)
     py = exe.with_name("python.exe") if exe.with_name("python.exe").exists() else exe
     flags = 0x08000000 if os.name == "nt" else 0       # CREATE_NO_WINDOW
     try:
-        p = subprocess.Popen([str(py), "-m", "pip", "install", "--prefer-binary", "--no-warn-script-location",
-                              "--disable-pip-version-check", "faster-whisper"],
+        p = subprocess.Popen([str(py), "-m", "pip", *args, "--disable-pip-version-check"],
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                              encoding="utf-8", errors="replace", creationflags=flags)
         for line in p.stdout:                        # type: ignore[union-attr]
@@ -73,13 +72,40 @@ def install_whisper(log=None) -> bool:
             if log and line.startswith(("Collecting", "Downloading", "Installing", "Successfully")):
                 log(line[:90])
         p.wait()
-        if p.returncode != 0:
-            return False
+        return p.returncode == 0
     except Exception as e:                           # noqa: BLE001
         print("[sync] pip:", e)
         return False
+
+
+def install_gpu_runtime(log=None) -> bool:
+    """Windows: onnxruntime с DirectML вместо обычного — отделение голоса на любой видеокарте с DirectX 12
+    (секунды вместо минут). Оба пакета ставят один и тот же модуль onnxruntime, поэтому обычный сначала
+    убираем; не вышло поставить DirectML — возвращаем обычный (VAD faster-whisper без него не работает)."""
+    if os.name != "nt":
+        return False
+    try:
+        import daw_sep
+        if daw_sep.gpu_available():
+            return True
+    except Exception:                                # noqa: BLE001
+        pass
+    _pip(["uninstall", "-y", "onnxruntime"], log)
+    ok = _pip(["install", "--prefer-binary", "--no-warn-script-location", "onnxruntime-directml"], log)
+    if not ok:
+        _pip(["install", "--prefer-binary", "--no-warn-script-location", "onnxruntime"], log)
     import importlib
     importlib.invalidate_caches()
+    return ok
+
+
+def install_whisper(log=None) -> bool:
+    """pip install faster-whisper (и на Windows — onnxruntime с DirectML, см. install_gpu_runtime)."""
+    if not _pip(["install", "--prefer-binary", "--no-warn-script-location", "faster-whisper"], log):
+        return False
+    import importlib
+    importlib.invalidate_caches()
+    install_gpu_runtime(log)
     return whisper_installed()
 
 
