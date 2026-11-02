@@ -1645,14 +1645,14 @@ EXACT.update({
         'Theme constructor live wallpapers (aurora, plasma, stars…) update up to 60 times a second\ninstead of 20–30. '
         'Smoother, but slightly heavier.',
     'C++-ускорение эффектов': 'C++ effects acceleration',
-    'Жидкость Fluid, MilkDrop, «Моя волна», размытие и кадры esu! считает быстрое\n'
+    'Жидкость Fluid, MilkDrop, «Моя волна» и размытие считает быстрое\n'
     'C++-ядро в несколько потоков (echoes_fx.dll) вместо Python/numpy.\n'
     'Выключайте, только если что-то рисуется неправильно. Полностью применяется\n'
-    'после перезапуска плеера (кадры esu! — сразу).':
-        'Fluid, MilkDrop, My Wave, blur and esu! frames are computed by a fast multi-threaded\n'
+    'после перезапуска плеера.':
+        'Fluid, MilkDrop, My Wave and blur are computed by a fast multi-threaded\n'
         'C++ core (echoes_fx.dll) instead of Python/numpy.\n'
         'Turn it off only if something renders wrong. Fully applies after restarting\n'
-        'the player (esu! frames — immediately).',
+        'the player.',
     'Конструктор тем — панелью в окне плеера': 'Theme constructor as a panel in the player window',
     'Включено — конструктор встроен справа в окно плеера (рабочая панель).\nВыключено — отдельное окно.':
         'On — the constructor is docked on the right of the player window (workspace panel).\nOff — a separate window.',

@@ -5,7 +5,7 @@
 
 ![ECHOES — My Wave and music discovery](docs/screenshots/discover.png)
 
-ECHOES brings a music library, endless recommendations, a peer-to-peer social network, a music studio, a native video editor, a rhythm game, and a programmable theme designer into the same app. Its Echoes Music interface combines dark liquid glass, hand-drawn symbols, animated artwork, and an unmistakable yellow accent.
+ECHOES brings a music library, endless recommendations, a peer-to-peer social network, a music studio, a native video editor, and a programmable theme designer into the same app. Its Echoes Music interface combines dark liquid glass, hand-drawn symbols, animated artwork, and an unmistakable yellow accent.
 
 **Start here:** [Install](#install) · [Features](#features) · [Screenshots](#screenshots) · [Development](#development) · [Publish this repository](docs/PUBLISH.md) · [License](#license)
 
@@ -125,7 +125,7 @@ Reports persist while offline. **My reports** distinguishes queued and acknowled
 
 ### Liquid glass and a theme that belongs to you
 
-- Switch between **Echoes Music, Vinyl glass, Fluid, Fluid Dark, Winamp**, and custom themes. Echoes Studio, Montage, and esu! provide their own workspaces.
+- Switch between **Echoes Music, Vinyl glass, Fluid, Fluid Dark, Winamp**, and custom themes. Echoes Studio and Montage provide their own workspaces.
 - Echoes Music combines **appearance and live decoration** in one editor: palettes, fonts, buttons, panel corners, backgrounds, and animated details.
 - Adjust **button rounding and interface rounding independently**. Tune layout, window proportions, scaling, artwork, and motion.
 - Drawn interface symbols are provided by ECHOES; social reactions keep their expressive emoji.
@@ -162,12 +162,6 @@ Reports persist while offline. **My reports** distinguishes queued and acknowled
 - The native editor follows the player's English/Russian language selection. Its source and build script are included under `tools/montage/`.
 
 ![ECHOES Montage native editor](docs/screenshots/montage.png)
-
-### esu! — turn your library into a rhythm game
-
-- Generate playable beatmaps from music analysis: tempo, beats, sections, drum attacks, melody, and sustained notes.
-- Import osu! beatmaps and skins (`.osz`, `.osk`), use mods, customize hitsounds and HUD layout, and play with your preferred cursor settings.
-- A beatmap editor, local rankings, attempts, replays, and pause/results screens are built in.
 
 ### Backups and everyday control
 

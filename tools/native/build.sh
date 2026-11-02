@@ -6,7 +6,7 @@
 set -e
 cd "$(dirname "$0")"
 export PATH=/c/msys64/ucrt64/bin:$PATH
-SRC="fx_common.cpp fluid.cpp milk.cpp glow.cpp nebula.cpp blur.cpp sprite.cpp viz.cpp clipfx.cpp body.cpp studio.cpp nothrow_stubs.cpp"
+SRC="fx_common.cpp fluid.cpp milk.cpp glow.cpp nebula.cpp blur.cpp viz.cpp clipfx.cpp studio.cpp nothrow_stubs.cpp"
 OUT=../../app
 FLAGS="-O3 -ffast-math -fno-math-errno -fno-exceptions -fno-threadsafe-statics --param vect-max-version-for-alias-checks=100 -std=c++17 -shared -static -static-libgcc -static-libstdc++ -s -DNDEBUG -Wall -Wno-unused-function"
 g++ $FLAGS -march=x86-64-v2 -mtune=generic -o $OUT/echoes_fx.dll $SRC

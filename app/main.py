@@ -514,7 +514,8 @@ class MainWindow(QMainWindow):
         self._studio = None
         self._preview_theme = None      # тема, которую сейчас правят в конструкторе (предпросмотр)
         # Старые сохранённые имена тем → актуальные («Default» теперь «Vinyl glass»)
-        _LEGACY_THEMES = {"Default": "Vinyl glass", "Milkdrop": "Winamp", "osu!": "esu!"}
+        _LEGACY_THEMES = {"Default": "Vinyl glass", "Milkdrop": "Winamp", "osu!": "Echoes Music",
+                          "esu!": "Echoes Music"}           # тема esu! удалена
         _old_theme = self.settings.get("theme")
         if _old_theme in _LEGACY_THEMES and _LEGACY_THEMES[_old_theme] in THEMES:
             self.settings["theme"] = _LEGACY_THEMES[_old_theme]
@@ -565,38 +566,6 @@ class MainWindow(QMainWindow):
             clip_mixer.install()
         except Exception as e:                       # noqa: BLE001
             print("[clip_mixer]", e)
-        try:
-            import osu_y2k                           # osu!: оформление Y2K и свои хитсаунды
-            osu_y2k.install(self)
-        except Exception as e:                       # noqa: BLE001
-            print("[osu y2k]", e)
-        try:
-            import osu_classic                       # osu!: классика ближе к оригиналу (выбор песни, моды, курсор)
-            osu_classic.install()
-        except Exception as e:                       # noqa: BLE001
-            print("[osu classic]", e)
-        try:
-            import osu_skin_plus                     # osu!: всё, что меняют большие скины (burst, спиннер, дым…)
-            osu_skin_plus.install()
-        except Exception as e:                       # noqa: BLE001
-            print("[osu skin+]", e)
-        try:
-            import osu_hud_layout                    # esu!: свои места элементов интерфейса, раскладки скинов lazer
-            osu_hud_layout.install()
-        except Exception as e:                       # noqa: BLE001
-            print("[osu hud layout]", e)
-        try:
-            import osu_ranking                       # esu!: экран результата как в osu! (ranking-* из скина)
-            osu_ranking.install()
-        except Exception as e:                       # noqa: BLE001
-            print("[osu ranking]", e)
-        try:                                         # esu!: экраны рисуются C++-компоновщиком (native_fx)
-            import osu_game
-            osu_game.redirect_modules(*[sys.modules[m] for m in ("osu_theme", "osu_y2k", "osu_classic",
-                                                                 "osu_skin_plus", "osu_hud_layout")
-                                        if m in sys.modules])
-        except Exception as e:                       # noqa: BLE001
-            print("[esu native]", e)
         if self.settings.get("custom_titlebar", True):
             try:
                 import window_corners                # скруглённые углы безрамочного окна (Windows 11)
@@ -700,7 +669,7 @@ class MainWindow(QMainWindow):
             self._discord_lyr_timer.timeout.connect(self._discord_lyric_tick)
             # строку текста в статусе убрали: Discord пропускает обновление раз в ~15 с, текст сильно отставал
 
-            # перемотка откуда угодно (клавиши, osu!, медиавиджет Windows) — поправить полосу прогресса в Discord
+            # перемотка откуда угодно (клавиши, медиавиджет Windows) — поправить полосу прогресса в Discord
             self._discord_sent = None
             self._discord_timer = QTimer(self)
             self._discord_timer.timeout.connect(self._discord_drift)
@@ -1456,10 +1425,10 @@ class MainWindow(QMainWindow):
                  "Живые обои конструктора тем (сияние, плазма, звёзды…) обновляются до 60 раз в секунду\n"
                  "вместо 20–30. Плавнее, но немного тяжелее.", False),
                 ("native_fx_cb", "native_fx", "C++-ускорение эффектов",
-                 "Жидкость Fluid, MilkDrop, «Моя волна», размытие и кадры esu! считает быстрое\n"
+                 "Жидкость Fluid, MilkDrop, «Моя волна» и размытие считает быстрое\n"
                  "C++-ядро в несколько потоков (echoes_fx.dll) вместо Python/numpy.\n"
                  "Выключайте, только если что-то рисуется неправильно. Полностью применяется\n"
-                 "после перезапуска плеера (кадры esu! — сразу).", True),
+                 "после перезапуска плеера.", True),
                 ("studio_dock_cb", "studio_docked", "Конструктор тем — панелью в окне плеера",
                  "Включено — конструктор встроен справа в окно плеера (рабочая панель).\n"
                  "Выключено — отдельное окно.", False)):
@@ -1705,9 +1674,9 @@ class MainWindow(QMainWindow):
         self.discord_covers_cb.setChecked(self.settings.get("discord_covers", True))
         self.discord_covers_cb.toggled.connect(lambda on: self._discord_opt("discord_covers", on))
         rv2.addWidget(self.discord_covers_cb)
-        self.discord_act_cb = QCheckBox("Показывать в Discord esu!, ECHOES Studio и конструктор тем")
-        self.discord_act_cb.setToolTip("Отдельные активности со своими иконками: «Играет в esu!» (карта, счёт, "
-                                       "точность), «ECHOES Studio» (проект, BPM), «Конструктор тем ECHOES» (тема)")
+        self.discord_act_cb = QCheckBox("Показывать в Discord ECHOES Studio и конструктор тем")
+        self.discord_act_cb.setToolTip("Отдельные активности со своими иконками: «ECHOES Studio» (проект, BPM), "
+                                       "«Конструктор тем ECHOES» (тема)")
         self.discord_act_cb.setChecked(self.settings.get("discord_activities", True))
         self.discord_act_cb.toggled.connect(self._discord_act_toggled)
         rv2.addWidget(self.discord_act_cb)
@@ -1925,15 +1894,14 @@ class MainWindow(QMainWindow):
         is_fluid = bool(theme_data.get("fluid"))
         is_winamp = bool(theme_data.get("winamp"))
         is_ya = bool(theme_data.get("yamusic"))
-        is_osu = bool(theme_data.get("osu"))
         is_daw = bool(theme_data.get("daw"))
         is_montage = bool(theme_data.get("montage"))
-        if (is_ya or is_osu or is_daw or is_montage) and getattr(self, "_lyrics_mode", False):
+        if (is_ya or is_daw or is_montage) and getattr(self, "_lyrics_mode", False):
             # обычный режим текста сначала закрываем — он завязан на старую раскладку
             self._toggle_lyrics_mode()
             QTimer.singleShot(950, lambda d=theme_data, n=selector_name: self._apply_theme_data(d, n))
             return
-        if is_fluid or is_winamp or is_ya or is_osu or is_daw or is_montage:
+        if is_fluid or is_winamp or is_ya or is_daw or is_montage:
             extra = f"QWidget#Root {{ background: {bg}; }}"     # плоский фон: беж / «рабочий стол»
         if is_custom:
             extra = "QWidget#Root { background: transparent; }"  # фон рисует конструктор (ThemeRuntime)
@@ -1982,20 +1950,16 @@ class MainWindow(QMainWindow):
             self._apply_winamp_mode(theme_data, False)
         if not is_ya:
             self._leave_ya_layout()
-        if not is_osu:
-            self._leave_osu_layout()
         if not is_daw:
             self._leave_daw_layout()
         self._apply_fluid_mode(theme_data, is_fluid)
         if is_winamp:
             self._apply_winamp_mode(theme_data, True)
-        if is_ya or is_osu or is_daw:
+        if is_ya or is_daw:
             if is_ya:
                 self._enter_ya_layout()
                 if theme_data.get('duel'):
                     self._ya.show_page('duel')
-            elif is_osu:
-                self._enter_osu_layout()
             else:
                 self._enter_daw_layout()
             if hasattr(self, "_ambience"):
@@ -2478,12 +2442,6 @@ class MainWindow(QMainWindow):
         save_json(SETTINGS_FILE, self.settings)
         if key == "fps_adaptive":
             self._apply_fps()
-        elif key == "native_fx":
-            try:
-                import osu_game
-                osu_game.NATIVE_FRAMES[0] = bool(on)
-            except Exception:                              # noqa: BLE001
-                pass
         elif key == "studio_docked":
             self.set_studio_docked(bool(on))
         elif key == "video_hw":
@@ -3570,72 +3528,6 @@ class MainWindow(QMainWindow):
             pass
 
     # ------------------------------------------------------------------ #
-    #  Тема «osu!»: меню, выбор песни, игра по картам из генератора        #
-    # ------------------------------------------------------------------ #
-
-    def _enter_osu_layout(self):
-        if getattr(self, "_osu_on", False):
-            return
-        self._close_hub()
-        from osu_theme import OsuShell
-        outer = self._outer
-        left, center, right = self._left_panel, self._stage, self._right_panel
-        self._osu_saved = {
-            "right_w": (right.minimumWidth(), right.maximumWidth()),
-            "margins": outer.contentsMargins(),
-            "spacing": outer.spacing(),
-        }
-        for w in (left, center, right):
-            outer.removeWidget(w)
-            w.hide()
-        try:
-            self.viz.timer.stop()
-        except Exception:
-            pass
-        shell = OsuShell(self, self.centralWidget())
-        right.setMinimumWidth(0)
-        right.setMaximumWidth(16777215)
-        shell.adopt_settings(right)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(0)
-        outer.addWidget(shell, 1)
-        shell.show()
-        self._osu = shell
-        self._osu_on = True
-
-    def _leave_osu_layout(self):
-        if not getattr(self, "_osu_on", False):
-            return
-        self._osu_on = False
-        shell, sv, outer = self._osu, self._osu_saved, self._outer
-        left, center = self._left_panel, self._stage
-        right = shell.release_settings() or self._right_panel
-        try:
-            shell.shutdown()
-            outer.removeWidget(shell)
-        except RuntimeError:
-            pass
-        outer.addWidget(left, 2)
-        outer.addWidget(center, 5)
-        outer.addWidget(right, 2)
-        right.setMinimumWidth(sv["right_w"][0])
-        right.setMaximumWidth(sv["right_w"][1])
-        outer.setContentsMargins(sv["margins"])
-        outer.setSpacing(sv["spacing"])
-        for w in (left, center, right):
-            w.show()
-        try:
-            shell.hide()
-            shell.deleteLater()
-        except RuntimeError:
-            pass
-        self._osu = None
-        try:
-            self.viz.timer.start(16)
-        except Exception:
-            pass
-
-    # ------------------------------------------------------------------ #
     #  Тема «Echoes Studio»: студия — биты, сведение, запись, мэшап-бот     #
     # ------------------------------------------------------------------ #
 
@@ -3740,14 +3632,6 @@ class MainWindow(QMainWindow):
             self.viz.timer.start(16)
         except Exception:
             pass
-
-    def _osu_holds(self) -> bool:
-        """Тема osu!: идёт игра / выбор песни / результаты — трек не переключать самим."""
-        sh = getattr(self, "_osu", None)
-        try:
-            return bool(getattr(self, "_osu_on", False) and sh is not None and sh.holds())
-        except RuntimeError:
-            return False
 
     # ------------------------------------------------------------------ #
     #  Режим «Обложка» (во всех темах)                                     #
@@ -4132,8 +4016,8 @@ class MainWindow(QMainWindow):
                 return pv is not None            # предпросмотр конструктора не перебиваем
             self._apply_theme_data(theme_kit.to_theme_data(t2))
             return True
-        if _mt.get("fluid") or _mt.get("winamp") or _mt.get("yamusic") or _mt.get("osu") or _mt.get("daw"):
-            return False        # темы Fluid сами подстраиваются под обложку (см. FluidPanel); osu! — своя тема
+        if _mt.get("fluid") or _mt.get("winamp") or _mt.get("yamusic") or _mt.get("daw"):
+            return False        # темы Fluid сами подстраиваются под обложку (см. FluidPanel)
         if not self.settings.get("auto_cover_theme", False):
             return False
         data = self._cover_theme(cover_path)
@@ -4919,7 +4803,7 @@ class MainWindow(QMainWindow):
         if not hasattr(self, "discord_rpc") or self.discord_rpc is None:
             return
         if getattr(self, "_discord_act_key", None) is not None:
-            return                                         # сейчас в Discord — esu!, студия или конструктор
+            return                                         # сейчас в Discord — студия или конструктор
         if self.current_index < 0:
             self.discord_rpc.clear()
             return
@@ -5019,7 +4903,7 @@ class MainWindow(QMainWindow):
         if line != last and time.time() - ts >= 4.5:
             self._update_discord_rpc(True)
 
-    # ── что вы делаете: конструктор тем, ECHOES Studio, esu! — отдельные активности в Discord ── #
+    # ── что вы делаете: конструктор тем, ECHOES Studio — отдельные активности в Discord ── #
 
     def _discord_feature(self, key, on):
         self.settings["discord_" + key] = bool(on)
@@ -5058,7 +4942,7 @@ class MainWindow(QMainWindow):
                 except RuntimeError:
                     pass
             what = ("Программирует блоками" if blocks else "Пишет код на EchoScript") if code else "Делает тему"
-            since.pop("osu", None), since.pop("daw", None)
+            since.pop("daw", None)
             return {"name": "Конструктор тем ECHOES", "details": f"{what}: «{t.get('name') or 'Новая тема'}»",
                     "state": f"слоёв: {nlay}" + (f" · играет {song}" if song and self.engine.is_playing() else ""),
                     "image": "theme_studio", "image_text": "Конструктор тем ECHOES", "start": started("theme"),
@@ -5071,70 +4955,14 @@ class MainWindow(QMainWindow):
             nm = pr.get("name") or "Без названия"
             chans = len(pr.get("channels") or [])
             bpm = float(pr.get("bpm") or 0)
-            since.pop("osu", None)
             return {"name": "ECHOES Studio", "details": f"Делает музыку: «{nm}»",
                     "state": f"{bpm:.0f} BPM · каналов: {chans}", "image": "studio", "image_text": "ECHOES Studio",
                     "start": started("daw"), "key": ("daw", nm, chans, round(bpm))}
         since.pop("daw", None)
-        # esu!
-        osu = getattr(self, "_osu", None) if getattr(self, "_osu_on", False) else None
-        if osu is None:
-            since.pop("osu", None)
-            return None
-        scr = next((k for k, v in getattr(osu, "screens", {}).items() if v is osu.cur), "menu")
-        if scr == "menu":
-            since.pop("osu", None)
-            return None                                    # главное меню — просто музыка
-
-        def map_line(t_, m_):
-            if not t_:
-                return "—"
-            ln = f"{(t_.get('artist') or '').replace(' - Topic', '').strip()} - {sanitize_title(t_.get('title', ''))}"
-            dn = (m_ or {}).get("name") or (m_ or {}).get("version")
-            return ln.strip(" -") + (f" [{dn}]" if dn else "")
-        base = {"name": "esu!", "image": "esu", "image_text": "esu! — osu! в плеере ECHOES"}
-        if scr == "game":
-            g = osu.game
-            pl = getattr(g, "play", None)
-            if pl is None:
-                return None
-            stars = float((pl.m or {}).get("stars") or 0)
-            mods = "".join(sorted(getattr(g, "mods", set()) or []))
-            if getattr(g, "auto", None) is not None or getattr(g, "replay", None) is not None:
-                head = "Смотрит повтор" if getattr(g, "replay", None) is not None else "Смотрит автоигру"
-            else:
-                head = "Пауза" if g.state == "paused" else ("Провал" if g.state in ("failing", "failed") else "Играет")
-            stat = f"{pl.score:,}".replace(",", " ") + f" · {pl.acc * 100:.2f}% · {pl.combo}x"
-            if mods:
-                stat += f" · +{mods}"
-            return dict(base, details=map_line(getattr(g, "track", None), pl.m), state=f"{head}: {stat}",
-                        image_text=f"{stars:.2f}★" if stars else base["image_text"], start=started("osu"),
-                        key=("game", id(pl), g.state, pl.score // 20000, round(pl.acc * 100), mods))
-        since.pop("osu", None)
-        if scr == "select":
-            sel = osu.select
-            try:
-                t_ = sel.cur()
-            except Exception:                              # noqa: BLE001
-                t_ = None
-            what = "Редактор карт: выбирает песню" if getattr(sel, "edit_mode", False) else "Выбирает карту"
-            return dict(base, details=what, state=map_line(t_, None), key=("select", map_line(t_, None), what))
-        if scr == "results":
-            r = osu.results
-            res = getattr(r, "res", None) or {}
-            acc = float(res.get("acc") or 0)
-            return dict(base, details=f"Результат: {map_line(r.track, r.m)}",
-                        state=f"Ранг {getattr(r, 'rank', '')} · {acc * 100:.2f}% · {res.get('combo', 0)}x" if res else "",
-                        key=("results", map_line(r.track, r.m), getattr(r, "rank", "")))
-        if scr == "editor":
-            ed = osu.screens.get("editor")
-            return dict(base, details="Делает карту", state=map_line(getattr(ed, "track", None) or getattr(ed, "t", None),
-                                                                      getattr(ed, "m", None)),
-                        start=started("osu_edit"), key=("editor",))
         return None
 
     def _discord_drift(self):
-        """Раз в 4 с: занятие сменилось (esu!, студия, конструктор), трек сменился или позиция уехала —
+        """Раз в 4 с: занятие сменилось (студия, конструктор), трек сменился или позиция уехала —
         обновить статус в Discord."""
         if self.discord_rpc is None or not self.discord_rpc.is_available():
             return
@@ -5415,7 +5243,7 @@ class MainWindow(QMainWindow):
         # Кроссфейд (engine.crossfade_enabled, crossfade_ms > 0):
         # плавно сводит громкости двух треков.
         tools = getattr(self, '_listening_tools', None)
-        if (not self.engine.is_crossfading and duration > 0 and not self._osu_holds()
+        if (not self.engine.is_crossfading and duration > 0
                 and not (tools and tools.blocks_transition())):
             remain = duration - position
             cf_ms = self.engine.crossfade_ms if self.engine.crossfade_enabled else 0
@@ -5605,9 +5433,6 @@ class MainWindow(QMainWindow):
         if getattr(self,'_duel_preview',None) == str((self._current_track() or {}).get('path','')):
             self.engine.stop();self._set_playing_ui(False)
             self._duel_preview=None
-            return
-        if self._osu_holds():
-            self._osu.on_track_end()                     # osu!: выбор песни/результаты — снова с припева
             return
         tools = getattr(self, '_listening_tools', None)
         if tools and tools.consume_stop():
@@ -6618,7 +6443,7 @@ class MainWindow(QMainWindow):
         w.show(); w.raise_(); w.activateWindow()
 
     def _discord_icons_help(self):
-        """Иконки esu! / студии / конструктора нужно один раз загрузить в Art Assets своего приложения Discord."""
+        """Иконки студии / конструктора нужно один раз загрузить в Art Assets своего приложения Discord."""
         from PyQt6.QtGui import QDesktopServices
         from PyQt6.QtCore import QUrl
         folder = Path(__file__).parent / "discord_assets"
@@ -6627,8 +6452,8 @@ class MainWindow(QMainWindow):
             self, "Иконки для Discord",
             "Discord показывает иконки активностей, только если они загружены в ваше приложение Discord.\n\n"
             "1. Откроется папка с иконками и страница Art Assets приложения.\n"
-            "2. Нажмите «Add Image(s)» и загрузите esu.png, studio.png и theme_studio.png.\n"
-            "3. Имена (ключи) оставьте как у файлов: esu, studio, theme_studio. Сохраните.\n\n"
+            "2. Нажмите «Add Image(s)» и загрузите studio.png и theme_studio.png.\n"
+            "3. Имена (ключи) оставьте как у файлов: studio, theme_studio. Сохраните.\n\n"
             "Discord обновляет ассеты до 10 минут. Открыть?")
         if r != QMessageBox.StandardButton.Yes:
             return
@@ -8022,7 +7847,7 @@ class MainWindow(QMainWindow):
             # (тема при входе сама его закрывает) и перерисовывал под собой весь интерфейс каждый кадр
             self._ya.toggle_lyrics()
             return
-        if not self._lyrics_mode and (getattr(self, "_osu_on", False) or getattr(self, "_daw_on", False)):
+        if not self._lyrics_mode and getattr(self, "_daw_on", False):
             return
         self._lyrics_mode = not self._lyrics_mode
         self.btn_lyrics_mode.setChecked(self._lyrics_mode)
@@ -8592,7 +8417,7 @@ class MainWindow(QMainWindow):
                 self._crt.clear()
         except Exception:pass
         try:
-            for name in ('_ya','_osu'):
+            for name in ('_ya',):
                 shell=getattr(self,name,None)
                 if shell is not None:shell.shutdown()
             import ya_wave,frameclock

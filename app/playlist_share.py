@@ -377,22 +377,7 @@ class _Drops(QObject):
         if md is None or not md.hasUrls():
             return []
         return [u.toLocalFile() for u in md.urls() if u.isLocalFile()
-                and Path(u.toLocalFile()).suffix.lower() in (THEME_EXT, PLAYLIST_EXT, ".m3u", ".m3u8", ".osz", ".osu")]
-
-    def _open_maps(self, files):
-        """Карты osu! (.osz / .osu) — в тему esu!: включить её и добавить карты."""
-        w = self.win
-        sh = getattr(w, "_osu", None)
-        if sh is None or not getattr(w, "_osu_on", False):
-            try:
-                from osu_theme import THEME_NAME
-                w._apply_theme(THEME_NAME)
-            except Exception as e:                         # noqa: BLE001
-                print("[drop] esu!:", e)
-                return
-            QTimer.singleShot(600, lambda: getattr(w, "_osu", None) and w._osu.import_files(files))
-            return
-        sh.import_files(files)
+                and Path(u.toLocalFile()).suffix.lower() in (THEME_EXT, PLAYLIST_EXT, ".m3u", ".m3u8")]
 
     def eventFilter(self, obj, e):
         t = e.type()
@@ -404,12 +389,8 @@ class _Drops(QObject):
             files = self._files(e)
             if files:
                 e.acceptProposedAction()
-                maps = [f for f in files if f.lower().endswith((".osz", ".osu"))]
-                if maps:
-                    QTimer.singleShot(0, lambda m=maps: self._open_maps(m))
                 for f in files:
-                    if f not in maps:
-                        QTimer.singleShot(0, lambda f=f: open_any(self.win, f))
+                    QTimer.singleShot(0, lambda f=f: open_any(self.win, f))
                 return True
         elif t == QEvent.Type.WindowActivate and obj is self.win:
             if time.monotonic() - self._scan_t > 4:

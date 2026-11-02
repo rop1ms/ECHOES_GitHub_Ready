@@ -871,7 +871,7 @@ class IntelWorker(threading.Thread):
         for i, t in enumerate(todo):
             if self.stop_event.is_set():
                 return
-            bgproc.idle_wait()                            # идёт игра esu! — анализ подождёт
+            bgproc.idle_wait()                            # интерфейс занят — анализ подождёт
             self._emit("audio", i, len(todo), t.get("title", ""))
             need_audio = self.store.needs_audio(t)
             feats, vec, info = None, None, None

@@ -44,13 +44,6 @@ try:
 except Exception as e:                       # нет файла — тема просто не появится
     print("[themes] Echoes Music недоступна:", e)
 
-# ── esu!: ритм-игра как osu! — меню, выбор песни, игра по картам генератора и из osu! ───
-try:
-    from osu_theme import osu_theme_dict, THEME_NAME as _ESU
-    THEMES[_ESU] = osu_theme_dict()
-except Exception as e:                       # нет numpy / файла — тема просто не появится
-    print("[themes] esu! недоступна:", e)
-
 # ── Echoes Studio: студия для битов, сведения, записи голоса и мэшапов ──────
 try:
     from daw_meta import studio_theme_dict, THEME_NAME as _STUDIO
@@ -76,7 +69,7 @@ def theme_groups():
         names.append("Echoes Music")
     names += [n for n in builtin
               if n not in names and (THEMES[n].get("fluid") or THEMES[n].get("winamp") or THEMES[n].get("yamusic")
-                                     or THEMES[n].get("osu") or THEMES[n].get("daw"))]
+                                     or THEMES[n].get("daw"))]
     names += [n for n in builtin if n not in names]
     groups = [("ТЕМЫ", "Echoes Music — основной интерфейс; остальные меняют весь вид плеера", names)]
     mine = [n for n, t in THEMES.items() if t.get("custom")]

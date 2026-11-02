@@ -1,6 +1,6 @@
 # i18n_en_extra.py
 """Дополнение словаря английского интерфейса (i18n_en.py): строки, которых там не было —
-osu!/esu!, студия, конструктор тем, клипы, микшер и т. д. Подключается в i18n._load()."""
+студия, конструктор тем, клипы, микшер и т. д. Подключается в i18n._load()."""
 
 EXACT = {'отменено': 'cancelled',
  'Картинки (*.png *.jpg *.jpeg *.gif *.webp *.bmp)': 'Images (*.png *.jpg *.jpeg *.gif *.webp *.bmp)',
@@ -1948,12 +1948,10 @@ EXACT = {'отменено': 'cancelled',
  'Усложнение игры': 'Difficulty Increase',
  'Особые': 'Special',
  'Что вы хотите сделать с этой картой?': 'What do you want to do with this beatmap?',
- 'Трек при входе в esu!': 'Track when entering esu!',
  'Поиск: исполнитель или название…': 'Search: artist or title…',
  'карты нет — F4': 'no map — F4',
  'Коллекции': 'Collections',
  'Моя музыка': 'My music',
- 'Карты osu!': 'osu! maps',
  'Всё вместе': 'All together',
  'введите название': 'type to search',
  'Рекордов пока нет!': 'No records set!',
@@ -1967,41 +1965,12 @@ EXACT = {'отменено': 'cancelled',
  'очков, а некоторые придуманы просто так, для развлечения.': 'and some are just for fun.',
  '1. Сбросить все моды': '1. Reset all mods',
  '2. Закрыть': '2. Close',
- 'Музыка при входе в esu!': 'Music when entering esu!',
- 'Как «circles!» в osu!: что играет, когда открываете тему esu!. Можно поставить любой трек из библиотеки или карту osu!.': 'Like '
-                                                                                                                            '“circles!” '
-                                                                                                                            'in '
-                                                                                                                            'osu!: '
-                                                                                                                            'what '
-                                                                                                                            'plays '
-                                                                                                                            'when '
-                                                                                                                            'you '
-                                                                                                                            'open '
-                                                                                                                            'the '
-                                                                                                                            'esu! '
-                                                                                                                            'theme. '
-                                                                                                                            'You '
-                                                                                                                            'can '
-                                                                                                                            'pick '
-                                                                                                                            'any '
-                                                                                                                            'track '
-                                                                                                                            'from '
-                                                                                                                            'the '
-                                                                                                                            'library '
-                                                                                                                            'or '
-                                                                                                                            'an '
-                                                                                                                            'osu! '
-                                                                                                                            'map.',
  'Выбрать трек…': 'Pick a track…',
  'С припева (как превью карты)': 'From the chorus (like the map preview)',
- 'Как в osu!': 'Like in osu!',
- 'Классика как в osu!: карусель, моды и диалоги': 'Classic like in osu!: carousel, mods and dialogs',
- 'Курсор osu! со следом и в меню': 'osu! cursor with trail in menus too',
  'Снег из скина в меню (menu-snow)': 'Snow from the skin in the menu (menu-snow)',
  'Режим редактора: Enter или щелчок по сложности откроет редактор карты': 'Editor mode: Enter or clicking a '
                                                                           'difficulty opens the map editor',
  'Сгенерировать заново / выбрать отрывок  F4': 'Generate again / pick a section  F4',
- 'Фон карты — из её папки osu!': 'Map background — from its osu! folder',
  'игрок': 'player',
  'Только для стиля «классика». Выключите — будет прежний вид выбора песни.': 'Only for the “classic” style. Turn off '
                                                                              '— the previous song select look.',
@@ -2179,102 +2148,33 @@ EXACT = {'отменено': 'cancelled',
  'Градусов на отсчёт (yaw × sens)': 'Degrees per count (yaw × sens)',
  'Перенос чувствительности из игры': 'Import sensitivity from a game',
  'Перенос чувствительности': 'Sensitivity import',
- 'Выберите игру и впишите свою чувствительность оттуда — esu! подберёт такую, чтобы рука делала то же движение: поворот камеры на всё поле зрения = курсор через весь экран.': 'Pick '
-                                                                                                                                                                               'a '
-                                                                                                                                                                               'game '
-                                                                                                                                                                               'and '
-                                                                                                                                                                               'enter '
-                                                                                                                                                                               'your '
-                                                                                                                                                                               'sensitivity '
-                                                                                                                                                                               'from '
-                                                                                                                                                                               'it '
-                                                                                                                                                                               '— '
-                                                                                                                                                                               'esu! '
-                                                                                                                                                                               'will '
-                                                                                                                                                                               'match '
-                                                                                                                                                                               'it '
-                                                                                                                                                                               'so '
-                                                                                                                                                                               'your '
-                                                                                                                                                                               'hand '
-                                                                                                                                                                               'makes '
-                                                                                                                                                                               'the '
-                                                                                                                                                                               'same '
-                                                                                                                                                                               'movement: '
-                                                                                                                                                                               'turning '
-                                                                                                                                                                               'the '
-                                                                                                                                                                               'camera '
-                                                                                                                                                                               'across '
-                                                                                                                                                                               'the '
-                                                                                                                                                                               'whole '
-                                                                                                                                                                               'field '
-                                                                                                                                                                               'of '
-                                                                                                                                                                               'view '
-                                                                                                                                                                               '= '
-                                                                                                                                                                               'the '
-                                                                                                                                                                               'cursor '
-                                                                                                                                                                               'across '
-                                                                                                                                                                               'the '
-                                                                                                                                                                               'whole '
-                                                                                                                                                                               'screen.',
  'Игра': 'Game',
  'Поле зрения (по горизонтали)': 'Field of view (horizontal)',
  'DPI мыши в игре': 'Mouse DPI in the game',
  'Для Roblox: скорость указателя Windows 6/11 и без «повышенной точности».': 'For Roblox: Windows pointer speed 6/11 '
                                                                              'and no “enhanced precision”.',
- 'Как в osu! (стандартный скин)': 'Like osu! (default skin)',
- 'Минимализм esu!': 'esu! minimal',
  'Яркие': 'Bright',
  'Пастель': 'Pastel',
- 'osu! (4 цвета)': 'osu! (4 colors)',
  'Ctrl+Enter в выборе песни — смотреть, как карту проходит Auto': 'Ctrl+Enter in song select — watch Auto play the '
                                                                   'map',
  'F1 — моды, F2 — случайная песня, просто печатайте для поиска': 'F1 — mods, F2 — random song, just type to search',
  '~ (тильда) — мгновенный перезапуск карты': '~ (tilde) — instant map restart',
  'Скачайте клип песни (Ctrl+Shift+K) — и он станет фоном карты': "Download the song's video (Ctrl+Shift+K) — and it becomes the "
                                                            'map background',
- 'Карты строит модель, выученная на ranked-картах osu!: ритм, слайдеры и прыжки — как у мапперов': 'Maps are built '
-                                                                                                   'by a model '
-                                                                                                   'trained on '
-                                                                                                   'ranked osu! '
-                                                                                                   'maps: rhythm, '
-                                                                                                   'sliders and '
-                                                                                                   'jumps — like '
-                                                                                                   'real mappers',
- 'Скин osu! (.osk) можно просто перетащить в окно — ноты, курсор и звуки станут как в нём': 'An osu! skin (.osk) can '
-                                                                                            'simply be dragged into '
-                                                                                            'the window — notes, '
-                                                                                            'cursor and sounds will '
-                                                                                            'look like it',
  'Колесо мыши в меню — громкость': 'Mouse wheel in the menu — volume',
- 'Карты из osu! подтягиваются сами из папки Songs; F5 в выборе песни — обновить': 'osu! maps load by themselves from '
-                                                                                  'the Songs folder; F5 in song '
-                                                                                  'select — refresh',
- 'Файл .osz можно просто перетащить в окно — карты появятся в выборе песни': 'An .osz file can simply be dragged '
-                                                                             'into the window — the maps appear in '
-                                                                             'song select',
  'В настройках можно включить raw input и подобрать чувствительность': 'In settings you can turn on raw input and '
                                                                        'match your sensitivity',
  'Понижение сложности': 'Difficulty Reduction',
  'Повышение сложности': 'Difficulty Increase',
  'Попыток на этой сложности пока нет': 'No attempts on this difficulty yet',
- 'Библиотека пуста — добавьте музыку (кнопка «Музыка» в меню) или карты osu!': 'The library is empty — add music '
-                                                                               '(the “Music” button in the menu) or '
-                                                                               'osu! maps',
  '  ·  ещё не пройдена': '  ·  not passed yet',
  'Редактор': 'Editor',
  'Настройки': 'Settings',
- 'Сыграть карту: своя музыка и карты osu!': 'Play a map: your music and osu! maps',
  'Редактор карт': 'Map editor',
- 'Настройки esu!': 'esu! settings',
- 'Выйти из esu!': 'Leave esu!',
  'Свободная игра — выбор песни': 'Free play — song select',
- 'Карты из osu!: обновить, открыть .osz': 'osu! maps: refresh, open .osz',
  'Библиотека ECHOES': 'ECHOES library',
  'ничего не играет': 'nothing is playing',
  'Сменить тему ▾': 'Change theme ▾',
- 'Карт из osu! пока нет — F3 → «Импорт карт osu!» или перетащите .osz в окно': 'No osu! maps yet — F3 → “Import osu! '
-                                                                               'maps” or drag an .osz into the '
-                                                                               'window',
  'по названию': 'by title',
  'по исполнителю': 'by artist',
  'по длине': 'by length',
@@ -2282,85 +2182,14 @@ EXACT = {'отменено': 'cancelled',
  'Лучшие результаты (на этом компьютере)': 'Top scores (on this computer)',
  'Модификаторы': 'Mods',
  'Попытки по картам…': 'Attempts per map…',
- 'Импорт карт osu!': 'Import osu! maps',
- 'Обновить из папки osu! (F5)': 'Refresh from the osu! folder (F5)',
- 'Открыть файлы .osz / .osu…': 'Open .osz / .osu files…',
  'Выбрать папку Songs…': 'Choose the Songs folder…',
  'Карта ECHOES AI': 'ECHOES AI map',
  'Макс. комбо': 'Max combo',
  'Точность': 'Accuracy',
  'здоровье по ходу карты': 'health over the map',
  'нажмите клавишу…': 'press a key…',
- 'Скин osu!': 'osu! skin',
- 'Внешний вид из файлов настоящего osu!: ноты, слайдеры, спиннер, курсор и его след, цифры, оценки, полоска здоровья, фон меню, цвета комбо и звуки скина. Подходят файлы .osk (с сайта osu! или экспорт из osu!lazer: Настройки → Скин → Экспорт) и папки скинов из osu!/Skins; .osk можно просто перетащить в окно. Чего в скине нет — остаётся своим.': 'The '
-                                                                                                                                                                                                                                                                                                                                                           'look '
-                                                                                                                                                                                                                                                                                                                                                           'from '
-                                                                                                                                                                                                                                                                                                                                                           'the '
-                                                                                                                                                                                                                                                                                                                                                           'files '
-                                                                                                                                                                                                                                                                                                                                                           'of '
-                                                                                                                                                                                                                                                                                                                                                           'real '
-                                                                                                                                                                                                                                                                                                                                                           'osu!: '
-                                                                                                                                                                                                                                                                                                                                                           'notes, '
-                                                                                                                                                                                                                                                                                                                                                           'sliders, '
-                                                                                                                                                                                                                                                                                                                                                           'spinner, '
-                                                                                                                                                                                                                                                                                                                                                           'cursor '
-                                                                                                                                                                                                                                                                                                                                                           'and '
-                                                                                                                                                                                                                                                                                                                                                           'its '
-                                                                                                                                                                                                                                                                                                                                                           'trail, '
-                                                                                                                                                                                                                                                                                                                                                           'digits, '
-                                                                                                                                                                                                                                                                                                                                                           'grades, '
-                                                                                                                                                                                                                                                                                                                                                           'health '
-                                                                                                                                                                                                                                                                                                                                                           'bar, '
-                                                                                                                                                                                                                                                                                                                                                           'menu '
-                                                                                                                                                                                                                                                                                                                                                           'background, '
-                                                                                                                                                                                                                                                                                                                                                           'combo '
-                                                                                                                                                                                                                                                                                                                                                           'colors '
-                                                                                                                                                                                                                                                                                                                                                           'and '
-                                                                                                                                                                                                                                                                                                                                                           'skin '
-                                                                                                                                                                                                                                                                                                                                                           'sounds. '
-                                                                                                                                                                                                                                                                                                                                                           'Works '
-                                                                                                                                                                                                                                                                                                                                                           'with '
-                                                                                                                                                                                                                                                                                                                                                           '.osk '
-                                                                                                                                                                                                                                                                                                                                                           'files '
-                                                                                                                                                                                                                                                                                                                                                           '(from '
-                                                                                                                                                                                                                                                                                                                                                           'the '
-                                                                                                                                                                                                                                                                                                                                                           'osu! '
-                                                                                                                                                                                                                                                                                                                                                           'site '
-                                                                                                                                                                                                                                                                                                                                                           'or '
-                                                                                                                                                                                                                                                                                                                                                           'exported '
-                                                                                                                                                                                                                                                                                                                                                           'from '
-                                                                                                                                                                                                                                                                                                                                                           'osu!lazer: '
-                                                                                                                                                                                                                                                                                                                                                           'Settings '
-                                                                                                                                                                                                                                                                                                                                                           '→ '
-                                                                                                                                                                                                                                                                                                                                                           'Skin '
-                                                                                                                                                                                                                                                                                                                                                           '→ '
-                                                                                                                                                                                                                                                                                                                                                           'Export) '
-                                                                                                                                                                                                                                                                                                                                                           'and '
-                                                                                                                                                                                                                                                                                                                                                           'skin '
-                                                                                                                                                                                                                                                                                                                                                           'folders '
-                                                                                                                                                                                                                                                                                                                                                           'from '
-                                                                                                                                                                                                                                                                                                                                                           'osu!/Skins; '
-                                                                                                                                                                                                                                                                                                                                                           'an '
-                                                                                                                                                                                                                                                                                                                                                           '.osk '
-                                                                                                                                                                                                                                                                                                                                                           'can '
-                                                                                                                                                                                                                                                                                                                                                           'simply '
-                                                                                                                                                                                                                                                                                                                                                           'be '
-                                                                                                                                                                                                                                                                                                                                                           'dragged '
-                                                                                                                                                                                                                                                                                                                                                           'into '
-                                                                                                                                                                                                                                                                                                                                                           'the '
-                                                                                                                                                                                                                                                                                                                                                           'window. '
-                                                                                                                                                                                                                                                                                                                                                           'Whatever '
-                                                                                                                                                                                                                                                                                                                                                           'the '
-                                                                                                                                                                                                                                                                                                                                                           'skin '
-                                                                                                                                                                                                                                                                                                                                                           'lacks '
-                                                                                                                                                                                                                                                                                                                                                           'stays '
-                                                                                                                                                                                                                                                                                                                                                           'built-in.',
  'Удалить выбранный скин': 'Delete the selected skin',
  'Фон главного меню из скина (menu-background)': 'Main menu background from the skin (menu-background)',
- 'Встроенный (esu!)': 'Built-in (esu!)',
- 'Скины osu! (*.osk *.zip)': 'osu! skins (*.osk *.zip)',
- 'Папка скина osu!': 'osu! skin folder',
- 'Скин удалён — снова встроенный esu!': 'Skin deleted — back to the built-in esu!',
  'Перенести чувствительность из игры (Roblox, RIVALS, CS2, Valorant…)': 'Import sensitivity from a game (Roblox, '
                                                                         'RIVALS, CS2, Valorant…)',
  'Raw input (без ускорения Windows)': 'Raw input (no Windows acceleration)',
@@ -2424,116 +2253,12 @@ EXACT = {'отменено': 'cancelled',
  'Показывать интерфейс в игре (счёт, HP, комбо)': 'Show the game interface (score, HP, combo)',
  'Параллакс фона в меню': 'Menu background parallax',
  'Цвета нот': 'Note colors',
- 'Карты из osu!': 'osu! maps',
- 'Карты osu!standard из установленного osu! (папка Songs) появляются в выборе песни сами; файлы .osz и .osu можно открыть кнопкой ниже или просто перетащить в окно. Файлы osu! не меняются и не копируются (кроме распакованных .osz).': 'osu!standard '
-                                                                                                                                                                                                                                          'maps '
-                                                                                                                                                                                                                                          'from '
-                                                                                                                                                                                                                                          'an '
-                                                                                                                                                                                                                                          'installed '
-                                                                                                                                                                                                                                          'osu! '
-                                                                                                                                                                                                                                          '(the '
-                                                                                                                                                                                                                                          'Songs '
-                                                                                                                                                                                                                                          'folder) '
-                                                                                                                                                                                                                                          'show '
-                                                                                                                                                                                                                                          'up '
-                                                                                                                                                                                                                                          'in '
-                                                                                                                                                                                                                                          'song '
-                                                                                                                                                                                                                                          'select '
-                                                                                                                                                                                                                                          'by '
-                                                                                                                                                                                                                                          'themselves; '
-                                                                                                                                                                                                                                          '.osz '
-                                                                                                                                                                                                                                          'and '
-                                                                                                                                                                                                                                          '.osu '
-                                                                                                                                                                                                                                          'files '
-                                                                                                                                                                                                                                          'can '
-                                                                                                                                                                                                                                          'be '
-                                                                                                                                                                                                                                          'opened '
-                                                                                                                                                                                                                                          'with '
-                                                                                                                                                                                                                                          'the '
-                                                                                                                                                                                                                                          'button '
-                                                                                                                                                                                                                                          'below '
-                                                                                                                                                                                                                                          'or '
-                                                                                                                                                                                                                                          'just '
-                                                                                                                                                                                                                                          'dragged '
-                                                                                                                                                                                                                                          'into '
-                                                                                                                                                                                                                                          'the '
-                                                                                                                                                                                                                                          'window. '
-                                                                                                                                                                                                                                          'osu! '
-                                                                                                                                                                                                                                          'files '
-                                                                                                                                                                                                                                          'are '
-                                                                                                                                                                                                                                          'never '
-                                                                                                                                                                                                                                          'changed '
-                                                                                                                                                                                                                                          'or '
-                                                                                                                                                                                                                                          'copied '
-                                                                                                                                                                                                                                          '(except '
-                                                                                                                                                                                                                                          'unpacked '
-                                                                                                                                                                                                                                          '.osz).',
- 'Искать новые карты в папке osu! при входе в тему': 'Look for new maps in the osu! folder when entering the theme',
  'Хитсаунды из папки карты (свои звуки маппера)': "Hitsounds from the map folder (the mapper's own sounds)",
  'Цвета комбо из карты': 'Combo colors from the map',
  'Скин карты (свои картинки нот в папке карты — поверх скина)': 'Beatmap skin (note images in the map folder — over '
                                                                 'the skin)',
  'Видео карты как фон (если есть)': 'Map video as the background (if any)',
- 'Подгонять смещение карт osu! по звуку': 'Auto-adjust osu! map offset by sound',
  'Генератор карт': 'Map generator',
- 'Модель слушает трек (темп с точностью до сотых BPM, начала ударов, триоли, ударные отдельно от мелодии и голоса, протяжные звуки, части песни, припевы, повторы) и ставит ноты так, как их ставят живые мапперы: ритм, слайдеры, дистанции, углы, стопки, комбо и хитсаунды выучены по ranked-картам osu!. Изменения применяются при следующей генерации карты.': 'The '
-                                                                                                                                                                                                                                                                                                                                                                    'model '
-                                                                                                                                                                                                                                                                                                                                                                    'listens '
-                                                                                                                                                                                                                                                                                                                                                                    'to '
-                                                                                                                                                                                                                                                                                                                                                                    'the '
-                                                                                                                                                                                                                                                                                                                                                                    'track '
-                                                                                                                                                                                                                                                                                                                                                                    '(tempo '
-                                                                                                                                                                                                                                                                                                                                                                    'to '
-                                                                                                                                                                                                                                                                                                                                                                    'hundredths '
-                                                                                                                                                                                                                                                                                                                                                                    'of '
-                                                                                                                                                                                                                                                                                                                                                                    'a '
-                                                                                                                                                                                                                                                                                                                                                                    'BPM, '
-                                                                                                                                                                                                                                                                                                                                                                    'beat '
-                                                                                                                                                                                                                                                                                                                                                                    'onsets, '
-                                                                                                                                                                                                                                                                                                                                                                    'triplets, '
-                                                                                                                                                                                                                                                                                                                                                                    'drums '
-                                                                                                                                                                                                                                                                                                                                                                    'separate '
-                                                                                                                                                                                                                                                                                                                                                                    'from '
-                                                                                                                                                                                                                                                                                                                                                                    'melody '
-                                                                                                                                                                                                                                                                                                                                                                    'and '
-                                                                                                                                                                                                                                                                                                                                                                    'voice, '
-                                                                                                                                                                                                                                                                                                                                                                    'sustained '
-                                                                                                                                                                                                                                                                                                                                                                    'sounds, '
-                                                                                                                                                                                                                                                                                                                                                                    'song '
-                                                                                                                                                                                                                                                                                                                                                                    'sections, '
-                                                                                                                                                                                                                                                                                                                                                                    'choruses, '
-                                                                                                                                                                                                                                                                                                                                                                    'repeats) '
-                                                                                                                                                                                                                                                                                                                                                                    'and '
-                                                                                                                                                                                                                                                                                                                                                                    'places '
-                                                                                                                                                                                                                                                                                                                                                                    'notes '
-                                                                                                                                                                                                                                                                                                                                                                    'the '
-                                                                                                                                                                                                                                                                                                                                                                    'way '
-                                                                                                                                                                                                                                                                                                                                                                    'human '
-                                                                                                                                                                                                                                                                                                                                                                    'mappers '
-                                                                                                                                                                                                                                                                                                                                                                    'do: '
-                                                                                                                                                                                                                                                                                                                                                                    'rhythm, '
-                                                                                                                                                                                                                                                                                                                                                                    'sliders, '
-                                                                                                                                                                                                                                                                                                                                                                    'spacing, '
-                                                                                                                                                                                                                                                                                                                                                                    'angles, '
-                                                                                                                                                                                                                                                                                                                                                                    'stacks, '
-                                                                                                                                                                                                                                                                                                                                                                    'combos '
-                                                                                                                                                                                                                                                                                                                                                                    'and '
-                                                                                                                                                                                                                                                                                                                                                                    'hitsounds '
-                                                                                                                                                                                                                                                                                                                                                                    'are '
-                                                                                                                                                                                                                                                                                                                                                                    'learned '
-                                                                                                                                                                                                                                                                                                                                                                    'from '
-                                                                                                                                                                                                                                                                                                                                                                    'ranked '
-                                                                                                                                                                                                                                                                                                                                                                    'osu! '
-                                                                                                                                                                                                                                                                                                                                                                    'maps. '
-                                                                                                                                                                                                                                                                                                                                                                    'Changes '
-                                                                                                                                                                                                                                                                                                                                                                    'apply '
-                                                                                                                                                                                                                                                                                                                                                                    'the '
-                                                                                                                                                                                                                                                                                                                                                                    'next '
-                                                                                                                                                                                                                                                                                                                                                                    'time '
-                                                                                                                                                                                                                                                                                                                                                                    'a '
-                                                                                                                                                                                                                                                                                                                                                                    'map '
-                                                                                                                                                                                                                                                                                                                                                                    'is '
-                                                                                                                                                                                                                                                                                                                                                                    'generated.',
  'Плотность нот': 'Note density',
  'Размах прыжков': 'Jump spacing',
  'Слайдеры': 'Sliders',
@@ -2541,21 +2266,13 @@ EXACT = {'отменено': 'cancelled',
  'Эквалайзер, эффекты, таймеры и остальные настройки плеера:': 'Equalizer, effects, timers and other player '
                                                                'settings:',
  'Сменить тему плеера…': 'Change player theme…',
- 'Импортирую скин osu!…': 'Importing the osu! skin…',
  'Модель строит другой вариант карт…': 'The model is building another version of the maps…',
- 'Куда сохранить .osz': 'Where to save the .osz',
- 'Добавляю карты osu!…': 'Adding osu! maps…',
- 'Карты osu! (*.osz *.osu)': 'osu! maps (*.osz *.osu)',
- 'Папка Songs установленного osu!': 'Songs folder of the installed osu!',
- 'Обновить из папки osu!': 'Refresh from the osu! folder',
- 'Показать только карты osu!': 'Show only osu! maps',
  'часа': 'hours',
  'часов': 'hours',
  'минута': 'minute',
  'минуты': 'minutes',
  'минут': 'minutes',
  'Совет: ': 'Tip: ',
- 'osu! в плеере ECHOES': 'osu! in the ECHOES player',
  'Карта создана моделью ECHOES (по ударам и частям песни)': 'Map made by the ECHOES model (from the beats and song '
                                                             'sections)',
  'Карты ещё нет — нажмите «Сгенерировать карту» (F4): весь трек или только отрывок': 'No map yet — press “Generate '
@@ -2566,99 +2283,23 @@ EXACT = {'отменено': 'cancelled',
  'Моды  F1': 'Mods  F1',
  'Случайно  F2': 'Random  F2',
  'Карта…  F3': 'Beatmap…  F3',
- 'Вся музыка и карты osu!': 'All music and osu! maps',
  'Только моя музыка': 'Only my music',
  'Редактор карты (Ctrl+E)': 'Map editor (Ctrl+E)',
  'Сгенерировать карту / выбрать отрывок…  (F4)': 'Generate map / pick a section…  (F4)',
  'Сгенерировать заново (другой вариант)': 'Generate again (another version)',
- 'Экспорт в настоящий osu! (.osz)…': 'Export to real osu! (.osz)…',
  'Открыть папку карт': 'Open the maps folder',
  'Смотреть Auto (Ctrl+Enter)': 'Watch Auto (Ctrl+Enter)',
- 'Редактор — для карт ECHOES; карты из osu! правьте в самой osu!': 'The editor is for ECHOES maps; edit osu! maps in '
-                                                                   'osu! itself',
  'Карта ещё строится — подождите пару секунд': 'The map is still building — wait a couple of seconds',
  ' — первое прохождение!': ' — first pass!',
  'ПРОВАЛ': 'FAILED',
  'Смотреть повтор': 'Watch replay',
  'Подогнать смещение': 'Adjust offset',
  'Скин': 'Skin',
- 'Файл .osk…': '.osk file…',
  'Папка скина…': 'Skin folder…',
- 'Из osu!…': 'From osu!…',
- 'Скин: встроенный esu!': 'Skin: built-in esu!',
- 'В папке Skins установленного osu! скинов нет — нужен файл .osk или папка скина': 'There are no skins in the Skins '
-                                                                                   'folder of the installed osu! — '
-                                                                                   'you need an .osk file or a skin '
-                                                                                   'folder',
- 'Смещения мыши читаются напрямую, без ускорения и скорости указателя Windows, — чувствительность работает как в osu!, и на 100% тоже. Планшет определяется сам (для него оставьте 100%).': 'Mouse '
-                                                                                                                                                                                            'movement '
-                                                                                                                                                                                            'is '
-                                                                                                                                                                                            'read '
-                                                                                                                                                                                            'directly, '
-                                                                                                                                                                                            'without '
-                                                                                                                                                                                            'Windows '
-                                                                                                                                                                                            'acceleration '
-                                                                                                                                                                                            'and '
-                                                                                                                                                                                            'pointer '
-                                                                                                                                                                                            'speed '
-                                                                                                                                                                                            '— '
-                                                                                                                                                                                            'sensitivity '
-                                                                                                                                                                                            'works '
-                                                                                                                                                                                            'like '
-                                                                                                                                                                                            'in '
-                                                                                                                                                                                            'osu!, '
-                                                                                                                                                                                            'including '
-                                                                                                                                                                                            'at '
-                                                                                                                                                                                            '100%. '
-                                                                                                                                                                                            'A '
-                                                                                                                                                                                            'tablet '
-                                                                                                                                                                                            'is '
-                                                                                                                                                                                            'detected '
-                                                                                                                                                                                            'automatically '
-                                                                                                                                                                                            '(leave '
-                                                                                                                                                                                            '100% '
-                                                                                                                                                                                            'for '
-                                                                                                                                                                                            'it).',
- 'Клавиши: как в osu! по умолчанию': 'Keys: osu! defaults',
  'Отдельный вывод звука для хитсаундов недоступен (нет sounddevice или устройства).': 'A separate audio output for '
                                                                                       "hitsounds isn't available (no "
                                                                                       'sounddevice or device).',
- 'Открыть .osz / .osu…': 'Open .osz / .osu…',
  'Папка Songs…': 'Songs folder…',
- 'Время нот в osu! отсчитывается по её декодеру звука; esu! сверяет ноты карты с ударами в треке и сдвигает карту, чтобы ноты совпадали со звуком в ECHOES.': 'osu! '
-                                                                                                                                                              'counts '
-                                                                                                                                                              'note '
-                                                                                                                                                              'times '
-                                                                                                                                                              'by '
-                                                                                                                                                              'its '
-                                                                                                                                                              'own '
-                                                                                                                                                              'audio '
-                                                                                                                                                              'decoder; '
-                                                                                                                                                              'esu! '
-                                                                                                                                                              'matches '
-                                                                                                                                                              'the '
-                                                                                                                                                              "map's "
-                                                                                                                                                              'notes '
-                                                                                                                                                              'to '
-                                                                                                                                                              'the '
-                                                                                                                                                              'hits '
-                                                                                                                                                              'in '
-                                                                                                                                                              'the '
-                                                                                                                                                              'track '
-                                                                                                                                                              'and '
-                                                                                                                                                              'shifts '
-                                                                                                                                                              'the '
-                                                                                                                                                              'map '
-                                                                                                                                                              'so '
-                                                                                                                                                              'the '
-                                                                                                                                                              'notes '
-                                                                                                                                                              'line '
-                                                                                                                                                              'up '
-                                                                                                                                                              'with '
-                                                                                                                                                              'the '
-                                                                                                                                                              'sound '
-                                                                                                                                                              'in '
-                                                                                                                                                              'ECHOES.',
  'Стримы на сложных картах': 'Streams on hard maps',
  'Спиннеры': 'Spinners',
  'Симметричные паттерны': 'Symmetric patterns',
@@ -2669,8 +2310,6 @@ EXACT = {'отменено': 'cancelled',
  'Модель строит карту': 'The model is building the map',
  'Сначала дождитесь, пока карта построится': 'Wait until the map is built first',
  'Этого трека уже нет в коллекции': 'This track is no longer in the collection',
- 'Ищу новые карты в папке osu!…': 'Looking for new maps in the osu! folder…',
- 'Набор убран из esu! (в osu! он остался)': 'Set removed from esu! (it stays in osu!)',
  'секунда': 'second',
  'секунды': 'seconds',
  'секунд': 'seconds',
@@ -2678,31 +2317,20 @@ EXACT = {'отменено': 'cancelled',
  'карты': 'maps',
  'карт': 'maps',
  'всё': 'all',
- 'карты osu!': 'osu! maps',
  'моя музыка': 'my music',
  'Пока нет — сыграйте первым!': 'None yet — be the first to play!',
  'Открыть папку этой карты': "Open this map's folder",
- 'Убрать набор из esu! (файлы osu! не трогаются)': 'Remove the set from esu! (osu! files are untouched)',
  'Карта ещё открывается — подождите секунду': 'The map is still opening — wait a second',
  'НОВЫЙ РЕКОРД!': 'NEW RECORD!',
  'Клип песни (если скачан)': 'Song video (if downloaded)',
  'Клип не найден: ': 'Video not found: ',
  ' по всему треку…': ' over the whole track…',
- 'osu! не найден — укажите папку Songs в настройках или откройте .osz': 'osu! not found — set the Songs folder in '
-                                                                        'settings or open an .osz',
- 'Карты из osu! уже обновляются…': 'osu! maps are already refreshing…',
  'Сортировка: ': 'Sort: ',
  'выключено в настройках': 'off in settings',
  'фон: обложка (смените в настройках)': 'background: cover (change in settings)',
  'позже': 'later',
  'раньше': 'earlier',
- 'Карт из osu! пока нет': 'No osu! maps yet',
- '  ·  osu! не найден': '  ·  osu! not found',
- 'Из скина osu!': 'From the osu! skin',
  'Генератор: настройки по умолчанию': 'Generator: default settings',
- 'Карты osu!: новых нет': 'osu! maps: nothing new',
- 'В файлах нет карт osu!standard': 'The files contain no osu!standard maps',
- 'Карты osu!: обновлено наборов ': 'osu! maps: sets refreshed ',
  'Повтор этого результата не сохранился': "The replay of this score wasn't saved",
  'название': 'title',
  'длина': 'length',
@@ -2746,41 +2374,9 @@ EXACT = {'отменено': 'cancelled',
  'Карта F3': 'Beatmap F3',
  'печатайте для поиска…': 'type to search…',
  'Свои хитсаунды': 'Custom hitsounds',
- 'Любой звук темы esu! можно заменить своим файлом (WAV, OGG, MP3, FLAC). Скин osu! целиком — кнопкой «Импорт скина» (папка с normal-hitnormal.wav и т. д.).': 'Any '
-                                                                                                                                                               'esu! '
-                                                                                                                                                               'theme '
-                                                                                                                                                               'sound '
-                                                                                                                                                               'can '
-                                                                                                                                                               'be '
-                                                                                                                                                               'replaced '
-                                                                                                                                                               'with '
-                                                                                                                                                               'your '
-                                                                                                                                                               'own '
-                                                                                                                                                               'file '
-                                                                                                                                                               '(WAV, '
-                                                                                                                                                               'OGG, '
-                                                                                                                                                               'MP3, '
-                                                                                                                                                               'FLAC). '
-                                                                                                                                                               'A '
-                                                                                                                                                               'whole '
-                                                                                                                                                               'osu! '
-                                                                                                                                                               'skin '
-                                                                                                                                                               '— '
-                                                                                                                                                               'with '
-                                                                                                                                                               'the '
-                                                                                                                                                               '“Import '
-                                                                                                                                                               'skin” '
-                                                                                                                                                               'button '
-                                                                                                                                                               '(a '
-                                                                                                                                                               'folder '
-                                                                                                                                                               'with '
-                                                                                                                                                               'normal-hitnormal.wav, '
-                                                                                                                                                               'etc.).',
- 'Импорт скина osu!…': 'Import osu! skin…',
  'Все — встроенные': 'All built-in',
  'Звук (*.wav *.ogg *.mp3 *.flac *.m4a *.opus)': 'Audio (*.wav *.ogg *.mp3 *.flac *.m4a *.opus)',
  'ОФОРМЛЕНИЕ': 'LOOK',
- 'Классика — как в osu!': 'Classic — like osu!',
  'Y2K — минимал': 'Y2K — minimal',
  'СВОИ ХИТСАУНДЫ': 'CUSTOM HITSOUNDS',
  'Хитсаунды…': 'Hitsounds…',
@@ -2790,7 +2386,6 @@ EXACT = {'отменено': 'cancelled',
  'поиск: ': 'search: ',
  'сорт: ': 'sort: ',
  'вся библиотека': 'whole library',
- 'В папке не нашлось звуков скина osu!': 'No osu! skin sounds found in the folder',
  'ГЕНЕРАТОР КАРТ': 'MAP GENERATOR',
  'свой: ': 'custom: ',
  'встроенный': 'built-in',
@@ -3542,7 +3137,6 @@ TEMPLATES = {'Скачиваю: {0}': 'Downloading: {0}',
  'Круги: {0}   Слайдеры: {1}   Спиннеры: {2}': 'Circles: {0}   Sliders: {1}   Spinners: {2}',
  'CS:{0}  AR:{1}  OD:{2}  HP:{3}  Звёзды: {4}': 'CS:{0}  AR:{1}  OD:{2}  HP:{3}  Stars: {4}',
  'Множитель очков: {0}x': 'Score Multiplier: {0}x',
- 'При входе в esu!: {0}': 'When entering esu!: {0}',
  'Очки: {0} ({1}x)': 'Score: {0} ({1}x)',
  '{0} (правка)': '{0} (edit)',
  'Карта сохранена · ★ {0} · объектов {1}': 'Map saved · ★ {0} · objects {1}',
@@ -3558,28 +3152,19 @@ TEMPLATES = {'Скачиваю: {0}': 'Downloading: {0}',
  'Весь трек · {0}': 'Whole track · {0}',
  '{0} – {1}   ·   длина {2}': '{0} – {1}   ·   length {2}',
  'Расставляю ноты: {0}…': 'Placing notes: {0}…',
- 'в esu!: {0} см рукой через весь экран': 'in esu!: {0} cm of hand movement across the whole screen',
  'В игре: {0} см на 360°': 'In the game: {0} cm per 360°',
  '(точно было бы {0}% — ограничено 1–500%)': '(exactly it would be {0}% — limited to 1–500%)',
  'Попыток: {0}  ·  пройдено: {1}': 'Attempts: {0}  ·  passed: {1}',
  '  ·  впервые — с {0}-й попытки': '  ·  first passed on attempt {0}',
- 'Доступно {0} {1}.\nВремя работы esu!: {2}\nТекущее время: {3}': '{0} {1} available.\n'
-                                                                  'esu! has been running for {2}\n'
-                                                                  'Current time: {3}',
  'Точность: {0}%  ·  игр: {1}': 'Accuracy: {0}%  ·  plays: {1}',
  'ур. {0}': 'lv. {0}',
- 'Карта: {0}  ·  из osu!': 'Map: {0}  ·  from osu!',
  'Ничего не найдено по «{0}» — Esc очистит поиск': 'Nothing found for “{0}” — Esc clears the search',
  'В «{0}» нет треков — выберите другую коллекцию справа': 'No tracks in “{0}” — choose another collection on the '
                                                           'right',
  'Множитель очков: ×{0}': 'Score multiplier: ×{0}',
- 'Карта: {0} (osu!)': 'Map: {0} (osu!)',
  '  ·  попытка {0}': '  ·  attempt {0}',
  '{0}pp   ·   UR {1}   ·   в среднем {2} мс {3}   ·   макс. комбо карты {4}x': '{0}pp   ·   UR {1}   ·   on average '
                                                                                '{2} ms {3}   ·   map max combo {4}x',
- 'Удалить скин «{0}» из esu!? Файлы в osu! (если скин оттуда) не трогаются.': 'Delete the skin “{0}” from esu!? '
-                                                                              'Files in osu! (if the skin is from '
-                                                                              'there) are not touched.',
  'Тема {0} · ECHOES': 'Theme {0} · ECHOES',
  'Попытка {0}': 'Attempt {0}',
  'Длина: {0}   BPM: {1}   Объектов: {2}   Макс. комбо: {3}x': 'Length: {0}   BPM: {1}   Objects: {2}   Max combo: '
@@ -3589,13 +3174,9 @@ TEMPLATES = {'Скачиваю: {0}': 'Downloading: {0}',
                                                                                                'Spinners: {2}   ·   '
                                                                                                'CS {3}  AR {4}  OD '
                                                                                                '{5}  HP {6}   ★ {7}',
- 'Только карты osu!  ({0})': 'Only osu! maps  ({0})',
  'Игрок {0}  ·  {1}': 'Player {0}  ·  {1}',
  'Чувствительность: {0}%': 'Sensitivity: {0}%',
- 'Скин osu!: {0}': 'osu! skin: {0}',
  'Клип: {0} {1}%': 'Video: {0} {1}%',
- 'Готово: {0} — откройте его двойным щелчком, и osu! импортирует карты': 'Done: {0} — open it with a double click '
-                                                                         'and osu! will import the maps',
  'добро пожаловать в {0}': 'welcome to {0}',
  'Производительность: {0}pp': 'Performance: {0}pp',
  '  ·  отрывок {0}–{1}': '  ·  section {0}–{1}',
@@ -3603,17 +3184,12 @@ TEMPLATES = {'Скачиваю: {0}': 'Downloading: {0}',
  'Клип: {0}': 'Video: {0}',
  ' по отрывку {0}–{1}…': ' for the section {0}–{1}…',
  'Экспорт не удался: {0}': 'Export failed: {0}',
- 'Карты osu!: новых наборов {0}': 'osu! maps: new sets {0}',
- 'Карты osu! не обновились: {0}': "osu! maps weren't refreshed: {0}",
  'Добавлено наборов: {0}, карт: {1}': 'Sets added: {0}, maps: {1}',
  'Наборов: {0}, карт: {1}': 'Sets: {0}, maps: {1}',
  '  ·  папка: {0}': '  ·  folder: {0}',
  'Скин не импортирован: {0}': 'Skin not imported: {0}',
  'Импорт не удался: {0}': 'Import failed: {0}',
  'Счёт {0}  ({1}x)': 'Score {0}  ({1}x)',
- 'Своих звуков: {0}. Можно заменить любой звук или взять все из скина osu!.': 'Custom sounds: {0}. You can replace '
-                                                                              'any sound or take all of them from an '
-                                                                              'osu! skin.',
  '{0}pp  ·  {1}%  ·  {2} игр': '{0}pp  ·  {1}%  ·  {2} plays',
  'модель слушает трек: {0}': 'the model is listening to the track: {0}',
  'Не получилось проиграть: {0}': "Couldn't play: {0}",
@@ -3678,18 +3254,8 @@ TEMPLATES = {'Скачиваю: {0}': 'Downloading: {0}',
  'Скачиваю {0} треков в плейлист «{1}»': 'Downloading {0} tracks into the playlist “{1}”',
  'Плейлист · {0}': 'Playlist · {0}',
  'Доступно {0} карта.': '{0} beatmaps available.',
- 'Доступно {0} карта.\nВремя работы esu!: {1}\nТекущее время: {2}': '{0} beatmaps available.\n'
-                                                                    'esu! has been running for {1}\n'
-                                                                    'Current time: {2}',
  'Доступно {0} карты.': '{0} beatmaps available.',
- 'Доступно {0} карты.\nВремя работы esu!: {1}\nТекущее время: {2}': '{0} beatmaps available.\n'
-                                                                    'esu! has been running for {1}\n'
-                                                                    'Current time: {2}',
  'Доступно {0} карт.': '{0} beatmaps available.',
- 'Доступно {0} карт.\nВремя работы esu!: {1}\nТекущее время: {2}': '{0} beatmaps available.\n'
-                                                                   'esu! has been running for {1}\n'
-                                                                   'Current time: {2}',
- 'Время работы esu!: {0}': 'esu! has been running for {0}',
  'Текущее время: {0}': 'Current time: {0}',
  '{0} секунда': '{0} second',
  '{0} секунды': '{0} seconds',
@@ -3788,13 +3354,22 @@ except Exception:                                          # noqa: BLE001
 EXACT.update({'Артист': 'Artist', 'Шаффл по исполнителю: все его треки вперемешку (правый клик — выбрать исполнителя, Ctrl+Shift+S)': 'Shuffle by artist: all their tracks shuffled (right click — pick an artist, Ctrl+Shift+S)', 'Кнопка «Шаффл по исполнителю»': 'Button “Shuffle by artist”', 'Шаффл по исполнителю': 'Shuffle by artist', 'Все исполнители': 'All artists', 'Библиотека пуста': 'Library is empty', 'Исполнитель': 'Artist', '⤮ Исполнитель': '⤮ Artist', '⤮ Артист': '⤮ Artist', 'Код': 'Code', 'Блоки': 'Blocks', 'Код EchoScript текстом': 'EchoScript code as text', 'Программирование блоками как в Scratch: все функции EchoScript — блоки, их тянут из палитры и соединяют мышью. Каждая правка сразу пишет код': 'Scratch-style block programming: every EchoScript function is a block you drag from the palette and snap together. Every change writes the code at once', 'Обложка трека в Discord (ищется на Deezer)': 'Track cover in Discord (looked up on Deezer)', 'Discord показывает только картинки из интернета: обложка находится по исполнителю и названию на Deezer и кешируется. Выключено — пластинка ECHOES': 'Discord only shows images from the internet: the cover is found on Deezer by artist and title and cached. Off — the ECHOES vinyl', 'Показывать в Discord и на паузе': 'Show in Discord while paused too', 'Выключено — как у Spotify: на паузе статус пропадает': 'Off — like Spotify: the status disappears on pause', 'В Discord — «Слушает ECHOES», как у Spotify: сначала исполнитель, потом трек и альбом, полоса прогресса и кнопка «Слушать на YouTube Music». Нужен запущенный Discord.': 'Discord shows “Listening to ECHOES” like Spotify: artist first, then track and album, a progress bar and a “Listen on YouTube Music” button. Discord must be running.', 'Слушать на YouTube Music': 'Listen on YouTube Music', 'Слушает в ECHOES': 'Listening in ECHOES', 'События': 'Events', 'Управление': 'Control', 'Переменные': 'Variables', 'Слой': 'Layer', 'Датчики': 'Sensing', 'Плеер': 'Player', 'Рисование': 'Drawing', 'Формы и картинки': 'Shapes & images', 'Операторы': 'Operators', 'Математика': 'Math', 'Списки и текст': 'Lists & text', 'Виджеты': 'Widgets', 'Время и анимация': 'Time & animation', 'Звуки': 'Sounds', 'Данные и окна': 'Data & windows', 'Мои функции': 'My functions', 'Другое': 'Other', 'запуск': 'start', 'каждый кадр': 'every frame', 'рисование': 'draw', 'клик': 'click', 'нажатие мыши': 'mouse down', 'отпускание мыши': 'mouse up', 'двойной клик': 'double click', 'перетаскивание': 'drag', 'движение мыши': 'mouse move', 'курсор зашёл': 'mouse enter', 'курсор ушёл': 'mouse leave', 'колесо мыши': 'mouse wheel', 'удар в музыке': 'beat', 'смена трека': 'track change', 'нажата клавиша': 'key down', 'клавиша отпущена': 'key up', 'сообщение': 'message', 'смена размера': 'resize', 'удаление': 'destroy', 'когда': 'when', 'функция': 'function', 'данные виджета': 'widget data', 'свойство': 'property', 'переменная виджета': 'widget variable', 'вложенный': 'child', 'пусть': 'let', 'задать': 'set', 'если': 'if', 'иначе если': 'else if', 'то': 'then', 'иначе': 'else', 'пока': 'while', 'для': 'for', 'в': 'in', 'вернуть': 'return', 'прервать цикл': 'break loop', 'к следующему шагу': 'next step', 'блок': 'block', 'попробовать': 'try', 'если ошибка': 'on error', 'выбор по': 'match', 'вариант': 'case', 'добавить': 'add', 'код': 'code', 'тема': 'theme', 'сцена': 'scene', 'список': 'list', 'словарь': 'dict', 'текст': 'text', 'не': 'not', 'не в': 'not in', 'значение': 'value', 'условие': 'condition', 'переменная': 'variable', 'список / 0..10': 'list / 0..10', 'объект': 'object', '№': '#', 'от': 'from', 'до': 'to', 'да': 'yes', 'нет': 'no', 'Найти блок: circle, клик, громкость…': 'Find a block: circle, click, volume…', 'Какой виджет показывать блоками (в коде их несколько)': 'Which widget to show as blocks (the code has several)', 'Упорядочить': 'Tidy up', 'Разложить скрипты аккуратными колонками': 'Lay scripts out in neat columns', 'Мельче (Ctrl + колесо)': 'Smaller (Ctrl + wheel)', 'Обычный масштаб': 'Normal zoom', 'Крупнее (Ctrl + колесо)': 'Larger (Ctrl + wheel)', 'Отпустите здесь,\nчтобы удалить': 'Drop here\nto delete', 'Перетащите сюда блоки из палитры слева:\n«когда рисование» → «fill» → «circle»…': 'Drag blocks here from the palette on the left:\n“when draw” → “fill” → “circle”…', 'Дублировать': 'Duplicate', 'Удалить блок': 'Delete block', 'Удалить вместе с блоками ниже': 'Delete with blocks below', 'Комментарий…': 'Comment…', 'Убрать «иначе»': 'Remove “else”', 'Добавить «иначе»': 'Add “else”', 'Убрать «если ошибка»': 'Remove “on error”', 'Добавить «если ошибка»': 'Add “on error”', 'Без второй переменной': 'Without second variable', 'Две переменные (номер, значение)': 'Two variables (index, value)', 'Заменить кодом…': 'Replace with code…', 'Скопировать код блока': 'Copy block code', 'Вставить код как блоки…': 'Paste code as blocks…', 'Упорядочить блоки': 'Tidy up blocks', 'Масштаб 100%': 'Zoom 100%', 'Комментарий': 'Comment', 'Комментарий к блоку (попадёт в код как // …):': 'Block comment (goes into the code as // …):', 'Код вместо блока:': 'Code instead of the block:', 'Своя строка (или несколько) на EchoScript:': 'Your own EchoScript line (or several):', 'Вставить код как блоки': 'Paste code as blocks', 'Код EchoScript (on draw { … }, fn …, или просто инструкции):': 'EchoScript code (on draw { … }, fn …, or plain statements):', 'Параметры — через запятую: x, y, z = 1': 'Parameters — comma separated: x, y, z = 1', 'Имя — буквы, цифры и _, не с цифры': 'Name — letters, digits and _, not starting with a digit', 'Это не имя переменной': 'That is not a variable name', 'Сюда — только переменная: перетащите её из «Переменных»': 'Only a variable fits here: drag one from “Variables”', 'Цвет': 'Color', 'Свойства (prop) и переменные (state) виджета': 'Widget properties (prop) and variables (state)', 'если условие — выполнить блоки внутри': 'if the condition holds — run the blocks inside', 'если … иначе …': 'if … else …', 'повторять, пока условие верно': 'repeat while the condition holds', 'повторить: i = 0, 1, … 9': 'repeat: i = 0, 1, … 9', 'для каждого элемента списка': 'for each item of a list', 'номер и значение каждого элемента': 'index and value of each item', 'выбор варианта (match)': 'pick a case (match)', 'ошибка внутри не ломает виджет': 'an error inside does not break the widget', 'выйти из обработчика / функции (с значением)': 'leave the handler / function (with a value)', 'выйти из цикла': 'leave the loop', 'сразу к следующему шагу цикла': 'jump to the next loop step', 'условие ? да : нет': 'condition ? yes : no', 'функция-значение: для after, every, prompt, map …': 'function value: for after, every, prompt, map …', 'своя функция внутри обработчика': 'your own function inside a handler', 'любой код EchoScript текстом': 'any EchoScript code as text', 'любое выражение текстом': 'any expression as text', 'переменная виджета — живёт между кадрами': 'widget variable — lives between frames', 'свойство — видно в инспекторе слоя': 'property — shown in the layer inspector', 'вложенный виджет (свой класс или блок каталога)': 'child widget (your class or a catalog block)', 'новая переменная внутри обработчика': 'new variable inside a handler', 'задать значение': 'set a value', 'изменить на …': 'change by …', 'переменная этого виджета': 'variable of this widget', 'поле виджета': 'widget field', 'и': 'and', 'или': 'or', 'есть ли в списке / строке / словаре': 'is it in the list / string / dict', 'минус': 'minus', 'диапазон чисел': 'number range', 'текст с подстановкой `…{x}…`': 'template text `…{x}…`', 'элемент списка по номеру': 'list item by index', 'поле словаря / виджета': 'dict / widget field', 'строка': 'string', 'число': 'number', 'истина / ложь / пусто': 'true / false / nil', 'новая функция виджета': 'new widget function', 'вызвать любую функцию или метод по имени (имя — щелчком)': 'call any function or method by name (click the name)'})
 TEMPLATES.update({'Шаффл по исполнителю: {0} · {1}': 'Shuffle by artist: {0} · {1}', 'В библиотеке нет треков исполнителя {0}': 'No tracks by {0} in the library', 'Шаффл: {0}': 'Shuffle: {0}', 'Блоками не открыть, пока в коде ошибка: {0}': 'Blocks cannot open while the code has an error: {0}', 'Блоки недоступны: {0}': 'Blocks unavailable: {0}', 'блоков: {0}  ·  правый клик — меню, Ctrl+колесо — масштаб': 'blocks: {0}  ·  right click — menu, Ctrl+wheel — zoom', 'Виджет: {0}': 'Widget: {0}', 'Не разобрать: {0}': 'Cannot parse: {0}', 'поле слоя {0}': 'layer field {0}', 'своя функция {0}({1})': 'your function {0}({1})'})
 
-# Discord: активности esu!, ECHOES Studio, конструктор тем
+# Discord: активности ECHOES Studio, конструктор тем
 EXACT.update({
-    'Конструктор тем ECHOES': 'ECHOES theme builder', 'Выбирает карту': 'Picking a map',
-    'Редактор карт: выбирает песню': 'Map editor: picking a song', 'Делает карту': 'Making a map',
-    'Показывать в Discord esu!, ECHOES Studio и конструктор тем': 'Show esu!, ECHOES Studio and the theme builder in Discord',
-    'Отдельные активности со своими иконками: «Играет в esu!» (карта, счёт, точность), «ECHOES Studio» (проект, BPM), «Конструктор тем ECHOES» (тема)':
-        'Separate activities with their own icons: “Playing esu!” (map, score, accuracy), “ECHOES Studio” (project, BPM), “ECHOES theme builder” (theme)',
+    'Конструктор тем ECHOES': 'ECHOES theme builder',
+    'Показывать в Discord ECHOES Studio и конструктор тем': 'Show ECHOES Studio and the theme builder in Discord',
+    'Отдельные активности со своими иконками: «ECHOES Studio» (проект, BPM), «Конструктор тем ECHOES» (тема)':
+        'Separate activities with their own icons: “ECHOES Studio” (project, BPM), “ECHOES theme builder” (theme)',
+    'Discord показывает иконки активностей, только если они загружены в ваше приложение Discord.\n\n'
+    '1. Откроется папка с иконками и страница Art Assets приложения.\n'
+    '2. Нажмите «Add Image(s)» и загрузите studio.png и theme_studio.png.\n'
+    '3. Имена (ключи) оставьте как у файлов: studio, theme_studio. Сохраните.\n\n'
+    'Discord обновляет ассеты до 10 минут. Открыть?':
+        'Discord only shows activity icons if they are uploaded to your Discord app.\n\n'
+        '1. The icon folder and the Art Assets page of the app will open.\n'
+        '2. Click “Add Image(s)” and upload studio.png and theme_studio.png.\n'
+        '3. Keep the names (keys) as the file names: studio, theme_studio. Save.\n\n'
+        'Discord updates assets within 10 minutes. Open?',
     'Иконки активностей для Discord…': 'Activity icons for Discord…',
     'Открыть папку с иконками и страницу Art Assets вашего приложения Discord': 'Open the icon folder and the Art Assets page of your Discord app',
     'Иконки для Discord': 'Icons for Discord',
@@ -3802,7 +3377,7 @@ EXACT.update({
 TEMPLATES.update({
     'Делает тему: «{0}»': 'Making a theme: “{0}”', 'Программирует блоками: «{0}»': 'Coding with blocks: “{0}”',
     'Пишет код на EchoScript: «{0}»': 'Writing EchoScript: “{0}”', 'Делает музыку: «{0}»': 'Making music: “{0}”',
-    'слоёв: {0}': 'layers: {0}', 'Результат: {0}': 'Result: {0}',
+    'слоёв: {0}': 'layers: {0}',
 })
 
 # стриминг онлайн-треков и волна
@@ -3855,8 +3430,8 @@ TEMPLATES.update({
 EXACT.update({'Клипы онлайн, без скачивания': 'Clips online, without downloading', 'Находить официальные клипы сами': 'Find official clips automatically', 'Найти клип': 'Find clip', 'Клип ещё не найден': 'Clip not found yet', 'Сохранить клип на компьютер': 'Save clip to this computer', 'Подключаю клип…': 'Connecting clip…', 'Клип сейчас недоступен — попробуйте «Другой клип»': 'The clip is unavailable now — try “Other clip”', 'Клип играет прямо из YouTube — видео на компьютер не скачивается. Скачать\nконкретный клип: в режиме «Клип» → «Другой клип» → «Сохранить клип на компьютер».': 'The clip plays straight from YouTube — the video is not downloaded. To download\na clip: Clip mode → “Other clip” → “Save clip to this computer”.', 'Для каждого играющего трека плеер в фоне найдёт официальный клип (YouTube) и\nподгонит его по звуку, чтобы режим «Клип» открывался сразу. С «клипами онлайн»\nничего не скачивается; без них клип скачивается в ~/.neon_player/clips.': 'For every playing track the player finds the official clip (YouTube) in the background and\nsyncs it by sound so Clip mode opens instantly. With “clips online” nothing is downloaded;\nwithout it the clip is downloaded to ~/.neon_player/clips.', 'Скачиваю клип…': 'Downloading clip…'})
 TEMPLATES.update({'{0}  ·  онлайн': '{0}  ·  online', 'Клип: {0}': 'Clip: {0}'})
 
-# Скачать альбом, теги трека из интернета, расположение интерфейса esu!, экран результата
-EXACT.update({'Скачать альбом': 'Download album', 'Скачать недостающие треки альбома в коллекцию': "Download the album's missing tracks to the collection", 'Скачать альбом в коллекцию': 'Download album to collection', 'Поменять теги трека (Обложка, автор и тд)': 'Change track tags (cover, artist, etc.)', 'Исполнитель, альбом, обложка и название файла — теги для этого трека дополнялись из интернета или их не хватает': "Artist, album, cover and title of the file — this track's tags were filled in from the internet or are missing", 'Расположение интерфейса': 'Interface layout', 'Готово': 'Done', 'Сбросить всё': 'Reset all', 'Как в скине': 'As in skin', 'скрыто': 'hidden', 'скин': 'skin', 'встроенный вид esu!': 'built-in esu! look', 'Перетаскивайте мышью · колесо — размер · правая кнопка — спрятать · двойной клик — на место': 'Drag with the mouse · wheel — size · right click — hide · double click — reset', 'Здоровье': 'Health', 'Счёт': 'Score', 'Точность и прогресс': 'Accuracy and progress', 'Комбо': 'Combo', 'Клавиши': 'Keys', 'Шкала ошибок': 'Hit error meter', 'Моды': 'Mods', 'Таблица рекордов': 'Leaderboard', 'Played by': 'Played by', 'on': 'on', 'мс': 'ms', 'позже': 'late', 'раньше': 'early', 'ПРОВАЛ': 'FAILED', 'НОВЫЙ РЕКОРД!': 'NEW RECORD!', 'Смотреть повтор': 'Watch replay', 'Подогнать смещение': 'Adjust offset', 'Заново': 'Retry'})
+# Скачать альбом, теги трека из интернета
+EXACT.update({'Скачать альбом': 'Download album', 'Скачать недостающие треки альбома в коллекцию': "Download the album's missing tracks to the collection", 'Скачать альбом в коллекцию': 'Download album to collection', 'Поменять теги трека (Обложка, автор и тд)': 'Change track tags (cover, artist, etc.)', 'Исполнитель, альбом, обложка и название файла — теги для этого трека дополнялись из интернета или их не хватает': "Artist, album, cover and title of the file — this track's tags were filled in from the internet or are missing", 'Расположение интерфейса': 'Interface layout', 'Готово': 'Done', 'Сбросить всё': 'Reset all', 'Как в скине': 'As in skin', 'скрыто': 'hidden', 'скин': 'skin', 'Перетаскивайте мышью · колесо — размер · правая кнопка — спрятать · двойной клик — на место': 'Drag with the mouse · wheel — size · right click — hide · double click — reset', 'Здоровье': 'Health', 'Счёт': 'Score', 'Точность и прогресс': 'Accuracy and progress', 'Комбо': 'Combo', 'Клавиши': 'Keys', 'Шкала ошибок': 'Hit error meter', 'Моды': 'Mods', 'Таблица рекордов': 'Leaderboard', 'Played by': 'Played by', 'on': 'on', 'мс': 'ms', 'позже': 'late', 'раньше': 'early', 'ПРОВАЛ': 'FAILED', 'НОВЫЙ РЕКОРД!': 'NEW RECORD!', 'Смотреть повтор': 'Watch replay', 'Подогнать смещение': 'Adjust offset', 'Заново': 'Retry'})
 TEMPLATES.update({'  Скачать альбом ({0})': '  Download album ({0})', '  Скачивается {0} из {1}': '  Downloading {0} of {1}', 'Альбом скачивается в коллекцию: {0}': 'Album is downloading to the collection: {0}', 'Теги трека дополнены: {0}': 'Track tags filled in: {0}'})
 
 # Discord: строка текста, фото исполнителя, очередь, ссылка, статистика; вокал в генераторе

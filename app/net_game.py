@@ -39,7 +39,7 @@ KNOWN = {
     "fc24": "EA FC 24", "fc25": "EA FC 25", "fc26": "EA FC 26", "warthunder": "War Thunder", "aces": "War Thunder",
     "worldoftanks": "World of Tanks", "tarkov": "Escape from Tarkov", "escapefromtarkov": "Escape from Tarkov",
     "bg3": "Baldur's Gate 3", "bg3_dx11": "Baldur's Gate 3", "helldivers2": "HELLDIVERS 2", "palworld-win64-shipping":
-    "Palworld", "osu!": "osu!", "stardew valley": "Stardew Valley", "lethal company": "Lethal Company",
+    "Palworld", "stardew valley": "Stardew Valley", "lethal company": "Lethal Company",
     "deadlock": "Deadlock", "marvel-win64-shipping": "Marvel Rivals", "thefinals": "THE FINALS",
 }
 

@@ -605,8 +605,8 @@ class DiscordPresence:
     def set_activity(self, name: str, details: str, state: str = "", image: str = DEFAULT_LARGE_IMAGE,
                      image_text: str = "", small_image: str = "", small_text: str = "", start: float = 0,
                      end: float = 0, buttons=None):
-        """Своя активность «Играет в …» — вместо музыки, пока вы в esu!, в студии или в конструкторе тем.
-        image — ключ Art Asset приложения Discord (esu, studio, theme_studio) или https-ссылка."""
+        """Своя активность «Играет в …» — вместо музыки, пока вы в студии или в конструкторе тем.
+        image — ключ Art Asset приложения Discord (studio, theme_studio) или https-ссылка."""
         if not self._enabled:
             return
         details, state = _t(details), _t(state) if state else state

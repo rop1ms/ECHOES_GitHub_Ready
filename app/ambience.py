@@ -85,7 +85,7 @@ class BackgroundAmbience(QWidget):
         self._enabled = v
         self._cache = None
         # выключенный слой прячем: невидимый виджет Qt не рисует вовсе, а «пустой» видимый нижний
-        # слой перерисовывался под каждым обновлением интерфейса (в Echoes Music, osu!, студии)
+        # слой перерисовывался под каждым обновлением интерфейса (в Echoes Music, студии)
         self.setVisible(v)
         if v:
             self.lower()

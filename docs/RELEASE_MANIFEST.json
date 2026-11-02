@@ -1,7 +1,7 @@
 {
   "version": "2026.11.02-5",
-  "files": 518,
-  "total_bytes": 142088528,
+  "files": 496,
+  "total_bytes": 141056932,
   "largest_file_bytes": 36722718,
   "private_profile_included": false,
   "text_checksum": "sha256_lf normalizes CRLF to LF for Git checkouts",
@@ -363,11 +363,6 @@
       "bytes": 24057,
       "sha256": "bea4dbaa45ed7a5de74dd3f414a19c117a4c2e936e8de572df3f0a7aefbdf233",
       "sha256_lf": "bea4dbaa45ed7a5de74dd3f414a19c117a4c2e936e8de572df3f0a7aefbdf233"
-    },
-    {
-      "path": "app/discord_assets/esu.png",
-      "bytes": 32506,
-      "sha256": "3ffa06c3d22424df0b5cf0645d5f7e9d41a38cd53e7b399ca614c453de6e15d8"
     },
     {
       "path": "app/discord_assets/studio.png",
@@ -1740,120 +1735,6 @@
       "sha256_lf": "2a77173b3805476a7e3aca32405acd9c2eb4ea8344304414374f7f766014dda7"
     },
     {
-      "path": "app/osu_attempts.py",
-      "bytes": 7982,
-      "sha256": "6a001d45d3d789712c884129c4d329aa969be9a0d9015f3b9da528dcdd25e83e",
-      "sha256_lf": "6a001d45d3d789712c884129c4d329aa969be9a0d9015f3b9da528dcdd25e83e"
-    },
-    {
-      "path": "app/osu_beatmap.py",
-      "bytes": 42974,
-      "sha256": "712630a7edb577aa5a746688c7daaf24e8668d5ddc3afa06c4140ef5a9ba7ddd",
-      "sha256_lf": "712630a7edb577aa5a746688c7daaf24e8668d5ddc3afa06c4140ef5a9ba7ddd"
-    },
-    {
-      "path": "app/osu_classic.py",
-      "bytes": 69909,
-      "sha256": "cddd7015c50c3263c9297959aa848ce7bd629bced224a5bee74eb1a7b340a9ba",
-      "sha256_lf": "6d9283bf8fe96988067f187a32fe6ff314786a9c4e8270f940909c48cedaea00"
-    },
-    {
-      "path": "app/osu_editor.py",
-      "bytes": 56604,
-      "sha256": "bb53a0f4c46e953632fe8090d61ef7cc5dccc8e71db5e0c95e019b4b6560f6c8",
-      "sha256_lf": "210fd44f16fe8cd106a843f46168a719af8396e64b37aa79da9716d7dd596874"
-    },
-    {
-      "path": "app/osu_game.py",
-      "bytes": 153525,
-      "sha256": "f32ff23534c4396f709543fe528aaf5840f0601f8175254a16f9c8271146567a",
-      "sha256_lf": "84991eca9c54ff1b2b061be358ccb675cf92ecf32a1b194f12c8b93e748ce58a"
-    },
-    {
-      "path": "app/osu_gen_dialog.py",
-      "bytes": 12920,
-      "sha256": "fbcbea623c46d26e2fb7f6b6d910c2784970cd0bc71a1453b1274352b474055e",
-      "sha256_lf": "fbcbea623c46d26e2fb7f6b6d910c2784970cd0bc71a1453b1274352b474055e"
-    },
-    {
-      "path": "app/osu_hud_layout.py",
-      "bytes": 22495,
-      "sha256": "2f25ba60e845c6fdf45101ee57bbe4ad5a17c51d02d96fa675d1143e93ac6dbc",
-      "sha256_lf": "4bb7030c30b04698815ed0a6a2848e8ad80b6ebc0296a865091cc580be633dc0"
-    },
-    {
-      "path": "app/osu_mapgen.py",
-      "bytes": 126119,
-      "sha256": "9bb01fe90fcb95b103fff9b48237f14c025e6d875f6d0fffec4e991597ec983f",
-      "sha256_lf": "9bb01fe90fcb95b103fff9b48237f14c025e6d875f6d0fffec4e991597ec983f"
-    },
-    {
-      "path": "app/osu_mapgen_data.py",
-      "bytes": 16467,
-      "sha256": "b4c72ae169f1845294b63fdcf8fba0e52fb5c0fa4e68ec9a25215a97d16d29c0",
-      "sha256_lf": "546fdf48ec2bd54c7ec94c764c740187f4994ed2194146ed41f3f73804a2b111"
-    },
-    {
-      "path": "app/osu_pause.py",
-      "bytes": 17384,
-      "sha256": "a5412ac1d0e8c0ec74a108023acbcd3c755fcbf2d7140345ba93444b0e8df23a",
-      "sha256_lf": "a5412ac1d0e8c0ec74a108023acbcd3c755fcbf2d7140345ba93444b0e8df23a"
-    },
-    {
-      "path": "app/osu_query.py",
-      "bytes": 1096,
-      "sha256": "fae6013b282bdabf60ca4cdbfa3175188e78f5c5584e4cee4b6281395a17bd9d",
-      "sha256_lf": "fae6013b282bdabf60ca4cdbfa3175188e78f5c5584e4cee4b6281395a17bd9d"
-    },
-    {
-      "path": "app/osu_ranking.py",
-      "bytes": 16736,
-      "sha256": "e62e10e10440e998e543665f2455e138415fe8bcfd1001a686dcc85ca992fe3a",
-      "sha256_lf": "e62e10e10440e998e543665f2455e138415fe8bcfd1001a686dcc85ca992fe3a"
-    },
-    {
-      "path": "app/osu_sens_convert.py",
-      "bytes": 13863,
-      "sha256": "4110a86634f03d1ab535941eb3d8e21c8667b16610e2f3acbd97d6d848b8fc9c",
-      "sha256_lf": "4110a86634f03d1ab535941eb3d8e21c8667b16610e2f3acbd97d6d848b8fc9c"
-    },
-    {
-      "path": "app/osu_sfx.py",
-      "bytes": 5039,
-      "sha256": "1cb8971fa0fbb320d6fadee8f18a2a3be86e6376634034da1c1d46fd7078ced4",
-      "sha256_lf": "1cb8971fa0fbb320d6fadee8f18a2a3be86e6376634034da1c1d46fd7078ced4"
-    },
-    {
-      "path": "app/osu_skin.py",
-      "bytes": 55506,
-      "sha256": "4f9b53f0955f10bb59cc4e78daa62e4e33e92cba302329d64a65b6e15b88dd88",
-      "sha256_lf": "5b1ea284777cef73d7a58292d1d739efd0ce50959a7b4ed621fe54db97834c5d"
-    },
-    {
-      "path": "app/osu_skin_import.py",
-      "bytes": 36125,
-      "sha256": "42a28a69643e65538d1983cdd962f72c5ae7dda04875b3721a71c7a2c8cde0b2",
-      "sha256_lf": "6831e0a7a31f878796cbda02fabe12bec3c307930b9b770466a30a96582bfb3f"
-    },
-    {
-      "path": "app/osu_skin_plus.py",
-      "bytes": 24764,
-      "sha256": "a375a10841ec2b99bcf2bef2e3da424563c5b17d10dc85bf3d79a08e3289fbf3",
-      "sha256_lf": "6bc213d603f322ef1d287d7b872f08c10dfe9b7987af4fba04f5ded93357313d"
-    },
-    {
-      "path": "app/osu_theme.py",
-      "bytes": 229020,
-      "sha256": "68704dfad66e4480fb5e4dc969650b442fdc5c93fffac06596041a2628be71db",
-      "sha256_lf": "68704dfad66e4480fb5e4dc969650b442fdc5c93fffac06596041a2628be71db"
-    },
-    {
-      "path": "app/osu_y2k.py",
-      "bytes": 50220,
-      "sha256": "9b2d5ec792be0cd0905e08bedd1391bca8291fd9b3c3a7841c65b947915d914a",
-      "sha256_lf": "9b2d5ec792be0cd0905e08bedd1391bca8291fd9b3c3a7841c65b947915d914a"
-    },
-    {
       "path": "app/overlay_demo.py",
       "bytes": 46656,
       "sha256": "d277a1b5d8b631c42aba7c3754aa228d505879f795f85a5bdb5166d848e755b3",
@@ -2941,12 +2822,6 @@
       "sha256_lf": "59db3818574d733341597b79059fac3edfa8222b08b88566970c15898cb7d592"
     },
     {
-      "path": "tools/native/body.cpp",
-      "bytes": 6323,
-      "sha256": "4e3683db56f1f2523ad5c8a9812ff28ef69ac63c7fa3a0dc9210b903e4884e8b",
-      "sha256_lf": "4e3683db56f1f2523ad5c8a9812ff28ef69ac63c7fa3a0dc9210b903e4884e8b"
-    },
-    {
       "path": "tools/native/build.sh",
       "bytes": 1111,
       "sha256": "a8b822405ac72c7947041d4c3396e4ad835622a5afe0bfa64536ac725dd575a6",
@@ -3005,12 +2880,6 @@
       "bytes": 2515,
       "sha256": "977e1b25f970a90a81834e85838c80fa3aea09eb7ff455fb8b69a010fb500a4b",
       "sha256_lf": "977e1b25f970a90a81834e85838c80fa3aea09eb7ff455fb8b69a010fb500a4b"
-    },
-    {
-      "path": "tools/native/sprite.cpp",
-      "bytes": 34019,
-      "sha256": "771c7970ae8eb51db1c6883841918c678f293f11bfcb69035fd515637cc55d85",
-      "sha256_lf": "77eec7302f8dbac87988a33efb3899530806b6d22beab087d677f87a5533361b"
     },
     {
       "path": "tools/native/studio.cpp",

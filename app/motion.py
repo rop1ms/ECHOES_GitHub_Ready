@@ -37,8 +37,6 @@ def duration(milliseconds, win=None):
 def accent(win):
     if getattr(win, '_wa_on', False):
         return QColor('#7dff59')
-    if getattr(win, '_osu_on', False):
-        return QColor('#ff78b9')
     if getattr(win, '_daw_on', False):
         return QColor('#ffad4b')
     if getattr(win, '_ya_on', False):

@@ -75,7 +75,7 @@ def _load(lang):
     import i18n_en
     _EXACT.update(i18n_en.EXACT)
     templates = dict(i18n_en.TEMPLATES)
-    try:                                                 # дополнение словаря (osu!, студия, конструктор…)
+    try:                                                 # дополнение словаря (студия, конструктор…)
         import i18n_en_extra
         for k, v in i18n_en_extra.EXACT.items():
             _EXACT.setdefault(k, v)

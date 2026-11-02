@@ -26,8 +26,8 @@ _CACHE_BYTES = 256 * 2 ** 20
 
 def _ffmpeg():
     try:
-        import osu_game as G
-        return G._ffmpeg()
+        import beat_analysis
+        return beat_analysis._ffmpeg()
     except Exception:                           # noqa: BLE001
         import shutil
         return shutil.which("ffmpeg")

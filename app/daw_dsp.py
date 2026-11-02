@@ -30,7 +30,7 @@ _LOWPRI = 0x00004000 if os.name == "nt" else 0         # BELOW_NORMAL_PRIORITY_C
 
 def ffmpeg_exe() -> str | None:
     try:
-        from osu_mapgen import _ffmpeg
+        from beat_analysis import _ffmpeg
         p = _ffmpeg()
         if p:
             return p

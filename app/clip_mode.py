@@ -84,11 +84,6 @@ def clip_style(d: dict | None) -> dict:
         st.update(family="ya", bg="#0a0a0b", text="#ffffff", muted="#a0a0a6", accent=d.get("accent", "#ffdb4d"),
                   panel=_rgba("#ffffff", 0.06), line=_rgba("#ffffff", 0.12), radius=20, btn_radius=20,
                   frame_radius=20, glow=0.0, bg_mode="cover", dim=0.62, scale=0.86)   # стекло, без жёлтого свечения
-    elif d.get("osu"):
-        st.update(bg="#0e0a10", text="#ffffff", muted="#b9adc4", accent="#ff66aa", accent2="#ffb3d4",
-                  panel=_rgba("#ff66aa", 0.14), line=_rgba("#ff66aa", 0.35), radius=22, btn_radius=18,
-                  frame="rounded", frame_radius=18, border="#ff66aa", border_w=3, glow=0.85, glow_color="#ff66aa",
-                  bg_mode="ambient", dim=0.72, scale=0.84)
     elif d.get("fluid"):
         dark = not light
         st.update(family="fluid", accent="#FF8A00", accent2=acc2, panel=d.get("panel2") or d.get("panel", bg),

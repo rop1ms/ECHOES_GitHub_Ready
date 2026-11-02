@@ -12,8 +12,8 @@
 доезжает до неё за ~0.2 с (быстрая прокрутка складывается и разгоняется). Тачпад (точные пиксели) и
 Ctrl+колесо — как раньше; Shift+колесо плавно листает по горизонтали.
 
-Не трогает: текст песни, список настроений «Моей волны», а также Echoes Studio и esu! — там колесо рабочий
-инструмент (масштаб, ручки, выбор песни).
+Не трогает: текст песни, список настроений «Моей волны», а также Echoes Studio — там колесо рабочий
+инструмент (масштаб, ручки).
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from PyQt6.QtGui import QWheelEvent
 from PyQt6.QtWidgets import (QAbstractItemView, QAbstractScrollArea, QAbstractSlider, QAbstractSpinBox, QApplication,
                              QComboBox, QScrollBar, QTabBar, QWidget)
 
-_SKIP_MODULES = ("daw_", "osu_", "dsl_", "theme_studio", "button_editor", "esu")
+_SKIP_MODULES = ("daw_", "dsl_", "theme_studio", "button_editor")
 _OWN_WHEEL = ("lyrics_view", "ya_wave", "net_files_ui")       # своя логика колеса — плавность не навязываем
 STEP_PX = 100                                                  # за один щелчок колеса
 TAU = 0.07                                                     # постоянная времени доводки, с

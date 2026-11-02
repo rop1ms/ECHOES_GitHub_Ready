@@ -670,8 +670,8 @@ class AudioEngine(QObject):
         if not self.current_path:
             return False
         if self.player.get_state() == vlc.State.Ended:
-            # play() у доигравшего трека VLC молча игнорирует (оставалась тишина: повтор трека,
-            # osu! после конца карты) — открываем его заново с запомненной позиции
+            # play() у доигравшего трека VLC молча игнорирует (оставалась тишина при повторе трека) —
+            # открываем его заново с запомненной позиции
             at, self._resume_at = getattr(self, "_resume_at", None), None
             return self.load(self.current_path, autoplay=True, start_sec=at or 0.0)
         # Запоминаем состояние ДО вызова play() — только реальная пауза
@@ -740,8 +740,7 @@ class AudioEngine(QObject):
 
     def pause_hard(self):
         """Пауза, которая ничего не переключает. pause() у VLC — переключатель: на уже стоящем на паузе
-        треке он звук ВКЛЮЧАЕТ (рестарт карты esu! из меню паузы / после провала запускал музыку
-        раньше отсчёта, а потом звук прыгал в начало)."""
+        треке он звук ВКЛЮЧАЕТ (кнопка «Пауза» в дуэли и в инструментах прослушивания запускала музыку)."""
         self._want_playing = False
         st = self.player.get_state()
         if st in (vlc.State.Playing, vlc.State.Opening, vlc.State.Buffering) or self.is_playing():

@@ -1,4 +1,4 @@
-"""Regression coverage for packaging and isolated studio/map/designer data flows."""
+"""Regression coverage for packaging and isolated studio/designer data flows."""
 from __future__ import annotations
 
 import json
@@ -7,7 +7,6 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
@@ -16,48 +15,6 @@ os.environ.setdefault("ECHOES_NO_NATIVE", "1")
 
 
 class ComponentAudit(unittest.TestCase):
-    def test_osz_import_stays_inside_song_directory(self):
-        import osu_beatmap as maps
-        with tempfile.TemporaryDirectory(prefix="echoes-osz-audit-") as tmp:
-            folder = Path(tmp)
-            old_songs = maps.SONGS
-            maps.SONGS = folder / "songs"
-            try:
-                archive = folder / "test.osz"
-                escaped = folder / "escaped.osu"
-                with zipfile.ZipFile(archive, "w") as z:
-                    z.writestr("map.osu", "osu file format v14")
-                    z.writestr("../escaped.osu", "invalid")
-                    # A valid absolute Windows member name used to bypass '..'.
-                    z.writestr(escaped.as_posix(), "invalid")
-                result = Path(maps.extract_osz(str(archive)))
-                self.assertTrue((result / "map.osu").is_file())
-                self.assertFalse(escaped.exists())
-                self.assertEqual(result, Path(maps.extract_osz(str(archive))))
-            finally:
-                maps.SONGS = old_songs
-
-    def test_osz_same_name_archives_do_not_merge(self):
-        import osu_beatmap as maps
-        with tempfile.TemporaryDirectory(prefix="echoes-osz-names-") as tmp:
-            folder = Path(tmp)
-            old_songs = maps.SONGS
-            maps.SONGS = folder / "songs"
-            try:
-                results = []
-                for i in range(2):
-                    source = folder / str(i)
-                    source.mkdir()
-                    archive = source / "same.osz"
-                    with zipfile.ZipFile(archive, "w") as z:
-                        z.writestr("map.osu", str(i))
-                    results.append(Path(maps.extract_osz(str(archive))))
-                self.assertNotEqual(*results)
-                self.assertEqual((results[0] / "map.osu").read_text(), "0")
-                self.assertEqual((results[1] / "map.osu").read_text(), "1")
-            finally:
-                maps.SONGS = old_songs
-
     def test_studio_project_and_pattern_roundtrip(self):
         import daw_project as projects
         with tempfile.TemporaryDirectory(prefix="echoes-studio-audit-") as tmp:

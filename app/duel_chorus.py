@@ -93,14 +93,6 @@ def analyze(track):
     if known is not None: return (known, 'chorus')
     path = str(track.get('path') or '')
     if not path or path.startswith('stream:') or not Path(path).is_file(): return (0., 'start')
-    try:
-        from osu_mapgen import load_cached
-        analysis = (load_cached(path) or {}).get('an') or {}
-        sections = analysis.get('kiai') or []
-        for start, end in sections:
-            if end-start >= 6000 and start >= 5000 and start/1000 < duration(track)-4:
-                return (max(0., start/1000-.3), 'chorus')
-    except (ImportError, OSError, ValueError, TypeError): pass
     executable = shutil.which('ffmpeg')
     if not executable:
         for base in (Path(__file__).resolve().parent.parent, Path(os.environ.get('LOCALAPPDATA',''))/'Programs/ECHOES'):

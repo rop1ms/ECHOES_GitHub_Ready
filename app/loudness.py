@@ -135,7 +135,7 @@ class LoudnessStore:
                 continue
             try:
                 import bgproc
-                bgproc.idle_wait()                   # идёт игра esu! — замер громкости подождёт
+                bgproc.idle_wait()                   # интерфейс занят — замер громкости подождёт
             except Exception:                        # noqa: BLE001
                 pass
             m = measure(path)

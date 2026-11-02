@@ -180,7 +180,7 @@ try:
         check("populated:" + key, lambda key=key: (shell._dirty.add(key), shell.show_page(key), settle()))
     for width, height in ((860, 600), (1120, 720), (1920, 1080)):
         check(f"resize:{width}x{height}", lambda w=width, h=height: (win.resize(w, h), settle(), win.grab()))
-    for theme in ("Vinyl glass", "Fluid", "Fluid Dark", "Winamp", "esu!", "Echoes Music"):
+    for theme in ("Vinyl glass", "Fluid", "Fluid Dark", "Winamp", "Echoes Music"):
         if theme in main.THEMES:
             check("theme:" + theme, lambda theme=theme: (win._apply_theme(theme), settle(.3), win.grab()))
 except Exception:
