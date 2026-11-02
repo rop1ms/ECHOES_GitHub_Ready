@@ -465,6 +465,22 @@ class PlayButton(QAbstractButton):
         acc = accent()
         d = CURRENT
         lvl = d.level if d is not None and self.playing else 0.0
+        import wave_veil
+        if wave_veil.void():                                   # «Моя волна»: на черноте — только белый знак
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(255, 255, 255, 255 if self._hover or self.isDown() else 225))
+            if self.playing:
+                p.drawRoundedRect(QRectF(c.x() - 7, c.y() - 8, 5, 16), 1.5, 1.5)
+                p.drawRoundedRect(QRectF(c.x() + 2, c.y() - 8, 5, 16), 1.5, 1.5)
+            else:
+                tri = QPainterPath()
+                tri.moveTo(c.x() - 5, c.y() - 9)
+                tri.lineTo(c.x() + 10, c.y())
+                tri.lineTo(c.x() - 5, c.y() + 9)
+                tri.closeSubpath()
+                p.drawPath(tri)
+            p.end()
+            return
         if on("play_glow") and self.playing:                    # свечение + кольцо-эквалайзер
             gr = QRadialGradient(c, 27)
             g0 = QColor(acc); g0.setAlpha(int(70 + 110 * lvl))

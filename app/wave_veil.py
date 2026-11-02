@@ -1,33 +1,40 @@
 # wave_veil.py
 """
-«Моя волна» во весь экран: панели вокруг (верх, разделы, плеер, угловые) заливаются чернотой и туманом.
+«Моя волна» во весь экран: пустота поглощает панели вокруг (верх, разделы, плеер, угловые блоки).
 
-Входишь в «Мою волну» — от неё наружу по всем стеклянным панелям расходится темнота (фронт с мягким
-краем и цветной кромкой), сквозь неё плывёт туман; остаются только кнопки и плеер. Подписи-украшения
-(«РАЗДЕЛЫ», карточка исполнителя) растворяются. Выходишь — всё так же плавно возвращается.
+Входишь в «Мою волну» — от неё наружу по всем стеклянным панелям расходится абсолютная чернота (фронт с
+мягким краем). Когда панели почти чёрные (VOID_AT), у кнопок в них пропадают фоны и рамки, а их значки
+и текст становятся белыми — остаются только символы (плей в плеере — тоже: ya_decor.PlayButton смотрит
+void()). Подписи-украшения («РАЗДЕЛЫ», карточка исполнителя) растворяются. Обложки плейлистов наверху —
+картинки, а не символы, их не трогаем. Выходишь — кнопки сразу становятся как были, чернота уходит.
 
-Рисует AmbientFrame.paintEvent (paint): поверх своего стекла — затемнение и туман этой панели.
-Туман — заготовка на размер панели (мягкие облака из шума, одна картинка), за кадр только сдвиг
-и прозрачность — переход стоит пару миллисекунд на кадр.
+Рисует AmbientFrame.paintEvent (paint): поверх своего стекла — черноту этой панели.
 """
 from __future__ import annotations
 
-import random
-
-from PyQt6.QtCore import QEasingCurve, QObject, QPointF, QRectF, Qt, QVariantAnimation
-from PyQt6.QtGui import QColor, QImage, QPainter, QPainterPath, QPixmap, QRadialGradient
-from PyQt6.QtWidgets import QGraphicsOpacityEffect, QWidget
+from PyQt6.QtCore import QEasingCurve, QObject, QPointF, QRectF, QSize, Qt, QVariantAnimation
+from PyQt6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPixmap, QRadialGradient
+from PyQt6.QtWidgets import QAbstractButton, QGraphicsOpacityEffect, QWidget
 
 IN_MS = 950
 OUT_MS = 700
-DARK = 0.93                                                    # насколько черны панели в «Моей волне»
+VOID_AT = 0.6                                                  # с этой черноты кнопки — только белые символы
 SKIP = ("YaContent", "ListenerCard")                           # сама «Моя волна» и карточки настроек
+KEEP_ICONS = ("PlaylistStrip",)                                # обложки — картинки, не перекрашивать
+VOID_QSS = ("QAbstractButton{background:transparent;border:1px solid transparent;color:#ffffff;}"
+            "QAbstractButton:hover{background:rgba(255,255,255,0.08);}"
+            "QAbstractButton:checked{background:transparent;border:1px solid rgba(255,255,255,0.32);}")
 
 _VEIL = None
 
 
 def level() -> float:
     return _VEIL.level if _VEIL is not None else 0.0
+
+
+def void() -> bool:
+    """Кнопки в панелях сейчас — только белые символы на черноте."""
+    return _VEIL is not None and _VEIL.voided
 
 
 def install(shell):
@@ -37,27 +44,20 @@ def install(shell):
     return _VEIL
 
 
-def _fog(w: int, h: int, seed: int) -> QPixmap:
-    """Мягкие облака тумана: две октавы шума низкого разрешения, растянутые со сглаживанием."""
-    rnd = random.Random(seed)
-    out = QPixmap(max(1, w), max(1, h))
+def _white(icon: QIcon, size: QSize, dpr: float) -> QIcon:
+    """Тот же значок, но белый (форма — по прозрачности оригинала)."""
+    pm = icon.pixmap(QSize(max(1, size.width()), max(1, size.height())), dpr)
+    if pm.isNull():
+        return icon
+    out = QPixmap(pm.size())
+    out.setDevicePixelRatio(pm.devicePixelRatio())
     out.fill(Qt.GlobalColor.transparent)
     p = QPainter(out)
-    p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-    for cell, alpha in ((90, 0.75), (34, 0.45)):
-        gw, gh = max(2, w // cell + 2), max(2, h // cell + 2)
-        img = QImage(gw, gh, QImage.Format.Format_ARGB32_Premultiplied)
-        for y in range(gh):
-            for x in range(gw):
-                v = rnd.random() ** 2.2
-                a = int(255 * v * alpha)
-                c = QColor(120 + int(60 * v), 128 + int(50 * v), 170 + int(60 * v), a)
-                img.setPixelColor(x, y, c)
-        p.drawImage(QRectF(-cell, -cell, w + 2 * cell, h + 2 * cell),
-                    img.scaled(gw * 8, gh * 8, Qt.AspectRatioMode.IgnoreAspectRatio,
-                               Qt.TransformationMode.SmoothTransformation))
+    p.drawPixmap(0, 0, pm)
+    p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+    p.fillRect(out.rect(), QColor(255, 255, 255))
     p.end()
-    return out
+    return QIcon(out)
 
 
 class Veil(QObject):
@@ -66,9 +66,11 @@ class Veil(QObject):
         self.shell = shell
         self.level = 0.0
         self.on = False
+        self.voided = False
         self.anim = QVariantAnimation(self)
         self.anim.valueChanged.connect(self._set)
         self._fx = {}
+        self._saved = {}                                       # id(кнопки) → (кнопка, стиль, значок, белый значок)
 
     def panels(self):
         from yamusic_theme import AmbientFrame
@@ -83,6 +85,8 @@ class Veil(QObject):
         if on == self.on:
             return
         self.on = on
+        if not on:
+            self._void(False)                                  # выходим — кнопки сразу как были
         import motion
         if motion.strength() <= 0:                             # «минимум движения» — сразу
             self.anim.stop()
@@ -97,6 +101,8 @@ class Veil(QObject):
 
     def _set(self, v):
         self.level = float(v)
+        if self.on and self.level >= VOID_AT:
+            self._void(True)
         for f in self.panels():
             f.update()
         for w in self.decor():                                 # подписи-украшения растворяются
@@ -124,9 +130,47 @@ class Veil(QObject):
                 self._fx[id(w)] = fx
             fx.setOpacity(vis)
 
+    def _buttons(self):
+        for f in self.panels():
+            for b in f.findChildren(QAbstractButton):
+                if b.isVisible():
+                    yield b
+
+    def _void(self, on: bool):
+        """Кнопки в панелях: без фона и рамки, значок и текст белые — или всё как было."""
+        if on == self.voided:
+            return
+        self.voided = on
+        if on:
+            for b in self._buttons():
+                if id(b) in self._saved:
+                    continue
+                icon, white = b.icon(), None
+                parent = b.parentWidget()               # обложка плейлиста — картинка; «⋯» рядом — символ
+                keep = parent is not None and type(parent).__name__ in KEEP_ICONS and not icon.isNull()
+                if not icon.isNull() and not keep:
+                    white = _white(icon, b.iconSize(), b.devicePixelRatioF())
+                    b.setIcon(white)
+                self._saved[id(b)] = (b, b.styleSheet(), icon, white)
+                if not keep:
+                    b.setStyleSheet(b.styleSheet() + VOID_QSS)
+                b.update()
+        else:
+            for b, qss, icon, white in self._saved.values():
+                try:
+                    b.setStyleSheet(qss)
+                    if white is not None and b.icon().cacheKey() == white.cacheKey():
+                        b.setIcon(icon)                        # значок не меняли, пока была пустота
+                    b.update()
+                except RuntimeError:
+                    pass
+            self._saved.clear()
+        for f in self.panels():
+            f.update()
+
 
 def paint(frame, p: QPainter, radius: float):
-    """Поверх стекла панели — темнота с фронтом от «Моей волны» и туман."""
+    """Поверх стекла панели — чернота, расходящаяся от «Моей волны»."""
     v = level()
     if v <= 0.001 or frame.objectName() in SKIP or _VEIL is None:
         return
@@ -135,7 +179,10 @@ def paint(frame, p: QPainter, radius: float):
     shape.addRoundedRect(QRectF(0, 0, W, H), radius, radius)
     p.save()
     p.setClipPath(shape)
-    # фронт темноты: круг из центра «Моей волны» растёт до самых дальних панелей
+    if v >= 0.999:
+        p.fillRect(QRectF(0, 0, W, H), QColor(0, 0, 0))
+        p.restore()
+        return
     content = getattr(_VEIL.shell, "content", None)
     win = frame.window()
     if content is not None:
@@ -144,34 +191,16 @@ def paint(frame, p: QPainter, radius: float):
     else:
         centre = QPointF(W / 2, H / 2)
     reach = (win.width() ** 2 + win.height() ** 2) ** 0.5
-    front = min(1.0, v * 1.15)
+    front = min(1.0, v * 1.2)                                  # фронт пустоты растёт от «Моей волны»
+    edge = max(0.0, front - 0.2)
+    ink = QColor(0, 0, 0)
     g = QRadialGradient(centre, reach)
-    ink = QColor(0, 0, 0, int(255 * DARK))
-    edge = max(0.0, front - 0.18)
     g.setColorAt(0.0, ink)
     g.setColorAt(edge, ink)
     if front < 1.0:
-        try:                                                   # кромка фронта — акцентом темы
-            import ya_decor
-            rim = QColor(ya_decor.accent())
-        except Exception:                                      # noqa: BLE001
-            rim = QColor(140, 120, 255)
-        rim.setAlpha(int(90 * (1.0 - v)))
-        g.setColorAt(min(1.0, edge + 0.12), rim)
-        g.setColorAt(min(1.0, front + 0.02), QColor(0, 0, 0, 0))
+        g.setColorAt(front, QColor(0, 0, 0, 0))
         g.setColorAt(1.0, QColor(0, 0, 0, 0))
     else:
         g.setColorAt(1.0, ink)
     p.fillRect(QRectF(0, 0, W, H), g)
-    # туман: гуще и быстрее, пока идёт переход, потом — лёгкая дымка
-    key = (W, H)
-    fog = frame.__dict__.get("_veil_fog")
-    if fog is None or fog[0] != key:
-        fog = (key, _fog(W, H, hash(frame.objectName()) & 0xffff))
-        frame._veil_fog = fog
-    moving = 4.0 * v * (1.0 - v)                               # 0 в начале и в конце, 1 посередине
-    p.setOpacity(min(1.0, 0.22 + 0.55 * moving) * v)
-    dx = (1.0 - v) * 140.0 - 40.0
-    p.drawPixmap(QPointF(dx, 0), fog[1])
-    p.drawPixmap(QPointF(dx - W, 0), fog[1])
     p.restore()

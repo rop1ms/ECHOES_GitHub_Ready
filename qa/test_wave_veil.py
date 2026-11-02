@@ -1,6 +1,7 @@
-"""My Wave veil (wave_veil.py): panels around My Wave go dark and foggy, buttons stay.
+"""My Wave veil (wave_veil.py): the void swallows the panels around My Wave, only symbols stay.
 
-- the veil darkens a glass panel (its pixels get darker) but never the My Wave content panel;
+- the veil turns a glass panel black but never the My Wave content panel;
+- buttons in the panels lose their backgrounds and get white icons; leaving restores them exactly;
 - decorations (section heading, artist card) fade and hide, and come back when leaving;
 - leaving returns the panels exactly to their normal look."""
 import os
@@ -50,6 +51,11 @@ class Shell(QWidget):
         self._side_head = QLabel('РАЗДЕЛЫ')
         sv.addWidget(self._side_head)
         self.btn = QPushButton('Моя волна')
+        self.btn.setStyleSheet('QPushButton{background:#8a5cff;color:#101010;}')
+        from PyQt6.QtGui import QIcon, QPixmap
+        pm = QPixmap(20, 20)
+        pm.fill(QColor(20, 20, 20))                             # dark icon — would vanish on black
+        self.btn.setIcon(QIcon(pm))
         sv.addWidget(self.btn)
         self.artist_card = QLabel('artist card')
         sv.addWidget(self.artist_card)
@@ -81,12 +87,19 @@ class WaveVeil(unittest.TestCase):
         self.veil.set_on(True)
         pump(0.5)
         self.assertAlmostEqual(wave_veil.level(), 1.0, places=2)
-        self.assertGreater(abs(brightness(self.grab(self.shell.side)) - side0), 4.0, 'panel covered by the veil')
+        self.assertLess(brightness(self.grab(self.shell.side)), side0 * 0.6, 'panel swallowed by black')
+        self.assertTrue(wave_veil.void())
+        self.assertIn('transparent', self.shell.btn.styleSheet())
+        ic = self.shell.btn.icon().pixmap(20, 20).toImage()
+        self.assertEqual(ic.pixelColor(10, 10).lightness(), 255, 'dark symbol turns white')
         self.assertAlmostEqual(brightness(self.grab(self.shell.content)), content0, delta=1.0)
         self.assertTrue(self.shell.btn.isVisible(), 'buttons stay')
         self.assertFalse(self.shell._side_head.isVisible())
         self.assertFalse(self.shell.artist_card.isVisible())
         self.veil.set_on(False)
+        self.assertFalse(wave_veil.void())
+        self.assertEqual(self.shell.btn.styleSheet(), 'QPushButton{background:#8a5cff;color:#101010;}')
+        self.assertLess(self.shell.btn.icon().pixmap(20, 20).toImage().pixelColor(10, 10).lightness(), 40)
         pump(0.5)
         self.assertEqual(wave_veil.level(), 0.0)
         self.assertTrue(self.shell._side_head.isVisible())
