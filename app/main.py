@@ -161,18 +161,22 @@ PROFILE_FILE = DATA_DIR / "profile.json"
 SETTINGS_FILE = DATA_DIR / "settings.json"
 AUDIO_EXTS = {".mp3", ".ogg", ".wav", ".flac", ".m4a", ".opus"}
 
-def load_json(path, default):
-    try:
-        if path.exists():
-            return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        pass
-    return default
+def load_json(path, default, validator=None):
+    from atomic_json import load_json as read_profile_json
+    return read_profile_json(path,default,validator=validator)
+
+def load_library(path):
+    records=load_json(path,[],validator=lambda rows:not rows or any(isinstance(row,dict) for row in rows))
+    tracks=[record for record in records if isinstance(record,dict)]
+    if len(tracks)!=len(records):
+        print('[data] ignored invalid library records:',len(records)-len(tracks))
+    return tracks
 
 def save_json(path, obj):
     # Compact encoding stays in the C encoder; pretty-printing large settings
     # recursively in Python used an entire input frame on every slider step.
-    path.write_text(json.dumps(obj, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    from atomic_json import save_json as write_profile_json
+    return write_profile_json(path,obj)
 
 
 def _round_image(path, side: int, size: int):
@@ -423,7 +427,7 @@ class MainWindow(QMainWindow):
         self.engine.crossfade_started.connect(self._on_crossfade_started)
         self.engine.error_changed.connect(lambda text: print("[audio]", text))
         self._lyrics_fetched.connect(self._lyrics_ready)
-        self.library = load_json(LIB_FILE, [])
+        self.library = load_library(LIB_FILE)
         self.tierlist_path = TIER_FILE
         stored_playlists = load_json(PL_FILE, {})
         self.playlists = stored_playlists

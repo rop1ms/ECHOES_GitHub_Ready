@@ -2934,7 +2934,13 @@ class YaShell(QWidget):
     def profiles(self):
         """Профили настроения треков (music_intel) или None, пока считаются."""
         if self._profiles is None:
-            self._profiles = self.win._ya_profiles(self._on_profiles)
+            try:
+                self._profiles = self.win._ya_profiles(self._on_profiles)
+            except Exception as error:
+                # Optional analysis must never prevent the library from being
+                # displayed. A later library change retries the analysis.
+                print('[collection] optional profiles:',error)
+                self._profiles = {}
         return self._profiles
 
     def _on_profiles(self, prof):
@@ -2948,6 +2954,39 @@ class YaShell(QWidget):
     # ── навигация ─────────────────────────────────────────────────────── #
 
     def show_page(self, key, remember=True):
+        previous_widget=self.stack.currentWidget()
+        previous=next((name for name,page in self.pages.items() if page is previous_widget),self._cur_page)
+        missing=object()
+        previous_hint=self.__dict__.get('_prev_page',missing)
+        history=self.__dict__.get('_page_hist',missing)
+        if history is not missing:history=list(history)
+        saved_choice=self.win.settings.get('ya_page',missing)
+        lyrics=self.btn_lyrics.isChecked();queue_style=self.btn_queue.styleSheet()
+        try:
+            self._show_page(key,remember)
+        except Exception:
+            # A failed first build must not select a different navigation item,
+            # overwrite startup choice/history, or leave a frozen half-page.
+            import ui_anim
+            ui_anim._finish(self.stack)
+            if previous_widget is not None and self.stack.indexOf(previous_widget)>=0:
+                self.stack.setCurrentWidget(previous_widget)
+            self._cur_page=previous
+            if previous_hint is missing:self.__dict__.pop('_prev_page',None)
+            else:self._prev_page=previous_hint
+            if history is missing:self.__dict__.pop('_page_hist',None)
+            else:self._page_hist=history
+            if saved_choice is missing:self.win.settings.pop('ya_page',None)
+            else:self.win.settings['ya_page']=saved_choice
+            if previous in self._nav_btns:self._nav_btns[previous].setChecked(True)
+            else:
+                selected=self.nav.checkedButton()
+                if selected is not None:
+                    self.nav.setExclusive(False);selected.setChecked(False);self.nav.setExclusive(True)
+            self.btn_lyrics.setChecked(lyrics);self.btn_queue.setStyleSheet(queue_style)
+            raise
+
+    def _show_page(self, key, remember=True):
         if key == "listening":
             self._ensure_listening_tools()
             key = "settings"
@@ -3000,16 +3039,26 @@ class YaShell(QWidget):
 
     def _rebuild(self, key):
         self._dirty.discard(key)
-        if key == "foryou":
-            self._fill_foryou()
-        elif key == "collection":
-            self._fill_collection()
-        elif key == "albums":
-            self._fill_albums()
-        elif key == "wave":
-            self._fill_wave_list()
-        elif key == "search":
-            self._search_changed()
+        try:
+            # A background data update must not leave an obsolete snapshot
+            # covering the refreshed model until the animation ends.
+            if self.stack.currentWidget() is self.pages.get(key):
+                import ui_anim
+                ui_anim._finish(self.stack)
+            if key == "foryou":
+                self._fill_foryou()
+            elif key == "collection":
+                self._fill_collection()
+            elif key == "albums":
+                self._fill_albums()
+            elif key == "wave":
+                self._fill_wave_list()
+            elif key == "search":
+                self._search_changed()
+        except Exception:
+            # Keep a failed first build retryable on the next visit.
+            self._dirty.add(key)
+            raise
 
     # ── история страниц: «Назад» возвращает ровно туда, где были (артист → другой артист → альбом …) ── #
 
@@ -4417,7 +4466,10 @@ class YaShell(QWidget):
 
     def _fill_collection(self):
         _clear_layout(self.c_chips)
+        previous=getattr(self,'_collection_group',None)
+        if previous is not None:previous.deleteLater()
         g = QButtonGroup(self.c_chips_w)
+        self._collection_group=g
         g.setExclusive(True)
         opts = [("all", None, "Всё"), ("liked", None, "Мне нравится")]
         prof = self.profiles()

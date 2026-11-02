@@ -1,0 +1,54 @@
+{
+  "scope": "Duel state machine and isolated DuelPage/Arena lifecycle only",
+  "fixture": {
+    "platform": "Windows Qt offscreen",
+    "profile": "synthetic QWidget host with temporary local files",
+    "tracks": 7,
+    "audio": "not played or decoded",
+    "network": "mocked delayed search responses only",
+    "frame_clock": "paused for deterministic animation completion"
+  },
+  "findings": [
+    {
+      "issue": "Late online search auto-start restarted the current mode without checking the original user intent",
+      "fix": "Pending-start request/mode/query/options identity; cancel on mode/options/hide/progress/new start"
+    },
+    {
+      "issue": "Persistence failure could escape before arena render and leave game/cards inconsistent",
+      "fix": "Keep live tournament responsive, retain in-memory state and show a save error"
+    },
+    {
+      "issue": "Malformed search response and partially missing title could raise from UI callback/champion screen",
+      "fix": "Validate callback shape, restore controls and convert champion title safely"
+    },
+    {
+      "issue": "Unreachable king history or duplicate-identity saved rosters passed session validation",
+      "fix": "Reject corrupt sessions transactionally without replacing a current game"
+    }
+  ],
+  "verification": {
+    "new_test_file": "qa/test_duel_lifecycle.py",
+    "new_cases_passed": 18,
+    "last_full_run_seconds": 0.761,
+    "existing_related_suite": "qa/test_duel_reports.py DuelOptions",
+    "existing_cases_passed": 10,
+    "additional_targeted_check": "Serialization TypeError/ValueError cannot interrupt start or vote; one added case and existing save-I/O case passed after the final guard change."
+  },
+  "scenarios": [
+    "cold empty library then files added, both start buttons",
+    "king finish/undo/restart/tab return",
+    "pairs skip/vote/undo/pause/restart and card identities",
+    "80 pair choices with save/restore and undo at each round",
+    "filters with zero matches then reset",
+    "missing files and library removal/recovery",
+    "restore during initially empty library",
+    "invalid saved state recovery",
+    "save failure/recovery",
+    "late search after different local game/mode/options/query/hide/vote",
+    "repeated Start while search busy",
+    "stale/malformed/failed/deleted-page callbacks",
+    "empty-arena shortcuts while search is pending",
+    "partial track title on champion screen"
+  ],
+  "limitations": "Friend exact profile/saved state is unavailable. Header Start is not disabled by DuelPage and the candidate pool is read live at every start; a genuinely empty/unavailable library cannot start a new duel but existing progress is retained. No real media, audio, relays or live-display FPS were exercised."
+}

@@ -1,0 +1,137 @@
+{
+  "scope": "Isolated real-app startup, repeated music/net tabs, filters/language/resize/restore; no radio/editor/full playback scenario",
+  "app_version_at_start": "2026.11.02-4",
+  "fixture": {
+    "tracks": 400,
+    "liked": 40,
+    "network": "blocked",
+    "audio": "not played",
+    "profile": "temporary",
+    "real_user_data": "not used"
+  },
+  "music_switches": 223,
+  "checks": 317,
+  "passed": 317,
+  "failures": [],
+  "uncaught": [],
+  "qt_messages": [
+    {
+      "type": 1,
+      "message": "QFontDatabase: Cannot find font directory <ECHOES_RUNTIME>/python/Lib/site-packages/PyQt6/Qt6/lib/fonts.\nNote that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig."
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    },
+    {
+      "type": 1,
+      "message": "This plugin does not support setting window opacity"
+    }
+  ],
+  "selected_switch_elapsed_ms": {
+    "median": 16.002,
+    "maximum": 188.671
+  },
+  "elapsed_seconds": 10.823,
+  "limitations": "Offscreen lifecycle/invariant stress, not measured on-screen FPS; real network, audio playback, radio and native editor excluded."
+}

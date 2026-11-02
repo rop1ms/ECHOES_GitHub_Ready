@@ -17,7 +17,10 @@ from PyQt6.QtGui import (QColor, QPainter, QPainterPath, QPen, QBrush, QFont, QF
 from PyQt6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,
     QCheckBox,QLineEdit,QFrame,QScrollArea)
 
-def identity(t):return str(t.get('path') or t.get('url') or '')
+def identity(t):
+    if not isinstance(t,dict):return ''
+    value=t.get('path') or t.get('url') or ''
+    return str(value) if isinstance(value,(str,Path)) else ''
 def compact(t):return {k:t[k] for k in ('path','url','title','artist','artists','album','genre','genres','cover','cover_url','source','duration','id','chorus_start','chorus_start_sec','preview_start') if k in t}
 
 class Duel:
@@ -89,8 +92,15 @@ class Duel:
             if type(cursor) is not int or not 1<=cursor<=n or not index(champion):return False
             if not isinstance(pair,list) or len(pair)!=2 or not all(index(i) for i in pair) or pair[0]==pair[1]:return False
             if any(not isinstance(t,dict) or not identity(t) for t in roster):return False
+            if len({identity(t) for t in roster})!=n:return False
             if mode=='king':
                 if len(history)!=cursor-1 or not all(index(i) for i in history):return False
+                expected=order[0]
+                for round_,previous in enumerate(history):
+                    if previous!=expected:return False
+                    expected=history[round_+1] if round_+1<len(history) else champion
+                    if expected not in (previous,order[round_+1]):return False
+                if champion!=expected:return False
             else:
                 if len(history)>500:return False
                 for h in history:
@@ -791,6 +801,7 @@ class DuelPage(QScrollArea):
         super().__init__();self.shell=shell;self.win=shell.win;self.game=Duel();self.online=[];self.request=0;self.busy=False
         self._pv=None
         self._preview_request=None;self._chorus=None
+        self._pending_start=None;self._save_error=''
         self.setWidgetResizable(True);self.setFrameShape(QFrame.Shape.NoFrame)
         page=DuelSurface(self);self.setWidget(page)
         lay=QVBoxLayout(page);lay.setContentsMargins(30,20,30,20);lay.setSpacing(12)
@@ -814,6 +825,7 @@ class DuelPage(QScrollArea):
         self.net_row=QWidget();net=QHBoxLayout(self.net_row);net.setContentsMargins(0,0,0,0)
         self.internet=QCheckBox('Добавить треки из интернета');net.addWidget(self.internet)
         self.query=QLineEdit();self.query.setPlaceholderText('Жанр / настроение (пусто — случайное направление)');net.addWidget(self.query,1)
+        self.internet.toggled.connect(self._cancel_pending_start);self.query.textEdited.connect(self._cancel_pending_start)
         self.load=QPushButton('Найти случайных соперников');self.load.clicked.connect(self.fetch);net.addWidget(self.load);lay.addWidget(self.net_row)
         self.status=QLabel('Выберите режим и начните. Турнир сохраняется после каждого выбора.');self.status.setObjectName('YaSub');self.status.setWordWrap(True);lay.addWidget(self.status)
         self.arena=Arena(self);lay.addWidget(self.arena,1)
@@ -832,16 +844,27 @@ class DuelPage(QScrollArea):
         self.render()
         self.destroyed.connect(lambda:setattr(self,'request',-1))
     def _set_mode(self,key):
+        if key!=self._mode:self._cancel_pending_start()
         self._mode=key;self.controls()
+    def _cancel_pending_start(self,*_):
+        self._pending_start=None
     def controls(self):
         for k,b in self.mode_btns.items():b.setChecked(k==self._mode)
         pair=self._mode=='pairs';self.net_row.setVisible(pair);self.load.setEnabled(pair and not self.busy)
         if not pair:self.internet.setChecked(False)
-    def save(self):self.win.settings['duel_session']=self.game.dump();self.win.save_settings()
+    def save(self):
+        self.win.settings['duel_session']=self.game.dump()
+        try:
+            self.win.save_settings();self._save_error=''
+        except (OSError,TypeError,ValueError):
+            from duel_settings import tr
+            self._save_error=tr(self.win,'Не удалось сохранить турнир. Игра продолжается; проверьте данные и доступ к папке сохранений.',
+                               'Could not save the tournament. Play can continue; check the data and access to the save folder.')
     def open_settings(self):
         from duel_settings import open_settings
         open_settings(self)
     def options_changed(self):
+        self._cancel_pending_start()
         self._preview_request=None
         from duel_settings import options
         self.arena.fire_enabled=options(self.win.settings)['fire'];self.arena.update();self._prepare_pair()
@@ -872,18 +895,34 @@ class DuelPage(QScrollArea):
         self.arena._wake()
     def begin(self):
         self._preview_request=None
-        tracks=[t for t in self.win.library if t.get('path') and not str(t['path']).startswith('stream:') and Path(t['path']).is_file()]
+        tracks=[]
+        for t in self.win.library:
+            if not isinstance(t,dict) or not t.get('path') or not identity(t) or identity(t).startswith('stream:'):continue
+            try:
+                if Path(t['path']).is_file():tracks.append(t)
+            except (OSError,ValueError,TypeError):continue
         if self._mode=='pairs' and self.internet.isChecked():
-            if not self.online:self.fetch(start_after=True);return
+            if not self.online:
+                if self.busy:self._arm_start(self.request)
+                else:self.fetch(start_after=True)
+                return
             tracks+=self.online
+        self._cancel_pending_start()
         from duel_settings import options, filter_tracks, liked_paths
         tracks=filter_tracks(tracks,options(self.win.settings),playlists=self.win.playlists,liked=liked_paths(self.win),profiles=getattr(self.shell,'_profiles',None))
         try:
             self.game.start(tracks,self._mode);self.save();self.arena.set_pair(self.game.current(),'enter');self.render()
-        except ValueError as e:self.status.setText(str(e))
+        except ValueError as e:
+            self.status.setText(str(e))
+            toast=getattr(self.win,'_toast',None)
+            if callable(toast):toast(str(e))
+    def _arm_start(self,request):
+        from duel_settings import options
+        self._pending_start=(request,self._mode,self.query.text().strip(),options(self.win.settings))
     def fetch(self,_=False,start_after=False):
         if self.busy:return
         self.busy=True;self.controls();self.request+=1;req=self.request
+        if start_after:self._arm_start(req)
         query=self.query.text().strip() or random.choice(['dream pop','jazz fusion','ambient electronica','neo soul','indie rock','liquid drum and bass','synthwave','trip hop','afrobeat','city pop'])
         self.status.setText('Ищу соперников: '+query+'…')
         def work():
@@ -892,14 +931,23 @@ class DuelPage(QScrollArea):
                 result=online_search.search(query,'all')
             except Exception as exc:result={'tracks':[],'errors':[str(exc)]}
             try:self.win._ui_bridge.call.emit(lambda:self.received(req,result,start_after))
-            except RuntimeError:pass
+            except (RuntimeError,AttributeError):pass
         threading.Thread(target=work,daemon=True,name='duel-search').start()
     def received(self,req,result,start_after):
+        from PyQt6 import sip
+        if sip.isdeleted(self):return
         if req!=self.request:return
         self.busy=False;self.controls()
-        tracks=[t for t in result.get('tracks',[]) if t.get('url')];random.shuffle(tracks);self.online=tracks[:120]
-        self.status.setText(f'Найдено {len(self.online)} онлайн-соперников. Случайный выбор из результатов поиска; это не весь каталог сервиса.' if tracks else 'Поиск не дал треков. '+('; '.join(result.get('errors',[])))[:300])
-        if tracks and start_after:self.begin()
+        result=result if isinstance(result,dict) else {}
+        raw=result.get('tracks',[]);raw=raw if isinstance(raw,list) else []
+        tracks=[t for t in raw if isinstance(t,dict) and isinstance(t.get('url'),str) and t['url']];random.shuffle(tracks);self.online=tracks[:120]
+        errors=result.get('errors',[]);errors=errors if isinstance(errors,list) else []
+        self.status.setText(f'Найдено {len(self.online)} онлайн-соперников. Случайный выбор из результатов поиска; это не весь каталог сервиса.' if tracks else 'Поиск не дал треков. '+('; '.join(map(str,errors)))[:300])
+        from duel_settings import options
+        intent=(req,self._mode,self.query.text().strip(),options(self.win.settings))
+        start=tracks and self._pending_start==intent and self._mode=='pairs' and self.internet.isChecked() and self.isVisible()
+        self._cancel_pending_start()
+        if start:self.begin()
     def preview(self,side):
         current=self.game.current()
         if side not in (0,1) or side>=len(current):return
@@ -941,6 +989,7 @@ class DuelPage(QScrollArea):
         self._preview_request=None
         current=self.game.current()
         if len(current)!=2:return
+        self._cancel_pending_start()
         try:self.game.vote(side)
         except ValueError as e:self.status.setText(str(e));return
         self.save();new=self.game.current()
@@ -948,10 +997,12 @@ class DuelPage(QScrollArea):
     def undo(self):
         self._preview_request=None
         if not self.game.history:return
+        self._cancel_pending_start()
         self.game.undo();self.save();self.arena.set_pair(self.game.current(),'drop');self.render()
     def skip_pair(self):
         self._preview_request=None
         if self.game.mode!='pairs' or not self.game.current():return
+        self._cancel_pending_start()
         self.game.next_pair();self.save();self.arena.set_pair(self.game.current(),'swipe');self.render()
     def render(self):
         current=self.game.current();finished=len(current)==1;g=self.game
@@ -961,7 +1012,7 @@ class DuelPage(QScrollArea):
             if g.mode=='king':
                 total=max(1,len(g.roster)-1);a.progress=min(1.0,(g.cursor-1)/total)
                 a.round_text='' if finished else f'Раунд {g.cursor} из {total}'
-                self.status.setText(('Ваш чемпион: '+current[0].get('title','')+' — нажмите «Начать заново», чтобы сыграть ещё') if finished else 'Победитель остаётся на ринге. Турнир сохраняется после каждого выбора.')
+                self.status.setText(('Ваш чемпион: '+str(current[0].get('title') or '')+' — нажмите «Начать заново», чтобы сыграть ещё') if finished else 'Победитель остаётся на ринге. Турнир сохраняется после каждого выбора.')
             else:
                 a.progress=0.0;a.round_text=f'Выборов сделано: {len(g.history)}'
                 self.status.setText('Каждая пара — новая история. Лидеры копятся ниже.')
@@ -974,7 +1025,9 @@ class DuelPage(QScrollArea):
         self.widget().update()
         a._wake()
         self._prepare_pair()
+        if self._save_error:self.status.setText(self.status.text()+'\n'+self._save_error)
     def hideEvent(self,event):
+        self._cancel_pending_start()
         self._preview_request=None
         if self._chorus is not None:self._chorus.prepare([])
         self.win._duel_preview=None

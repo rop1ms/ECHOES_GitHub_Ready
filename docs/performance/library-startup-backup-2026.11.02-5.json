@@ -1,0 +1,19 @@
+{
+  "case": "backup",
+  "scope": "Only real startup and initial collection; no navigation matrix",
+  "expected_tracks": 24,
+  "library_tracks": 24,
+  "collection_rows": 24,
+  "selected_page": "collection",
+  "filter": [
+    "all",
+    null
+  ],
+  "search": "",
+  "source_unchanged": true,
+  "python_errors": [],
+  "network": "blocked",
+  "audio": "not played",
+  "profile": "isolated temporary profile",
+  "passed": true
+}
