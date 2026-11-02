@@ -22,7 +22,7 @@ from PyQt6.QtCore import (QEasingCurve, QEvent, QObject, QParallelAnimationGroup
                           QRect, QRectF, QSize, Qt, QTimer, QVariantAnimation, pyqtSlot)
 from PyQt6 import sip
 from PyQt6.QtGui import QColor, QLinearGradient, QPainter, QPixmap, QRegion
-from PyQt6.QtWidgets import QApplication, QScrollArea, QStackedWidget, QWidget
+from PyQt6.QtWidgets import QApplication, QAbstractItemView, QScrollArea, QStackedWidget, QWidget
 
 DUR_PAGE = 230          # вкладки: новая страница наплывает
 DUR_SHEET = 330         # «Текст» / «Очередь» выезжают снизу
@@ -106,6 +106,8 @@ class _Transition(QWidget):
         self.animation=None
         self.frame_timer=None
         self._finished=False
+        self._preparing=False
+        self._prepare_scheduled=False
         self.setGeometry(stack.rect())
         self.show()
         self.raise_()
@@ -114,6 +116,9 @@ class _Transition(QWidget):
     def eventFilter(self, obj, event):
         # A snapshot must never conceal live feedback from a new gesture.
         kind = event.type()
+        if obj is self.parentWidget() and kind==QEvent.Type.Resize and (self.new is None or self._preparing):
+            self.setGeometry(self.parentWidget().rect())
+            return False
         inside=isinstance(obj,QWidget) and (obj is self.parentWidget() or self.parentWidget().isAncestorOf(obj))
         if (obj is self.parentWidget() and kind in (QEvent.Type.Resize,QEvent.Type.Hide,QEvent.Type.Close)) or \
                 (inside and (kind in (QEvent.Type.Wheel,QEvent.Type.MouseButtonPress,QEvent.Type.KeyPress) or
@@ -133,26 +138,44 @@ class _Transition(QWidget):
         self.frame_timer=FrameTimer(self)
         self.frame_timer.setInterval(8)
         self.frame_timer.timeout.connect(self._frame)
+        if self.new is None:self._schedule_prepare()
         self.frame_timer.start()
 
     def _frame(self):
         if self.new is None:
-            self._prepare()
-            if self._finished:return
+            # Let Qt deliver first-show layouts before the incoming capture.
+            # A queued frame-clock tick may precede those posted layout events.
+            if not self._prepare_scheduled:self._schedule_prepare()
+            return
         progress=min(1.,max(0.,(time.perf_counter()-self._started)/self._duration))
         if progress>=1.:self.finish()
         else:self.set_t(progress)
 
+    def _schedule_prepare(self):
+        if self._prepare_scheduled or self._finished:return
+        self._prepare_scheduled=True
+        QTimer.singleShot(0,self._prepare)
+
+    @pyqtSlot()
     def _prepare(self):
         """One incoming capture per event burst, after the final page is laid out."""
-        if self.new is not None or self._finished:return
+        self._prepare_scheduled=False
+        if self.new is not None or self._finished or self._preparing:return
         target=self.parentWidget()
-        _settle_layout(target.currentWidget() if isinstance(target,QStackedWidget) else target)
-        self.hide()
-        snapshot=_grab_area(target)
-        self.new=snapshot if snapshot is not None else self.old
-        self._started=time.perf_counter()
-        self.show();self.raise_()
+        self._preparing=True
+        try:
+            _settle_layout(target.currentWidget() if isinstance(target,QStackedWidget) else target)
+            if self._finished or sip.isdeleted(self) or sip.isdeleted(target):return
+            self.setGeometry(target.rect())
+            self.hide()
+            snapshot=_grab_area(target)
+            # Rendering/polishing a cold page can synchronously resize/hide
+            # its parents. Never resurrect a cancelled or deleted overlay.
+            if self._finished or sip.isdeleted(self) or sip.isdeleted(target):return
+            self.new=snapshot if snapshot is not None else self.old
+            self._started=time.perf_counter()
+            self.show();self.raise_()
+        finally:self._preparing=False
 
     @pyqtSlot()
     def finish(self):
@@ -180,14 +203,14 @@ class _Transition(QWidget):
             e = _ease_out_quint(t)
             self._draw(p,self.old,0,0,W,H)
             p.fillRect(self.rect(), QColor(0, 0, 0, int(110 * e)))
-            y = int(round(H * (1 - e)))
+            y = H * (1 - e)
             self._sheet(p, y, W)
             self._draw(p,self.new,0,y,W,H)
         elif self.kind == "down":
             e = _ease_out(t)
             self._draw(p,self.new,0,0,W,H)
             p.fillRect(self.rect(), QColor(0, 0, 0, int(110 * (1 - e))))
-            y = int(round(H * e))
+            y = H * e
             self._sheet(p, y, W)
             self._draw(p,self.old,0,y,W,H)
         else:
@@ -196,7 +219,7 @@ class _Transition(QWidget):
             amount = motion.strength(_WIN)
             self._draw(p,self.old,0,0,W,H)
             p.setOpacity(e)
-            self._draw(p,self.new,12*amount*self.dir*(1-e),0,W,H)
+            self._draw(p,self.new,28*amount*self.dir*(1-e),0,W,H)
         p.end()
 
     @staticmethod
@@ -211,18 +234,41 @@ class _Transition(QWidget):
         g = QLinearGradient(0, y - 18, 0, y)
         g.setColorAt(0, QColor(0, 0, 0, 0))
         g.setColorAt(1, QColor(0, 0, 0, 90))
-        p.fillRect(QRect(0, y - 18, W, 18), g)
+        p.fillRect(QRectF(0, y - 18, W, 18), g)
 
 
 def _settle_layout(widget: QWidget):
     """Страницу показали впервые — Qt раскладывает её позже (отложенные LayoutRequest). Снимок до этого
     выходил с недоразложенными кнопками («общен», «Друзья» обрезаны), и после анимации всё перескакивало.
     Активируем раскладку самой страницы без обработки событий всего приложения."""
-    widget.ensurePolished()
-    layout=widget.layout()
-    if layout is not None:layout.activate()
-    inner=widget.widget() if isinstance(widget,QScrollArea) else None
-    if inner is not None and inner.layout() is not None:inner.layout().activate()
+    if widget is None:return
+    # First-show height-for-width rows and scrollbars can affect layouts above
+    # them. Settle only this visible subtree, not every window/page in the app.
+    widgets=[widget]+[w for w in widget.findChildren(QWidget) if w.isVisibleTo(widget)]
+    for _ in range(3):
+        for child in widgets:
+            if sip.isdeleted(child):continue
+            child.ensurePolished()
+            layout=child.layout()
+            if layout is not None:layout.activate()
+            QApplication.sendPostedEvents(child,QEvent.Type.LayoutRequest.value)
+    # Item views defer their own row/grid layout separately from QWidget
+    # layouts. Resolve it before capturing first-use scrollbars and wrapping.
+    views=[w for w in widgets if not sip.isdeleted(w) and isinstance(w,QAbstractItemView)]
+    for view in views:view.doItemsLayout()
+    for child in widgets:
+        if sip.isdeleted(child):continue
+        layout=child.layout()
+        if layout is not None:layout.activate()
+        QApplication.sendPostedEvents(child,QEvent.Type.LayoutRequest.value)
+
+
+def _finish_related(target):
+    for overlay in list(_OVERLAYS.values()):
+        if sip.isdeleted(overlay):continue
+        host=overlay.parentWidget()
+        if host is not target and (host.isAncestorOf(target) or target.isAncestorOf(host)):
+            overlay.finish()
 
 
 def _outgoing_snapshot(target):
@@ -239,6 +285,7 @@ def switch(stack: QStackedWidget, widget: QWidget, direction: int = 0, kind: str
     """Показать widget в stack с анимацией. direction: 1 — вперёд (новая приезжает справа), -1 — назад,
     0 — без сдвига. kind: "slide" | "up" (шторка снизу) | "down" (шторка уезжает вниз)."""
     old = stack.currentWidget()
+    _finish_related(stack)
     if stack.property("echoes_instant_navigation") or widget.property("echoes_instant_navigation") or \
             (old is not None and old.property("echoes_instant_navigation")):
         _finish(stack)
@@ -639,6 +686,7 @@ def _install_menu_fade():
 def morph(target: QWidget, fn, direction: int = 0, kind: str = "slide"):
     """Поменять содержимое target (fn()) с переходом: снимок «до» и «после» плывут слоем поверх,
     сама страница в кадрах не перерисовывается — плавно и без фризов. direction: 1/-1/0 как у switch."""
+    _finish_related(target)
     if not enabled() or not target.isVisible() or target.width() < 20 or target.height() < 20:
         fn()
         return

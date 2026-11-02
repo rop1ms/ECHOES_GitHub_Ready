@@ -102,7 +102,7 @@ class NavigationMotion(unittest.TestCase):
     def test_resize_and_hide_release_snapshot_and_clock(self):
         for gesture in ('resize','hide'):
             stack,a,b = self.stack(); ui_anim.switch(stack,b)
-            overlay = ui_anim._OVERLAYS[id(stack)]; timer = overlay.frame_timer
+            overlay = ui_anim._OVERLAYS[id(stack)]; overlay._prepare(); timer = overlay.frame_timer
             if gesture=='resize': stack.resize(1100,700)
             else: stack.hide()
             self.assertNotIn(id(stack),ui_anim._OVERLAYS)
@@ -211,6 +211,47 @@ class NavigationMotion(unittest.TestCase):
         self.assertEqual(current.old.toImage().pixelColor(500,200).name(),color_at(before,500,200))
         self.assertTrue(overlay._finished)
         QTest.mouseRelease(button,Qt.MouseButton.LeftButton)
+
+    def test_pending_resize_is_settled_before_incoming_capture(self):
+        stack,a,b=self.stack();ui_anim.switch(stack,b)
+        overlay=ui_anim._OVERLAYS[id(stack)]
+        stack.resize(1150,730)
+        self.assertFalse(overlay._finished)
+        overlay._prepare()
+        self.assertEqual(overlay.size(),stack.size())
+        self.assertEqual(overlay.new.size(),stack.size())
+
+    def test_cancel_during_render_does_not_resurrect_overlay(self):
+        stack,a,b=self.stack();ui_anim.switch(stack,b)
+        overlay=ui_anim._OVERLAYS[id(stack)]
+        snapshot=ui_anim._grab_area(b)
+        def cancel(*args,**kwargs):overlay.finish();return snapshot
+        with patch.object(ui_anim,'_grab_area',side_effect=cancel):overlay._prepare()
+        self.assertFalse(overlay.isVisible())
+        self.assertTrue(overlay.new.isNull())
+        self.assertFalse(overlay.frame_timer.isActive())
+
+    def test_early_clock_tick_waits_for_first_layout_turn(self):
+        stack,a,b=self.stack()
+        with patch.object(ui_anim,'_grab_area',wraps=ui_anim._grab_area) as capture:
+            ui_anim.switch(stack,b)
+            overlay=ui_anim._OVERLAYS[id(stack)]
+            overlay._frame()
+            self.assertEqual(capture.call_count,1)
+            self.assertIsNone(overlay.new)
+            APP.processEvents()
+            self.assertIsNotNone(overlay.new)
+
+    def test_nested_navigation_keeps_only_one_transition(self):
+        outer,a,b=self.stack()
+        inner=QStackedWidget(b);inner.setGeometry(20,20,900,550)
+        x,y=Page(),Page();inner.addWidget(x);inner.addWidget(y)
+        ui_anim.switch(outer,b)
+        previous=ui_anim._OVERLAYS[id(outer)]
+        ui_anim.switch(inner,y)
+        self.assertTrue(previous._finished)
+        self.assertNotIn(id(outer),ui_anim._OVERLAYS)
+        self.assertIn(id(inner),ui_anim._OVERLAYS)
 
     def scroll_area(self):
         area = QScrollArea(); body = QWidget(); body.resize(1800,6000)

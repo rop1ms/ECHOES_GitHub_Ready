@@ -580,20 +580,8 @@ class VoiceEngine:
     @staticmethod
     def devices():
         """[(индекс, имя)] для входа и выхода (только WASAPI/MME без дублей по имени)."""
-        try:
-            import sounddevice as sd
-            ins, outs, seen_i, seen_o = [], [], set(), set()
-            for i, d in enumerate(sd.query_devices()):
-                nm = str(d.get("name", ""))[:60]
-                if d.get("max_input_channels", 0) > 0 and nm not in seen_i:
-                    seen_i.add(nm)
-                    ins.append((i, nm))
-                if d.get("max_output_channels", 0) > 0 and nm not in seen_o:
-                    seen_o.add(nm)
-                    outs.append((i, nm))
-            return ins, outs
-        except Exception:                                      # noqa: BLE001
-            return [], []
+        from voice_devices import devices
+        return devices()
 
 
 Voice = VoiceEngine                                            # старое имя (комнаты)

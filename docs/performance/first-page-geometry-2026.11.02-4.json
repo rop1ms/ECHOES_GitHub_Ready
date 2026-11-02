@@ -1,0 +1,39 @@
+{
+  "scope": "First incoming snapshot geometry versus the following GUI event turn, only queue/albums/profile/tierlist",
+  "fixture": {
+    "platform": "Windows Qt offscreen",
+    "window_size": [
+      1440,
+      950
+    ],
+    "synthetic_tracks": 400,
+    "user_queue_tracks": 20,
+    "profile": "temporary",
+    "network": "blocked",
+    "audio": "not played"
+  },
+  "pages": [
+    {
+      "page": "queue",
+      "captured": true,
+      "visible_geometry_changes": []
+    },
+    {
+      "page": "albums",
+      "captured": true,
+      "visible_geometry_changes": []
+    },
+    {
+      "page": "profile",
+      "captured": true,
+      "visible_geometry_changes": []
+    },
+    {
+      "page": "tierlist",
+      "captured": true,
+      "visible_geometry_changes": []
+    }
+  ],
+  "passed": true,
+  "limitations": "Geometry/polish regression probe, not a full player scenario or live display FPS test."
+}

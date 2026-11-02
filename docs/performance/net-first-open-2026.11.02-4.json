@@ -1,0 +1,93 @@
+{
+  "scope": "Four real Echoes.NET cold tabs only, not a full player scenario",
+  "fixture": {
+    "platform": "Windows, Qt offscreen",
+    "window_size": [
+      1440,
+      950
+    ],
+    "profile": "disposable isolated temporary profile",
+    "network": "socket connections blocked",
+    "audio": "not played",
+    "contacts": "none"
+  },
+  "method": "Each tab visited once after new MainWindow/YaShell startup. Shared transition prepared manually while frame clock paused. Visible widget geometries compared with five subsequent event-loop drains. Preparation times include those five drains and are not FPS measurements.",
+  "after": [
+    {
+      "tab": "friends",
+      "visible_widgets": 23,
+      "geometry_changes": [],
+      "overlay_extent": [
+        1110,
+        592
+      ],
+      "preparation_ms": 48.306
+    },
+    {
+      "tab": "net",
+      "visible_widgets": 178,
+      "geometry_changes": [],
+      "overlay_extent": [
+        1110,
+        592
+      ],
+      "preparation_ms": 355.286
+    },
+    {
+      "tab": "room",
+      "visible_widgets": 18,
+      "geometry_changes": [],
+      "overlay_extent": [
+        1110,
+        592
+      ],
+      "preparation_ms": 49.236
+    },
+    {
+      "tab": "threads",
+      "visible_widgets": 14,
+      "geometry_changes": [],
+      "overlay_extent": [
+        1110,
+        592
+      ],
+      "preparation_ms": 32.09
+    }
+  ],
+  "checks": {
+    "navigation_tests_passed": 6,
+    "device_discovery_tests_passed": 3,
+    "late_delete_failure": "Initial test exposed PyQt raising AttributeError after QObject destruction; guard corrected and the affected case passed on rerun.",
+    "cleanup_exit_code": 0
+  },
+  "limitations": "Cold native hardware discovery now occurs in a worker. First settings construction is still appreciable. Elapsed times include unrelated event handling and should not be presented as a controlled before/after speedup or live display FPS.",
+  "settings_profile": {
+    "build_ms": 426.164,
+    "capture_prepare_ms": 27.902,
+    "process_events_ms": 41.929,
+    "geometry_changes": 0,
+    "cprofile_enabled": true,
+    "top_cumulative_ms": {
+      "show_tab/net_page.py": 426.155,
+      "switch/ui_anim.py": 426.133,
+      "built-in setCurrentWidget": 425.112,
+      "threading.py:_bootstrap": 369.421,
+      "threading.py:_bootstrap_inner": 315.286,
+      "importlib:_find_and_load": 310.634,
+      "importlib:_find_and_load_unlocked": 310.457,
+      "importlib:_load_unlocked": 309.557,
+      "importlib:exec_module": 309.427,
+      "importlib:_call_with_frames_removed": 306.812,
+      "builtins.exec": 300.377,
+      "threading.py:run": 166.654
+    },
+    "interpretation": "Visible switch accounts for the cold cost; incoming capture/deep settlement is much smaller. Import/bootstrap time appears in the profile, but exact imported module names and GUI GIL ownership were not established. No subprocess or further native rewrite introduced."
+  },
+  "final_revision": {
+    "native_discovery": "isolated helper process, no GUI/DSP/codec import for settings",
+    "settings_geometry_recheck": "passed, no visible changes after capture",
+    "settings_widget_count": 179,
+    "focused_device_probe_tests_passed": 7,
+    "diagnostic": "A discovery-disabled scoped probe exposed a 1.7s synchronous net_voice import; it was removed. Earlier preparation totals are historical and are not final latency/FPS claims."
+  }
+}

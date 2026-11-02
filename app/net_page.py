@@ -227,6 +227,71 @@ class _Bridge(QObject):
     ev = pyqtSignal(str, object)
 
 
+class _VoiceDevices(QObject):
+    """One asynchronous native device query per settings view; never owns a combo."""
+    done=pyqtSignal(object)
+
+    def __init__(self,owner):
+        super().__init__(owner)
+        from duel_settings import tr
+        self.loading=tr(owner.win,'Загрузка устройств…','Loading devices…')
+        self.unavailable=tr(owner.win,'Устройство недоступно','Device unavailable')
+        self.cache=None;self.pending=[];self.started=False
+        import threading
+        self.cancel=threading.Event()
+        self.destroyed.connect(lambda *_args,event=self.cancel:event.set())
+        self.done.connect(self._ready)
+
+    def bind(self,combo,key,selected):
+        from PyQt6.QtWidgets import QSizePolicy
+        combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        combo.setMinimumContentsLength(18)
+        combo.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Fixed)
+        if self.cache is not None:
+            self._populate(combo,key,selected);return
+        import weakref
+        self.pending.append((weakref.ref(combo),key,selected))
+        blocked=combo.blockSignals(True)
+        try:
+            combo.clear();combo.addItem('Как в Windows',-1)
+            if selected is not None:
+                combo.addItem(self.loading,selected);combo.setCurrentIndex(1)
+            combo.setEnabled(False)
+        finally:combo.blockSignals(blocked)
+        if self.started:return
+        self.started=True
+        emit=self.done.emit
+        cancel=self.cancel
+        def query():
+            try:
+                from voice_devices import isolated_devices
+                devices=isolated_devices(cancel=cancel)
+            except Exception:devices=([],[])
+            try:emit(devices)
+            except (RuntimeError,AttributeError):pass  # the page closed while the native query was pending
+        import threading
+        threading.Thread(target=query,name='echoes-voice-devices',daemon=True).start()
+
+    def _populate(self,combo,key,selected):
+        blocked=combo.blockSignals(True)
+        try:
+            combo.clear();combo.addItem('Как в Windows',-1)
+            for device,name in self.cache[0 if key=='voice_in' else 1]:combo.addItem(name,device)
+            index=combo.findData(selected if selected is not None else -1)
+            if index<0:
+                combo.addItem(self.unavailable,selected);index=combo.count()-1
+            combo.setCurrentIndex(index);combo.setEnabled(True)
+        finally:combo.blockSignals(blocked)
+
+    def _ready(self,devices):
+        from PyQt6 import sip
+        self.cache=devices
+        pending,self.pending=self.pending,[]
+        for ref,key,selected in pending:
+            combo=ref()
+            if combo is not None and not sip.isdeleted(combo):self._populate(combo,key,selected)
+
+
 # ══════════════════════════════════════════════════════════════════════════ #
 #  Рисованные виджеты
 # ══════════════════════════════════════════════════════════════════════════ #
@@ -346,7 +411,6 @@ class NetPage(QWidget):
         self.shell = shell
         self.win = shell.win
         self.setObjectName("YaPage")
-        self.setProperty("echoes_instant_navigation", True)
         from echo_glass import glass_controls_qss
         self.setStyleSheet(NET_QSS + glass_controls_qss())
         self.node = None
@@ -441,7 +505,6 @@ class NetPage(QWidget):
         root.addLayout(segrow)
 
         self.stack = QStackedWidget()
-        self.stack.setProperty("echoes_instant_navigation", True)
         root.addWidget(self.stack, 1)
         self.tabs = {"feed": self._build_feed(), "chats": self._build_chats(), "room": self._build_room(),
                      "friends": self._build_friends(), "net": self._build_net(), "profile": self._build_profile(),
@@ -726,6 +789,7 @@ class NetPage(QWidget):
     def show_tab(self, key):
         if key not in self.tabs:
             return
+        previous=self._tab
         self._tab = key
         if key in self.tab_btns:
             self.tab_btns[key].setChecked(True)
@@ -737,7 +801,12 @@ class NetPage(QWidget):
             grp.setExclusive(True)
         self._refresh_tab(key, force=False)
         w = self.tabs[key]
-        self.stack.setCurrentWidget(w)
+        # The common transition driver coalesces rapid navigation and captures
+        # only visible content; cached tabs keep drafts and scroll position.
+        import ui_anim
+        order=[name for name,_ in self.TABS]+['profile']
+        direction=(1 if order.index(key)>order.index(previous) else -1) if previous in order and key in order and previous!=key else 0
+        ui_anim.switch(self.stack,w,direction=direction)
 
     def _roundify(self, root=None):
         """Compatibility hook for extensions. Rounding is inherited from NET_QSS.
@@ -4392,28 +4461,26 @@ class NetPage(QWidget):
 
     def _voice_card(self) -> QWidget:
         """«Голос и звонки»: устройства, шумодав, автоусиление, чувствительность, проверка микрофона."""
-        import net_voice
         nd = self.node
         s = nd.settings
         f, v = card()
         head = QHBoxLayout()
         head.addWidget(lbl("ГОЛОС И ЗВОНКИ", "Section"), 1)
         v.addLayout(head)
-        codec = "Opus 48 кГц (как в Discord)" if net_voice.HAVE_OPUS else "ADPCM 24 кГц (Opus недоступен в этой сборке)"
-        v.addWidget(lbl(f"Кодек: {codec}. Звонки — в шапке переписки («Позвонить», «Созвон» в группе). "
+        from duel_settings import tr as ui_text
+        v.addWidget(lbl(ui_text(self.win,'Автоматический кодек: Opus 48 кГц или ADPCM 24 кГц.',
+                               'Automatic codec: Opus 48 kHz or ADPCM 24 kHz.'), 'YaSub'))
+        v.addWidget(lbl("Звонки — в шапке переписки («Позвонить», «Созвон» в группе). "
                         "Голос идёт напрямую (UDP/Tor/LAN); через одни только релеи звонок не пройдёт — "
                         "это видно на плитке участника.", "YaSub", wrap=True))
-        ins, outs = net_voice.VoiceEngine.devices()
+        if not hasattr(self,'_voice_devices'):self._voice_devices=_VoiceDevices(self)
         g = QGridLayout()
         g.setHorizontalSpacing(10)
-        for row, (key, title, devs) in enumerate((("voice_in", "Микрофон", ins), ("voice_out", "Вывод", outs))):
+        for row, (key, title) in enumerate((("voice_in", "Микрофон"), ("voice_out", "Вывод"))):
             g.addWidget(lbl(title), row, 0)
             cb = QComboBox()
-            cb.addItem("Как в Windows", -1)
-            for i, nm in devs:
-                cb.addItem(nm, i)
             cur = s.get(key)
-            cb.setCurrentIndex(max(0, cb.findData(cur if cur is not None else -1)))
+            self._voice_devices.bind(cb,key,cur)
 
             def chg(_i, cb=cb, key=key):
                 s[key] = cb.currentData() if cb.currentData() != -1 else None

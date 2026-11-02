@@ -56,6 +56,10 @@ class TrackSection(QWidget):
         super().showEvent(event);self._sync();QTimer.singleShot(0,self._sync)
     def resizeEvent(self,event):
         super().resizeEvent(event);self._sync()
+    def moveEvent(self,event):
+        # A preceding header/layout can move this section on first show
+        # without resizing it or changing the outer scrollbar's value.
+        super().moveEvent(event);self._sync()
     def eventFilter(self,obj,event):
         if event.type() in (QEvent.Type.Resize,QEvent.Type.Show):self._sync()
         return False

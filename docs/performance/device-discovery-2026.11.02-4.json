@@ -1,0 +1,14 @@
+{
+  "scope": "Qt GUI heartbeat during only native device discovery, no audio capture/playback",
+  "isolated_query_completed": true,
+  "heartbeat_ticks": 36,
+  "elapsed_ms": 362.311,
+  "heartbeat_p95_ms": 10.284,
+  "heartbeat_max_ms": 10.389,
+  "device_counts": [
+    14,
+    14
+  ],
+  "remaining_helpers": 0,
+  "limitations": "Event-loop heartbeat only, not page rendering FPS or a controlled old/new application comparison."
+}
