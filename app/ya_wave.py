@@ -361,12 +361,12 @@ class GlowField:
 # ══════════════════════════════════════════════════════════════════════════ #
 
 # четыре цвета: ядро, середина, край 1, край 2 — как на экранах «Моей волны» в Яндекс Музыке
-SCHEMES = {
-    "my":       ("#ffd21a", "#ff9a1a", "#e2179c", "#43e04a"),
+SCHEMES = {                             # ядро → середина → край → небольшие пятна: соседние оттенки (как у Яндекса)
+    "my":       ("#ffd21a", "#ff8a1a", "#ff2a6a", "#b01aff"),
     "mood_day": ("#ffb04a", "#ff4a8a", "#7a2cff", "#ffd84a"),
-    "energy":   ("#c21bff", "#ff2a9e", "#ff4a1a", "#36e07a"),
+    "energy":   ("#d21aff", "#ff2a9e", "#ff3a2a", "#ff8a1a"),
     "calm":     ("#7fe8ff", "#2a9bff", "#4a2cff", "#20e0c0"),
-    "happy":    ("#fff23a", "#7dff3a", "#ff7a1a", "#20d0ff"),
+    "happy":    ("#fff23a", "#9dff3a", "#ffb31a", "#3aff9d"),
     "sad":      ("#2ee6b0", "#16c8c0", "#1a3cff", "#9a1fd6"),
     "fresh":    ("#3cff3c", "#1fd86a", "#1a6cff", "#0fd6c0"),
     "fav":      ("#ff4a8a", "#ff8a3a", "#b01aff", "#ffc0dc"),
@@ -376,7 +376,8 @@ SCHEMES = {
 def scheme_from_hue(h: float, s: float = 0.9) -> tuple:
     def c(dh, ss, vv):
         return QColor.fromHsvF((h + dh) % 1.0, max(0.0, min(1.0, ss)), vv).name()
-    return c(0.0, 0.72 * s + 0.1, 1.0), c(0.05, 0.92 * s, 0.95), c(0.20, 0.88 * s, 0.92), c(-0.24, 0.85 * s, 0.88)
+    # соседние оттенки (±30°): цвета обложки/жанра не превращаются в «радугу»
+    return c(0.0, 0.72 * s + 0.1, 1.0), c(0.04, 0.92 * s, 0.95), c(0.09, 0.90 * s, 0.90), c(-0.07, 0.88 * s, 0.92)
 
 
 def scheme_for(kind, arg=None) -> tuple:

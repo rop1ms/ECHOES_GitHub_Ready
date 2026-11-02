@@ -107,7 +107,7 @@ vec2 outflow(vec2 p, float t, float flow) {
 
 vec3 ramp(float m, vec3 c0, vec3 c1, vec3 c2, vec3 c3) {
     // от ядра наружу: светлое ядро → основной цвет → второй → глубокий к краю
-    vec3 core = mix(c0, vec3(1.0), 0.18);
+    vec3 core = mix(c0, vec3(1.0), 0.10);
     vec3 col = mix(core, c0, smoothstep(0.0, 0.38, m));
     col = mix(col, mix(c0, c1, 0.6), smoothstep(0.30, 0.68, m));
     col = mix(col, c1, smoothstep(0.55, 0.90, m));
@@ -135,11 +135,11 @@ void main() {
     vec3 col = ramp(m, c0, c1, c2, c3);
     // пятна других цветов на периферии (как фиолетовый снизу на «Грустном»)
     float pat1 = smoothstep(0.15, 0.75, 0.5 + 0.5 * n2(q * 1.3 + vec2(3.1, -1.7), tf * 0.8));
-    col = mix(col, c3, pat1 * smoothstep(0.55, 1.05, m) * 0.85);
+    col = mix(col, c3, pat1 * smoothstep(0.55, 1.05, m) * 0.40);
     float pat2 = smoothstep(0.35, 0.85, 0.5 + 0.5 * n2(q * 1.7 - vec2(6.3, 2.2), tf * 0.6));
-    col = mix(col, c2, pat2 * smoothstep(0.65, 1.15, m) * 0.6);
+    col = mix(col, c2, pat2 * smoothstep(0.65, 1.15, m) * 0.35);
     float lum = dot(col, vec3(0.299, 0.587, 0.114));
-    col = clamp(mix(vec3(lum), col, 1.35), 0.0, 1.0);
+    col = clamp(mix(vec3(lum), col, 1.85), 0.0, 1.0);   // «кислотные» неоновые цвета
     // яркость: внутри светло без провалов, за краем — быстро в черноту
     float body = exp(-pow(m / 1.2, 2.0));               // огромное мягкое свечение, плавно в черноту
     vec3 outc = col * body * (0.95 + 0.25 * energy + 0.3 * kick);
@@ -152,7 +152,7 @@ void main() {
     float along2 = smoothstep(0.35, 0.9, 0.5 + 0.5 * n2(vec2(ang * 2.6 + 4.0, m * 0.5), tf * 0.5));
     float rim = exp(-l1 * l1) * 0.30 * along1 + exp(-l2 * l2) * 0.20 * along2 + exp(-l3 * l3) * 0.15 * along2;
     rim += (exp(-l1 * l1 * 0.10) * 0.06) * along1;                       // мягкий ореол контура
-    vec3 rimc = mix(col, vec3(0.85, 0.95, 1.0), 0.55);
+    vec3 rimc = mix(col, vec3(0.85, 0.95, 1.0), 0.40);
     outc += rimc * rim * (0.9 + uAmt.x * 0.8) * smoothstep(1.7, 0.9, m);
     // лучи как туманность: мягкие размазанные полосы света из центра, больше вбок, уходят за край
     float ra = ang + 0.06 * sin(r * 2.0 - tf * 2.0);
@@ -162,7 +162,7 @@ void main() {
     float side = 0.15 + 0.85 * pow(abs(cos(ang)), 4.0);                // в основном вбок
     float reach = 1.0 + 1.6 * uBurst + 0.3 * kick + 0.2 * energy;
     float rfall = smoothstep(0.30, 0.75, m) * exp(-max(r - 0.6, 0.0) / reach * 0.9);
-    vec3 rayc = mix(mix(c1, c0, 0.4), vec3(0.9, 0.95, 1.0), 0.45);
+    vec3 rayc = mix(mix(c1, c0, 0.4), vec3(0.9, 0.95, 1.0), 0.30);
     outc += rayc * rays * side * rfall * (0.22 + 0.45 * uAmt.y + 2.0 * uBurst);
     // светлый центр (цветной, без белого пятна)
     float pulse = 1.0 + 0.25 * energy + 0.35 * kick + 0.5 * uBurst;
@@ -176,7 +176,9 @@ void main() {
         col2 += uRingCol * exp(-d * d) * uRings[k].y * edge * 0.6;
     }
     col2 *= edge * (1.0 + 0.4 * uBurst);
-    vec3 fin = vec3(1.0) - exp(-col2 * 2.1);                        // мягкое сжатие яркости, цвета сочные
+    float L = max(col2.r, max(col2.g, col2.b));                     // сжимаем яркость, а не каналы — оттенок
+    vec3 fin = col2 * ((1.0 - exp(-L * 2.1)) / max(L, 1e-3));       // остаётся неоново-насыщенным
+    fin = mix(fin, vec3(1.0), clamp(exp(-r * r * 10.0) * 0.55 * pulse, 0.0, 0.8));   // светлое ядро звезды
     float n = (hash(gl_FragCoord.xy) + hash(gl_FragCoord.yx + 17.0) - 1.0) * uAmt.z;
     gl_FragColor = vec4(clamp(fin + n, 0.0, 1.0), 1.0);
 }
