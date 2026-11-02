@@ -5667,11 +5667,15 @@ class YaShell(QWidget):
         hub.add("tools", "Голосовые команды", w, "голос микрофон сказать команду эхос следующий громче")
         w = ya_backup.settings_card(self); hub.v.addWidget(w)
         hub.add("tools", "Резервная копия", w, "бэкап backup копия перенос новый пк восстановить экспорт")
+        import player_prefs
+        w = self._keybinds_card = player_prefs.keybinds_card(self.win); hub.v.addWidget(w)
+        hub.add("tools", "Горячие клавиши", w, "клавиши бинды сочетания горячие пробел глобальные везде hotkey "
+                                              "shortcut keybind")
         groups = {
             "look": ("Внешний вид", (("Темы оформления", None, "palette"),
                                      ("Конструктор тем", lambda: self.win._open_theme_studio(), "edit"),
                                      ("Режим обложки", self.win._toggle_cover_mode, "cover"),
-                                     ("Масштаб, клавиши и окно",
+                                     ("Масштаб и окно",
                                       lambda: getattr(self.win, "open_player_prefs", lambda: None)(), "settings"))),
             "lyrics": ("Тексты песен", (("Редактор текста", self.win._open_lyrics_editor, "lyrics"),
                                         ("Перевод и прокрутка текста", lambda: self.win._lyrics_options.open(), "lyrics"))),

@@ -1645,6 +1645,12 @@ EXACT.update({
         'Theme constructor live wallpapers (aurora, plasma, stars…) update up to 60 times a second\ninstead of 20–30. '
         'Smoother, but slightly heavier.',
     'C++-ускорение эффектов': 'C++ effects acceleration',
+    'Горячие клавиши': 'Hotkeys', 'В ECHOES': 'In ECHOES', 'Везде': 'Everywhere',
+    'Нажмите сочетание': 'Press shortcut', 'только в окне': 'window only',
+    'Окно и масштаб': 'Window and scale', 'Масштаб и окно': 'Scale and window',
+    'Горячие клавиши — в Настройках → Инструменты': 'Hotkeys — in Settings → Tools',
+    '«В ECHOES» — когда окно плеера активно (пробел, стрелки…). «Везде» — даже когда плеер свёрнут или вы в другой программе: только с Ctrl, Alt, Shift или Win (или F-клавиша / медиаклавиша). Щёлкните по полю и нажмите сочетание; пусто — без клавиши.':
+        '“In ECHOES” — while the player window is active (Space, arrows…). “Everywhere” — even when the player is minimised or you are in another app: only with Ctrl, Alt, Shift or Win (or an F key / media key). Click a field and press the shortcut; empty — no key.',
     'Жидкость Fluid, MilkDrop, «Моя волна» и размытие считает быстрое\n'
     'C++-ядро в несколько потоков (echoes_fx.dll) вместо Python/numpy.\n'
     'Выключайте, только если что-то рисуется неправильно. Полностью применяется\n'

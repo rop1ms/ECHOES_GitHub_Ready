@@ -1,6 +1,6 @@
 # player_prefs.py
-"""Настройки плеера, которые работают в любой теме: горячие клавиши, размер и пропорции окна,
-(своя картинка вместо пластинки — в конструкторе тем). Окно настроек — Ctrl+, (и кнопка на странице настроек Echoes Music).
+"""Настройки плеера, которые работают в любой теме: горячие клавиши (в окне и везде — карточка в Настройках
+Echoes Music → Инструменты), размер и пропорции окна. Окно «Окно и масштаб» — Ctrl+,.
 
 Модуль самостоятельный: подключается одной строкой в main.py (install(win)) и ничего не правит
 в чужих файлах — встроенные сочетания отключает, пластинку дорисовывает обёрткой VinylWidget.
@@ -16,7 +16,7 @@ from pathlib import Path
 from img_load import load_pixmap
 from PyQt6.QtCore import Qt, QObject, QEvent, QTimer, QAbstractNativeEventFilter, QPointF, QSize
 from PyQt6.QtGui import QKeySequence, QShortcut, QPixmap, QPainter, QPainterPath, QColor, QPen, QIcon
-from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QGridLayout, QLabel, QPushButton, QKeySequenceEdit,
+from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton, QKeySequenceEdit,
                              QCheckBox, QComboBox, QFrame, QApplication, QDoubleSpinBox, QScrollArea, QWidget)
 
 DATA = Path(os.path.expanduser("~")) / ".neon_player"
@@ -82,9 +82,22 @@ def _do(win, key):
 
 
 def binds(win) -> dict:
+    """Сочетания в окне ECHOES (пробел, стрелки…)."""
     b = dict((k, d) for k, _t, d in ACTIONS)
     b.update({k: v for k, v in (win.settings.get("keybinds") or {}).items() if k in b})
     return b
+
+
+def global_binds(win) -> dict:
+    """Сочетания везде в системе — отдельно от сочетаний в окне. Раньше был один набор и галочка
+    «работают везде»: при первом чтении он переносится сюда как был."""
+    st = win.settings
+    if not isinstance(st.get("keybinds_global_map"), dict):
+        old = binds(win) if st.get("keybinds_global") else {}
+        # пробел/стрелки без Ctrl/Alt глобально ломали бы ввод в других программах — их не переносим
+        st["keybinds_global_map"] = {k: v for k, v in old.items() if k not in LOCAL_ONLY and _to_win(v)}
+    keys = {k for k, _t, _d in ACTIONS if k not in LOCAL_ONLY}
+    return {k: v for k, v in st["keybinds_global_map"].items() if k in keys and v}
 
 
 _VK = {Qt.Key.Key_Space: 0x20, Qt.Key.Key_Left: 0x25, Qt.Key.Key_Up: 0x26, Qt.Key.Key_Right: 0x27,
@@ -121,7 +134,12 @@ def _to_win(seq_text):
         vk = 0x70 + (k - Qt.Key.Key_F1.value)
     else:
         vk = _VK.get(key)
-    return (m | 0x4000, vk) if vk else None             # 0x4000 = MOD_NOREPEAT
+    if not vk:
+        return None
+    media = vk in (0xB0, 0xB1, 0xB2, 0xB3, 0x13) or 0x70 <= vk <= 0x87
+    if not m and not media:
+        return None                                       # «Пробел» без Ctrl/Alt сломал бы ввод во всех программах
+    return (m | 0x4000, vk)                               # 0x4000 = MOD_NOREPEAT
 
 
 class _HotkeyFilter(QAbstractNativeEventFilter):
@@ -177,29 +195,33 @@ class Keys:
             self.filter.ids = {}
 
     def apply(self):
+        """В окне — QShortcut по сочетаниям binds(); везде — RegisterHotKey по global_binds()."""
         self._clear()
         self.failed = []
-        glob = bool(self.win.settings.get("keybinds_global", False)) and sys.platform.startswith("win")
-        if glob and self.filter is None:
-            self.filter = _HotkeyFilter(self.win)
-            QApplication.instance().installNativeEventFilter(self.filter)
-        hwnd = int(self.win.winId()) if glob else 0
-        for i, (key, seq) in enumerate(binds(self.win).items()):
+        for key, seq in binds(self.win).items():
             if not seq:
                 continue
-            if glob and key not in LOCAL_ONLY:
-                wk = _to_win(seq)
-                hid = 0xB000 + i
-                if wk and ctypes.windll.user32.RegisterHotKey(hwnd, hid, wk[0], wk[1]):
-                    self.registered.append(hid)
-                    self.filter.ids[hid] = key
-                    continue
-                self.failed.append(seq)                    # занято другой программой — хотя бы внутри окна
             sc = QShortcut(QKeySequence(seq), self.win)
             sc._prefs = True
             sc.setContext(Qt.ShortcutContext.ApplicationShortcut)
             sc.activated.connect(lambda k=key: _do(self.win, k))
             self.shortcuts.append(sc)
+        glob = global_binds(self.win) if sys.platform.startswith("win") else {}
+        if not glob:
+            return
+        if self.filter is None:
+            self.filter = _HotkeyFilter(self.win)
+            QApplication.instance().installNativeEventFilter(self.filter)
+        hwnd = int(self.win.winId())
+        order = [k for k, _t, _d in ACTIONS]
+        for key, seq in glob.items():
+            wk = _to_win(seq)
+            hid = 0xB000 + order.index(key)
+            if wk and ctypes.windll.user32.RegisterHotKey(hwnd, hid, wk[0], wk[1]):
+                self.registered.append(hid)
+                self.filter.ids[hid] = key
+            else:
+                self.failed.append(seq)                    # занято другой программой или без Ctrl/Alt/Shift/Win
 
 
 # ══════════════════════════════════════════════════════════════════════════ #
@@ -388,7 +410,7 @@ class PrefsDialog(QDialog):
     def __init__(self, win, keys):
         super().__init__(win)
         self.win, self.keys = win, keys
-        self.setWindowTitle("Клавиши и окно")
+        self.setWindowTitle("Окно и масштаб")
         self.setStyleSheet(QSS)
         self.setMinimumWidth(520)
         self.resize(560, 760)
@@ -401,35 +423,9 @@ class PrefsDialog(QDialog):
         v = QVBoxLayout(content)
         v.setSpacing(10)
 
-        # ── клавиши ──
-        v.addWidget(self._h("Горячие клавиши", "Щёлкните по полю и нажмите сочетание. Пусто — без клавиши."))
-        card, g = self._card(QGridLayout)
-        self.edits = {}
-        cur = binds(win)
-        for r, (k, title, d) in enumerate(ACTIONS):
-            g.addWidget(QLabel(title), r, 0)
-            e = QKeySequenceEdit(QKeySequence(cur.get(k, "")))
-            e.setMaximumSequenceLength(1) if hasattr(e, "setMaximumSequenceLength") else None
-            e.editingFinished.connect(self._save_keys)
-            g.addWidget(e, r, 1)
-            clr = QPushButton("✕")
-            clr.setToolTip("Без клавиши")
-            clr.setFixedWidth(40)
-            clr.clicked.connect(lambda _=False, ed=e: (ed.clear(), self._save_keys()))
-            g.addWidget(clr, r, 2)
-            self.edits[k] = e
-        self.cb_glob = QCheckBox("Работают везде — даже когда плеер свёрнут или в другом окне")
-        self.cb_glob.setChecked(bool(win.settings.get("keybinds_global", False)))
-        self.cb_glob.toggled.connect(self._save_keys)
-        g.addWidget(self.cb_glob, len(ACTIONS), 0, 1, 3)
-        reset = QPushButton("Сбросить как было")
-        reset.clicked.connect(self._reset_keys)
-        g.addWidget(reset, len(ACTIONS) + 1, 0)
-        self.key_note = QLabel("")
-        self.key_note.setObjectName("Sub")
-        self.key_note.setWordWrap(True)
-        g.addWidget(self.key_note, len(ACTIONS) + 2, 0, 1, 3)
-        v.addWidget(card)
+        keys_moved = QPushButton("Горячие клавиши — в Настройках → Инструменты")
+        keys_moved.clicked.connect(lambda: (self.accept(), open_keybinds(win)))
+        v.addWidget(keys_moved)
 
         # ── окно ──
         v.addWidget(self._h("Размер окна", "Пропорции держатся, когда тянете край окна. «Развернуть» и F11 — как обычно."))
@@ -503,26 +499,6 @@ class PrefsDialog(QDialog):
         l.setContentsMargins(14, 12, 14, 12)
         return c, l
 
-    # клавиши
-    def _save_keys(self):
-        self.win.settings["keybinds"] = {k: e.keySequence().toString() for k, e in self.edits.items()}
-        self.win.settings["keybinds_global"] = self.cb_glob.isChecked()
-        self.keys.apply()
-        _save(self.win)
-        seqs = [s for s in self.win.settings["keybinds"].values() if s]
-        dup = {s for s in seqs if seqs.count(s) > 1}
-        note = []
-        if dup:
-            note.append("Одно сочетание на два действия: " + ", ".join(sorted(dup)))
-        if self.keys.failed:
-            note.append("Заняты другой программой (работают только в окне плеера): " + ", ".join(self.keys.failed))
-        self.key_note.setText("  ·  ".join(note))
-
-    def _reset_keys(self):
-        for k, _t, d in ACTIONS:
-            self.edits[k].setKeySequence(QKeySequence(d))
-        self._save_keys()
-
     # окно
     def _fill_sizes(self):
         self.cb_size.clear()
@@ -565,9 +541,121 @@ def open_dialog(win):
     dlg = PrefsDialog(win, st["keys"])
     try:
         import inapp
-        inapp.present(win, dlg, "Клавиши и окно")
+        inapp.present(win, dlg, "Окно и масштаб")
     except Exception:                                      # noqa: BLE001
         dlg.show()
+
+
+def open_keybinds(win):
+    """Карточка горячих клавиш живёт в Настройках Echoes Music → Инструменты."""
+    shell = getattr(win, "_ya", None)
+    hub = getattr(shell, "settings_hub", None) if shell is not None else None
+    try:
+        shell.show_page("settings")
+        if hub is not None:
+            hub.select("tools")
+        card = getattr(shell, "_keybinds_card", None)
+        if card is not None:
+            QTimer.singleShot(50, lambda: shell.pages["settings"].ensureWidgetVisible(card))
+    except Exception as e:                                 # noqa: BLE001
+        print("[prefs] keybinds:", e)
+
+
+def keybinds_card(win):
+    """Горячие клавиши: два набора — в окне ECHOES и везде в системе."""
+    from echo_glass import GlassFrame, glass_controls_qss
+    card = GlassFrame(radius=16)
+    card.setMaximumWidth(800)
+    card.setStyleSheet("QLabel,QCheckBox{color:#edf3fb;background:transparent;}"
+                       "QLabel#YaSub{color:#a8b5c6;} QLabel#Col{color:#a8b5c6;font-weight:700;}"
+                       "QPushButton{border-radius:10px;padding:6px 12px;}"
+                       "QKeySequenceEdit,QLineEdit{border-radius:8px;padding:4px 8px;}" + glass_controls_qss())
+    v = QVBoxLayout(card)
+    v.setContentsMargins(18, 16, 18, 16)
+    title = QLabel("Горячие клавиши")
+    title.setStyleSheet("font-size:15px;font-weight:700;background:transparent;")
+    v.addWidget(title)
+    sub = QLabel("«В ECHOES» — когда окно плеера активно (пробел, стрелки…). «Везде» — даже когда плеер "
+                 "свёрнут или вы в другой программе: только с Ctrl, Alt, Shift или Win (или F-клавиша / "
+                 "медиаклавиша). Щёлкните по полю и нажмите сочетание; пусто — без клавиши.")
+    sub.setObjectName("YaSub")
+    sub.setWordWrap(True)
+    v.addWidget(sub)
+    g = QGridLayout()
+    g.setHorizontalSpacing(8)
+    g.setVerticalSpacing(6)
+    for c, text in ((1, "В ECHOES"), (3, "Везде")):
+        h = QLabel(text)
+        h.setObjectName("Col")
+        g.addWidget(h, 0, c)
+    local_edits, global_edits = {}, {}
+    note = QLabel("")
+    note.setObjectName("YaSub")
+    note.setWordWrap(True)
+
+    def save():
+        keys = (win.__dict__.get("_prefs") or {}).get("keys")      # карточку строят раньше install()
+        win.settings["keybinds"] = {k: e.keySequence().toString() for k, e in local_edits.items()}
+        win.settings["keybinds_global_map"] = {k: e.keySequence().toString() for k, e in global_edits.items()}
+        win.settings.pop("keybinds_global", None)
+        if keys is not None:
+            keys.apply()
+        _save(win)
+        msgs = []
+        for name, values in (("в ECHOES", win.settings["keybinds"]), ("везде", win.settings["keybinds_global_map"])):
+            seqs = [x for x in values.values() if x]
+            dup = sorted({x for x in seqs if seqs.count(x) > 1})
+            if dup:
+                msgs.append(f"Одно сочетание на два действия ({name}): " + ", ".join(dup))
+        if keys is not None and keys.failed:
+            msgs.append("Не работают везде (заняты другой программой или без Ctrl/Alt/Shift/Win): "
+                        + ", ".join(keys.failed))
+        note.setText("  ·  ".join(msgs))
+
+    def edit(seq, row, col, store, key):
+        e = QKeySequenceEdit(QKeySequence(seq))
+        if hasattr(e, "setMaximumSequenceLength"):
+            e.setMaximumSequenceLength(1)
+        e.setMinimumWidth(150)
+        from PyQt6.QtWidgets import QLineEdit
+        for le in e.findChildren(QLineEdit):
+            le.setPlaceholderText("Нажмите сочетание")
+        e.editingFinished.connect(save)
+        g.addWidget(e, row, col)
+        clr = QPushButton("✕")
+        clr.setToolTip("Без клавиши")
+        clr.setFixedWidth(36)
+        clr.clicked.connect(lambda _=False, ed=e: (ed.clear(), save()))
+        g.addWidget(clr, row, col + 1)
+        store[key] = e
+
+    local, glob = binds(win), global_binds(win)
+    for r, (k, text, _d) in enumerate(ACTIONS, start=1):
+        g.addWidget(QLabel(text), r, 0)
+        edit(local.get(k, ""), r, 1, local_edits, k)
+        if k in LOCAL_ONLY:
+            only = QLabel("только в окне")
+            only.setObjectName("YaSub")
+            g.addWidget(only, r, 3, 1, 2)
+        else:
+            edit(glob.get(k, ""), r, 3, global_edits, k)
+    g.setColumnStretch(0, 1)
+    v.addLayout(g)
+    row = QHBoxLayout()
+    reset = QPushButton("Сбросить как было")
+
+    def do_reset():
+        for k, _t, d in ACTIONS:
+            local_edits[k].setKeySequence(QKeySequence(d))
+        for e in global_edits.values():
+            e.clear()
+        save()
+    reset.clicked.connect(do_reset)
+    row.addWidget(reset)
+    row.addStretch(1)
+    v.addLayout(row)
+    v.addWidget(note)
+    return card
 
 
 def _cleanup_tiktok():
