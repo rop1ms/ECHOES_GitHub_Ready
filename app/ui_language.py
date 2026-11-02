@@ -183,6 +183,10 @@ def apply(language,window=None):
     import paint_cache
     from raster_budget import ROWS
     paint_cache.clear_all();ROWS.clear()
+    # Card rows painted in C++ (echoes_ui.dll) keep their captions there.
+    import sys
+    theme=sys.modules.get('yamusic_theme')
+    for row in list(getattr(theme,'_NATIVE_ROWS',())):row.relabel()
     for widget in app.allWidgets():
         if sip.isdeleted(widget):continue
         if isinstance(widget,W.QListWidget):

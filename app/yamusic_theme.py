@@ -1691,6 +1691,148 @@ class HRow(QScrollArea):
     def wheelEvent(self, e):
         e.ignore()                         # колесо — странице; ленту вбок листают полосой прокрутки
 
+    @property
+    def widget_(self):
+        return self
+
+    def card(self, *a, **kw) -> "Card":
+        c = Card(*a, **kw)
+        self.add(c)
+        return c
+
+
+class _Clicked:
+    """clicked у карточки ленты на C++: тот же connect(), что у pyqtSignal."""
+    __slots__ = ("slots",)
+
+    def __init__(self):
+        self.slots = []
+
+    def connect(self, fn):
+        self.slots.append(fn)
+
+    def emit(self):
+        for fn in list(self.slots):
+            fn()
+
+
+class CardItem:
+    """Карточка внутри NativeCardRow — данные, а не виджет. Повторяет то, что вызывающий код
+    трогает у Card: clicked, cover (+update), title/subtitle; для «перелёта» обложки (ya_decor.fly_to) —
+    size_, mapTo, isVisible и _cbuf."""
+
+    def __init__(self, row, index, title, subtitle, cover, size, rad, circle, mix, mix_covers, seed):
+        self.row, self.index = row, index
+        self.title, self.subtitle, self._cover = title, subtitle, cover
+        self.size_, self._rad, self.circle, self.mix, self.mix_covers = size, rad, circle, mix, mix_covers
+        self.seed = seed or title
+        self.clicked = _Clicked()
+
+    @property
+    def cover(self):
+        return self._cover
+
+    @cover.setter
+    def cover(self, path):
+        self._cover = path
+
+    def update(self):
+        """Догрузилась обложка (_CoverLoader) или поменялся cover — C++ спросит её снова при отрисовке."""
+        self.row.strip.invalidate(self.index)
+
+    def resolve(self):
+        """Карточку рисуют: обложка (как Card.paintEvent — только видимым, догрузка в фоне)."""
+        import ya_decor
+        if not self.mix:
+            self.row.strip.cover(self.index, cover_pixmap(self._cover, self.size_, self._rad, seed=self.seed,
+                                                          circle=self.circle, lazy=self))
+        elif self.mix_covers and ya_decor.on("mix_covers"):
+            sz = int(self.size_ * 0.36)
+            self.row.strip.mix_covers(self.index, [cover_pixmap(cv, sz, 6) for cv in self.mix_covers[:3]], True)
+
+    # ya_decor.fly_to
+    def isVisible(self):
+        w = self.row.strip.widget
+        return bool(self.row.strip.alive and w is not None and w.isVisible())
+
+    def mapTo(self, top, pt):
+        x, y = self.row.strip.card_pos(self.index)
+        return self.row.strip.widget.mapTo(top, QPoint(x + pt.x(), y + pt.y()))
+
+
+class NativeCardRow:
+    """Лента карточек на C++ (echoes_ui.dll, tools/native_ui/card_strip.cpp): один виджет на ряд
+    вместо HRow с десятками Card. Выглядит так же — рисование портировано из Card._paint_card."""
+
+    def __init__(self):
+        import native_ui
+        import ya_decor
+        self.strip = native_ui.Strip()
+        self.items = []
+        self.strip.on_click = self._click
+        self.strip.on_hover = self._hover
+        self.strip.on_need = lambda i: self.items[i].resolve()
+        self.strip.style(QColor(TEXT), QColor(MUTED), FAMILIES,
+                         ya_decor.on("cascade") and ya_decor._motion() > 0)
+        _NATIVE_ROWS.add(self)
+
+    @property
+    def widget_(self):
+        return self.strip.widget
+
+    def card(self, title, subtitle="", cover="", size=150, circle=False, mix=None, seed="",
+             parent=None, mix_covers=None) -> CardItem:
+        import ya_decor
+        size = int(round(size * DENSITY))
+        rad = max(6.0, CARD_RADIUS * size / 150) if circle else CARD_RADIUS * size / 150
+        circle = circle and ARTIST_ROUND
+        mix_covers = [c for c in (mix_covers or []) if c]
+        if mix and mix_covers:
+            mc = ya_decor.mix_colors(mix_covers) if ya_decor.on("mix_covers") else None
+            if mc:
+                mix = mc
+        i = self.strip.add(i18n_tr(title), i18n_tr(subtitle), size, rad, circle, mix)
+        it = CardItem(self, i, title, subtitle, cover, size, rad, circle, mix, mix_covers, seed)
+        self.items.append(it)
+        return it
+
+    def relabel(self):
+        for it in self.items:
+            self.strip.text(it.index, i18n_tr(it.title), i18n_tr(it.subtitle))
+
+    def _click(self, i):
+        import ya_decor
+        it = self.items[i]
+        it._cbuf = self.strip.card_pixmap(i)              # для «перелёта» обложки (ya_decor.fly_to)
+        ya_decor.card_clicked(it)
+        it.clicked.emit()
+
+    def _hover(self, i):
+        import ya_decor
+        it = self.items[i]
+        glow = ya_decor.on("card_glow")
+        acc = ya_decor.accent()
+        src = it.mix_covers[0] if it.mix and it.mix_covers else it.cover
+        glow_c = ya_decor.palette(src)[0][0] if (glow and src) else acc
+        ring_c = ya_decor.palette(it.cover)[0][0] if (glow and it.cover) else acc
+        self.strip.hover_style(i, glow, QColor(glow_c), QColor(ring_c), acc,
+                               ya_icon("play", 20, ya_decor.on_accent(acc).name()))
+
+
+import weakref as _weakref                                       # noqa: E402
+_NATIVE_ROWS = _weakref.WeakSet()
+
+
+def i18n_tr(s):
+    import i18n
+    return i18n.tr(s) if s else s
+
+
+def card_row():
+    """Лента карточек: на C++, если echoes_ui.dll подходит к этому Qt, иначе прежняя HRow."""
+    import native_ui
+    return NativeCardRow() if native_ui.available() else HRow()
+
 
 def section_title(text, on_more=None) -> QWidget:
     w = QWidget()
@@ -3642,7 +3784,7 @@ class YaShell(QWidget):
 
         # подборки-миксы
         page.v.addWidget(section_title("Миксы и подборки"))
-        row = HRow()
+        row = card_row()
         mixes = [("Моя волна", "Всё, что вы любите", ("my", None), QColor("#ffd60a"), QColor("#e0218a")),
                  ("Настроение дня", "Время суток и погода", ("mood_day", None), QColor("#ff8a00"), QColor("#7a2cff")),
                  ("Трек дня", "Давно не слушали", ("track_day", None), QColor("#00d4ff"), QColor("#2b5bff"))]
@@ -3651,9 +3793,8 @@ class YaShell(QWidget):
         covs = list(lib_cov.values())
         mix_cov = {"my": [c for c in liked if c][-3:] or covs[:3], "mood_day": covs[3:6], "track_day": covs[-1:]}
         for title, sub, kind, c1, c2 in mixes:
-            c = Card(title, sub, size=150, mix=(c1, c2), mix_covers=mix_cov.get(kind[0]))
+            c = row.card(title, sub, size=150, mix=(c1, c2), mix_covers=mix_cov.get(kind[0]))
             c.clicked.connect(lambda k=kind: self.start_wave(*k))
-            row.add(c)
         prof = self.profiles()
         if prof:
             fam_count = {}
@@ -3673,31 +3814,28 @@ class YaShell(QWidget):
                 if n < 3:
                     continue
                 hue = (hash(f) % 360) / 360.0
-                c = Card(GENRE_RU.get(f, f).capitalize(), f"{n} треков",
+                c = row.card(GENRE_RU.get(f, f).capitalize(), f"{n} треков",
                          size=150, mix=(QColor.fromHsvF(hue, 0.85, 1.0), QColor.fromHsvF((hue + 0.3) % 1, 0.8, 0.8)),
                          mix_covers=fam_cov.get(f))
                 c.clicked.connect(lambda f=f: self.start_wave("genre", f))
-                row.add(c)
             for key, name, _fn, _hi in MOODS:
                 hue = {"energy": 0.02, "calm": 0.55, "happy": 0.14, "sad": 0.66}[key]
-                c = Card(name, "Под настроение", size=150,
+                c = row.card(name, "Под настроение", size=150,
                          mix=(QColor.fromHsvF(hue, 0.85, 1.0), QColor.fromHsvF((hue + 0.12) % 1, 0.9, 0.7)))
                 c.clicked.connect(lambda k=key: self.start_wave("mood", k))
-                row.add(c)
-        page.v.addWidget(row)
+        page.v.addWidget(row.widget_)
 
         # плейлисты
         pls = [n for n in w.playlists if n not in AUTO_PLAYLISTS or n == "Настроение дня"]
         if pls:
             page.v.addWidget(section_title("Ваши плейлисты"))
-            row = HRow()
+            row = card_row()
             for n in pls:
                 tr = w.playlists[n].get("tracks", [])
                 cov = w.playlists[n].get("cover") or (tr[0].get("cover", "") if tr else "")
-                c = Card(n, f"{len(tr)} треков", cov, 150, seed=n)
+                c = row.card(n, f"{len(tr)} треков", cov, 150, seed=n)
                 c.clicked.connect(lambda n=n: self.open_playlist(n))
-                row.add(c)
-            page.v.addWidget(row)
+            page.v.addWidget(row.widget_)
 
         # исполнители
         arts = {}
@@ -3707,24 +3845,22 @@ class YaShell(QWidget):
         top = sorted(arts.items(), key=lambda x: -x[1][0])[:16]
         if top:
             page.v.addWidget(section_title("Ваши исполнители"))
-            row = HRow()
+            row = card_row()
             for a, (n, cov) in top:
-                c = Card(a, f"{n} треков", cov, 130, circle=True)
+                c = row.card(a, f"{n} треков", cov, 130, circle=True)
                 c.clicked.connect(lambda a=a: self.open_artist(a))
-                row.add(c)
-            page.v.addWidget(row)
+            page.v.addWidget(row.widget_)
 
         # недавно добавленные
         if lib:
             page.v.addWidget(section_title("Недавно добавленные"))
-            row = HRow()
+            row = card_row()
             idx_map = {str(t.get("path", "")): i for i, t in enumerate(lib)}
             for t in list(reversed(lib))[:18]:
                 title = sanitize_title(t.get("title", ""))
-                c = Card(title, t.get("artist", ""), t.get("cover", ""), 150, seed=str(t.get("path", "")))
+                c = row.card(title, t.get("artist", ""), t.get("cover", ""), 150, seed=str(t.get("path", "")))
                 c.clicked.connect(lambda i=idx_map[str(t.get("path", ""))]: self.win._play_index(i, "library"))
-                row.add(c)
-            page.v.addWidget(row)
+            page.v.addWidget(row.widget_)
 
         # давно не слушали
         hist = w.settings.get("play_history", {})
@@ -3790,16 +3926,15 @@ class YaShell(QWidget):
             if not tracks:
                 return
             page.v.addWidget(section_title(title))
-            row = HRow()
+            row = card_row()
             for i, t in enumerate(tracks):
                 sub = t.get("artist", "")
                 if t.get("because") and t["because"].startswith("похож"):
                     sub = f"{sub} · {t['because']}"
-                c = Card(t.get("title", ""), sub, "", 150, seed=f"{t.get('artist')}|{t.get('title')}")
+                c = row.card(t.get("title", ""), sub, "", 150, seed=f"{t.get('artist')}|{t.get('title')}")
                 c.clicked.connect(lambda i=i, lst=tracks: self.win.stream_tracks(lst, start=i, playlist=self.FY_PL))
                 self._fy_cover(c, t.get("cover_url", ""))
-                row.add(c)
-            page.v.addWidget(row)
+            page.v.addWidget(row.widget_)
 
         if trends:
             track_row("Тренды · Чарт России", trends.get("ru") or [])
@@ -3808,13 +3943,12 @@ class YaShell(QWidget):
             arts = recs.get("artists") or []
             if arts:
                 page.v.addWidget(section_title("Исполнители для вас"))
-                row = HRow()
+                row = card_row()
                 for a in arts:
-                    c = Card(a["name"], "похож на " + " и ".join(a.get("because") or []), "", 130, circle=True)
+                    c = row.card(a["name"], "похож на " + " и ".join(a.get("because") or []), "", 130, circle=True)
                     c.clicked.connect(lambda n=a["name"]: self.open_artist(n))
                     self._fy_cover(c, a.get("pic", ""))
-                    row.add(c)
-                page.v.addWidget(row)
+                page.v.addWidget(row.widget_)
             track_row("Треки для вас", recs.get("tracks") or [])
             track_row("Ещё от ваших исполнителей — этого нет в коллекции", recs.get("more") or [])
             for g in recs.get("genres") or []:

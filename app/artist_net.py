@@ -100,15 +100,24 @@ def _img_path(url: str) -> Path:
     return IMG_DIR / (hashlib.md5(url.encode()).hexdigest() + ext)
 
 
+_FOUND: dict = {}                                  # url → путь уже скачанной картинки (без stat на каждый показ)
+
+
 def cached_image(url: str) -> str:
     """Путь к уже скачанной картинке ('' — ещё нет), без сети."""
     if not url:
         return ""
+    hit = _FOUND.get(url)
+    if hit:
+        return hit
     path = _img_path(url)
     try:
-        return str(path) if path.stat().st_size > 200 else ""
+        if path.stat().st_size > 200:
+            _FOUND[url] = str(path)
+            return str(path)
     except OSError:
-        return ""
+        pass
+    return ""
 
 
 def image(url: str) -> str:
@@ -125,6 +134,7 @@ def image(url: str) -> str:
             tmp = path.with_suffix(".part")
             tmp.write_bytes(r.content)
             tmp.replace(path)
+            _FOUND[url] = str(path)
             return str(path)
     except Exception:                              # noqa: BLE001
         pass
