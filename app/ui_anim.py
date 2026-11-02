@@ -770,7 +770,8 @@ def _install_resize_preview(win):
             if kind not in ('windows_generic_MSG', 'windows_dispatcher_MSG'): return False, 0
             try:
                 message = MSG.from_address(int(pointer))
-                if message.message in (0x0231, 0x0232) and message.hwnd == int(win.winId()):
+                # ctypes.wintypes.MSG: поле hWnd (не hwnd) — раньше здесь падало, и предпросмотр не включался
+                if message.message in (0x0231, 0x0232) and (message.hWnd or 0) == int(win.winId()):
                     preview.begin() if message.message == 0x0231 else preview.end()
             except (RuntimeError, ValueError):
                 pass
