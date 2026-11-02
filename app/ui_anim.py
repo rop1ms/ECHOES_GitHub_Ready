@@ -361,6 +361,8 @@ def _on_screen(target):
 
 
 def _outgoing_snapshot(target):
+    import wheel_guard
+    wheel_guard.finish_gpu()                               # прокрутка на GPU — сначала страницу на место
     previous=_OVERLAYS.get(id(target))
     if previous is None:return _on_screen(target) or _grab_area(target)
     # Continue from the currently visible blend; an unprepared transition

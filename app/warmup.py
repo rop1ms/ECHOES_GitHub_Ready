@@ -57,7 +57,7 @@ def start(win):
     idle = _Idle(win)
     threading.Thread(target=_warm_intel, args=(list(getattr(win, "library", []) or []),),
                      name="echoes-warmup", daemon=True).start()
-    order = ["foryou", "wave", "collection", "albums", "profile", "net", "tierlist", "duel"]
+    order = ["foryou", "wave", "collection", "albums", "profile", "net", "tierlist", "duel", "gpu_scroll"]
 
     def step():
         if not config(win.settings)['warm_pages']:
@@ -82,6 +82,9 @@ def start(win):
                 page._refresh_tab(page._tab or "feed")
             elif key == "tierlist":
                 sh.pages["tierlist"].refresh()
+            elif key == "gpu_scroll":                          # первый снимок для прокрутки на GPU
+                import gpu_scroll
+                gpu_scroll.warm(win)
             for w in (sh.pages.get(key),):                     # раскладка и стили — тоже заранее
                 if w is not None:
                     w.ensurePolished()

@@ -351,13 +351,14 @@ def decorate_surface(frame, base: QPixmap) -> QPixmap:
     return pm
 
 
-def paint_frame(frame, p: QPainter, surface: QPixmap):
-    """AmbientFrame.paintEvent: стекло в выбранном режиме + светлый кант по верхнему краю."""
+def paint_frame(frame, p: QPainter, surface: QPixmap, area=None):
+    """AmbientFrame.paintEvent: стекло в выбранном режиме + светлый кант по верхнему краю.
+    area — перерисовываемый прямоугольник: ниже канта кант не трогаем."""
     if getattr(frame, "_glass_stretch", False) and _CFG["glass"] != "oled":
         p.drawPixmap(0, 0, surface)                            # окно тянут — растянутое стекло, без украшений
         return
     p.drawPixmap(0, 0, decorate_surface(frame, surface))
-    if not on("rim") or CURRENT is None:
+    if not on("rim") or CURRENT is None or (area is not None and area.top() > 3):
         return
     w = frame.width()
     p.setRenderHint(QPainter.RenderHint.Antialiasing)

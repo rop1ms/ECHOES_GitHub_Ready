@@ -94,6 +94,13 @@ def _setup(lib):
         "eui_trans_old": (None, [P, P]),
         "eui_trans_new_image": (None, [P, P]),
         "eui_trans_frame": (None, [P, I, ctypes.c_float, ctypes.c_float, ctypes.c_float]),
+        "eui_scroll_new": (P, []),
+        "eui_scroll_ok": (I, [P]),
+        "eui_scroll_backdrop": (None, [P, P]),
+        "eui_scroll_tile": (None, [P, I, P]),
+        "eui_scroll_drop": (None, [P, I]),
+        "eui_scroll_release": (None, [P]),
+        "eui_scroll_frame": (None, [P, ctypes.c_float, I]),
         "eui_nebula_new": (P, []),
         "eui_nebula_ok": (I, [P]),
         "eui_nebula_params": (None, [P, P]),
@@ -382,6 +389,31 @@ class TransitionGL:
         """Текущий кадр перехода (для снимка, если переход прерывают новым)."""
         from PyQt6.QtOpenGLWidgets import QOpenGLWidget
         return QPixmap_from(sip.wrapinstance(_ptr(self.widget), QOpenGLWidget).grabFramebuffer())
+
+
+class ScrollGL:
+    """GL-слой прокрутки (scroll_gl.cpp): фон и плитки содержимого — текстурами, кадр — только сдвиг."""
+
+    def __init__(self):
+        self.widget = _wrap(_lib.eui_scroll_new())
+
+    def ok(self) -> bool:
+        return bool(_lib.eui_scroll_ok(_ptr(self.widget)))
+
+    def backdrop(self, img):
+        _lib.eui_scroll_backdrop(_ptr(self.widget), _ptr(img))
+
+    def tile(self, i: int, img):
+        _lib.eui_scroll_tile(_ptr(self.widget), int(i), _ptr(img))
+
+    def drop(self, i: int):
+        _lib.eui_scroll_drop(_ptr(self.widget), int(i))
+
+    def release(self):
+        _lib.eui_scroll_release(_ptr(self.widget))
+
+    def frame(self, off: float, tile_h: int):
+        _lib.eui_scroll_frame(_ptr(self.widget), float(off), int(tile_h))
 
 
 def QPixmap_from(img):

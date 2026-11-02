@@ -12,6 +12,8 @@
 доезжает до неё за ~0.2 с (быстрая прокрутка складывается и разгоняется). Тачпад (точные пиксели) и
 Ctrl+колесо — как раньше; Shift+колесо плавно листает по горизонтали.
 
+Доводку вверх-вниз рисует видеокарта (gpu_scroll.py): страница стоит, сдвигается её снимок полосами.
+
 Не трогает: текст песни, список настроений «Моей волны», а также Echoes Studio — там колесо рабочий
 инструмент (масштаб, ручки).
 """
@@ -36,7 +38,7 @@ class _Smooth(QObject):
 
     def __init__(self):
         super().__init__()
-        self.items: dict = {}                                  # id(bar) → [bar, цель, позиция, что выставили]
+        self.items: dict = {}                                  # id(bar) → [bar, цель, позиция, что выставили, область, GPU]
         try:                                                   # общие часы кадров (в такт экрану, VSync)
             from frameclock import FrameTimer
             self.timer = FrameTimer(self)
@@ -50,7 +52,14 @@ class _Smooth(QObject):
     def add(self, bar, delta,area):
         st = self.items.get(id(bar))
         if st is None or st[0] is not bar or bar.value() != st[3]:      # полосу двигал кто-то ещё — с текущего места
-            st = [bar, float(bar.value()), float(bar.value()), bar.value(),area]
+            if st is not None:
+                self._end(st)
+            st = [bar, float(bar.value()), float(bar.value()), bar.value(),area,None]
+            try:
+                import gpu_scroll
+                st[5] = gpu_scroll.begin(area, bar)
+            except Exception as e:                             # noqa: BLE001
+                print("[wheel_guard] gpu:", e)
         elif delta*(st[1]-st[2])<0:
             # A reversed gesture must turn immediately, not first repay the
             # accumulated distance from several previous wheel notches.
@@ -61,6 +70,16 @@ class _Smooth(QObject):
             self.t = time.perf_counter()
             self.timer.start()
 
+    def _end(self, st):
+        if st[5] is not None:
+            gpu, st[5] = st[5], None
+            gpu.end()
+
+    def _drop(self, k):
+        st = self.items.pop(k, None)
+        if st is not None:
+            self._end(st)
+
     def _tick(self):
         now = time.perf_counter()
         dt = min(0.05, now - self.t)
@@ -70,20 +89,29 @@ class _Smooth(QObject):
             bar = st[0]
             try:
                 if bar.isSliderDown() or not st[4].isVisible() or st[4].window().isMinimized():
-                    self.items.pop(k,None);continue
+                    self._drop(k);continue
                 st[1]=max(bar.minimum(),min(bar.maximum(),st[1]))
                 if bar.value() != st[3]:                       # перехватили (перетащили ползунок, перестроили)
-                    self.items.pop(k, None)
+                    self._drop(k)
                     continue
+                if st[5] is not None and not st[5].alive():    # размер/страница сменились — дальше растром
+                    self._end(st)
                 st[2] += (st[1] - st[2]) * a
                 if abs(st[1] - st[2]) < 0.6:
                     st[2] = st[1]
                 v = int(round(st[2]))
                 if v != bar.value():
-                    bar.setValue(v)
+                    if st[5] is not None:                      # страница стоит, двигается только ползунок
+                        bar.blockSignals(True)
+                        bar.setValue(v)
+                        bar.blockSignals(False)
+                    else:
+                        bar.setValue(v)
                 st[3] = bar.value()
+                if st[5] is not None:
+                    st[5].frame(st[2])
                 if st[2] == st[1] or st[3] in (bar.minimum(), bar.maximum()) and abs(st[1] - st[3]) < 1:
-                    self.items.pop(k, None)
+                    self._drop(k)
             except RuntimeError:                               # виджет удалён
                 self.items.pop(k, None)
         if not self.items:
@@ -91,6 +119,20 @@ class _Smooth(QObject):
 
 
 _SMOOTH = None
+
+
+def finish_gpu():
+    """Страницу снимают (переход) посреди доводки на GPU: поставить её на место сейчас и перерисовать —
+    в буфере окна под слоем она ещё на старом месте. Дальше доводка идёт растром."""
+    if _SMOOTH is None:
+        return
+    for st in list(_SMOOTH.items.values()):
+        if st[5] is not None:
+            _SMOOTH._end(st)
+            try:
+                st[4].viewport().repaint()
+            except RuntimeError:
+                pass
 
 
 def _smooth_ok(area, ev) -> bool:

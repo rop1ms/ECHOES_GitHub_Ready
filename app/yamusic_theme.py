@@ -747,6 +747,9 @@ class _CoverLoader:
                     w.update()
                 except RuntimeError:
                     pass
+                import gpu_scroll                              # идёт прокрутка на GPU — обновить её полосы
+                if gpu_scroll.ACTIVE is not None:
+                    gpu_scroll.ACTIVE.touch(w)
 
 
 _LOADER = _CoverLoader()
@@ -2059,12 +2062,17 @@ class AmbientFrame(QFrame):
         elif self._surface is None or self._surface.size() != self.size():
             self._surface = surface_for(self, self._surface, radius)
         p = QPainter(self)
-        clip = QPainterPath()
-        clip.addRoundedRect(QRectF(self.rect()), radius, radius)
-        p.setClipPath(clip)
+        er, k = e.rect(), int(radius) + 1
+        # скругление обрезаем, только если перерисовка задевает угол: путь размером с панель на каждый
+        # маленький кусок (ползунок прокрутки, кнопка) стоил ~1–2 мс за кадр
+        if radius > 0 and not (self.rect().adjusted(0, k, 0, -k).contains(er) or
+                               self.rect().adjusted(k, 0, -k, 0).contains(er)):
+            clip = QPainterPath()
+            clip.addRoundedRect(QRectF(self.rect()), radius, radius)
+            p.setClipPath(clip)
         import ya_decor                                        # режим стекла, зерно, «погода», кант
         if ya_decor.CURRENT is not None:
-            ya_decor.paint_frame(self, p, self._surface)
+            ya_decor.paint_frame(self, p, self._surface, er)
         else:
             p.drawPixmap(0, 0, self._surface)
         p.end()
