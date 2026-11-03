@@ -1087,7 +1087,7 @@ class AudioEngine(QObject):
     # призвук, «плывущие» ударные).
     _SLOWED_RATE  = 0.80   # темп × 0.80 → питч ≈ −3.9 полутона
     _SPEEDUP_RATE = 1.25   # темп × 1.25 → питч ≈ +3.9 полутона
-    PRESET_FACTORS = {"slowed": _SLOWED_RATE, "speedup": _SPEEDUP_RATE}
+    PRESET_FACTORS = {"slowed": _SLOWED_RATE, "speedup": _SPEEDUP_RATE, "8d": 1.0}   # 8D — тот же темп
 
     # Реверб для slowed: зал с мягким «тёмным» хвостом
     _REVERB_IR_DURATION = 2.6
@@ -1197,6 +1197,10 @@ class AudioEngine(QObject):
         audio, sr, ch = self._decode_to_numpy(src_path, SR, factor)
         if mode == "slowed":
             audio = self._apply_reverb_to_audio(audio, sr)
+        elif mode == "8d":                                # умный 8D: звук облетает голову в такт (spatial8d)
+            import spatial8d
+            audio, info = spatial8d.render(audio, sr)
+            self.last_8d = spatial8d.describe(info)
         tmp = tempfile.NamedTemporaryFile(suffix=".wav", prefix=f"neon_{mode}_", delete=False)
         tmp.close()
         self._numpy_to_wav(audio, sr, ch, tmp.name)

@@ -1174,6 +1174,12 @@ class MainWindow(QMainWindow):
             "Голос и темп ускоряются вместе — как nightcore/speed up на YouTube."
         )
         self._btn_speedup.setMinimumHeight(34)
+        self._btn_8d = QPushButton("8D")
+        self._btn_8d.setObjectName("GhostBtn")
+        self._btn_8d.setCheckable(True)
+        self._btn_8d.setToolTip("Умный 8D: ИИ находит темп и сильные доли трека, и звук облетает голову в такт "
+                                "(басы — в центре). Лучше всего в наушниках")
+        self._btn_8d.setMinimumHeight(34)
 
         # Метка статуса обработки (показывается во время рендера реверба)
         self._preset_status_lbl = QLabel("")
@@ -1205,7 +1211,7 @@ class MainWindow(QMainWindow):
         self._stream_token = 0
         # фоновое изучение библиотеки (жанры/звук) — через 10 с после старта
         QTimer.singleShot(10000, self._start_music_intel)
-        _PRESET_NAMES = {"slowed": "Slowed+Reverb", "speedup": "Speed Up"}
+        _PRESET_NAMES = {"slowed": "Slowed+Reverb", "speedup": "Speed Up", "8d": "8D"}
 
         def _current_src():
             t_list = self.library if self.queue_context == "library" \
@@ -1214,8 +1220,12 @@ class MainWindow(QMainWindow):
                 return str(t_list[self.current_index].get("path", ""))
             return ""
 
+        def _preset_on():
+            """Играет ли сейчас файл пресета (у 8D темп тот же, поэтому смотрим и на файл)."""
+            return self.engine.preset_factor != 1.0 or bool(self.engine._preset_temp_path)
+
         def _sync_preset_buttons(mode):
-            for btn, m in ((self._btn_slowed, "slowed"), (self._btn_speedup, "speedup")):
+            for btn, m in ((self._btn_slowed, "slowed"), (self._btn_speedup, "speedup"), (self._btn_8d, "8d")):
                 btn.blockSignals(True)
                 btn.setChecked(mode == m)
                 btn.setEnabled(True)
@@ -1238,7 +1248,7 @@ class MainWindow(QMainWindow):
             self._preset_status_lbl.hide()
             if self.engine.preset_mode != mode or _current_src() != src:
                 _unlink_later(tmp)            # пока считали — всё поменялось
-                _sync_preset_buttons(self.engine.preset_mode if self.engine.preset_factor != 1.0 else None)
+                _sync_preset_buttons(self.engine.preset_mode if _preset_on() else None)
                 return
             factor = self.engine.PRESET_FACTORS[mode]
             pos = _orig_position()
@@ -1251,22 +1261,30 @@ class MainWindow(QMainWindow):
                 _unlink_later(old_tmp)
             _sync_preset_buttons(mode)
             _set_speed_ui(1.0)
+            if mode == "8d" and getattr(self.engine, "last_8d", ""):
+                self._toast("8D: " + self.engine.last_8d)
 
         def _preset_failed(msg):
-            self.engine.preset_mode = None if self.engine.preset_factor == 1.0 else self.engine.preset_mode
+            self.engine.preset_mode = None if not _preset_on() else self.engine.preset_mode
             self._preset_status_lbl.setText(f"Ошибка: {msg[:60]}")
             self._preset_status_lbl.show()
-            _sync_preset_buttons(self.engine.preset_mode if self.engine.preset_factor != 1.0 else None)
+            _sync_preset_buttons(self.engine.preset_mode if _preset_on() else None)
 
         def _start_preset(mode):
             src = _current_src()
             if not src:
                 _sync_preset_buttons(None)
                 return
+            if src.startswith("stream:"):                  # онлайн-трек: файла для обработки пока нет
+                self._toast("Это работает со скачанными треками — скачайте трек, и всё включится")
+                _sync_preset_buttons(None)
+                return
             self.engine.preset_mode = mode
             self._btn_slowed.setEnabled(False)
             self._btn_speedup.setEnabled(False)
-            self._preset_status_lbl.setText(f"Готовлю {_PRESET_NAMES[mode]}…")
+            self._btn_8d.setEnabled(False)
+            self._preset_status_lbl.setText("ИИ слушает трек и строит полёт звука вокруг головы…" if mode == "8d"
+                                            else f"Готовлю {_PRESET_NAMES[mode]}…")
             self._preset_status_lbl.show()
 
             def work():
@@ -1282,7 +1300,7 @@ class MainWindow(QMainWindow):
 
         def _stop_preset():
             src = _current_src()
-            if self.engine.preset_factor != 1.0 and src:
+            if _preset_on() and src:
                 pos = _orig_position()
                 old_tmp = self.engine._preset_temp_path
                 self.engine.deactivate_preset()
@@ -1305,11 +1323,20 @@ class MainWindow(QMainWindow):
         def _on_speedup_toggled(checked):
             _start_preset("speedup") if checked else _stop_preset()
 
+        def _on_8d_toggled(checked):
+            self.settings["sound_8d"] = bool(checked)      # 8D остаётся включённым и на следующих треках
+            if checked:
+                for other in (self._btn_slowed, self._btn_speedup):
+                    other.blockSignals(True); other.setChecked(False); other.blockSignals(False)
+            _start_preset("8d") if checked else _stop_preset()
+
         self._btn_slowed.toggled.connect(_on_slowed_toggled)
         self._btn_speedup.toggled.connect(_on_speedup_toggled)
+        self._btn_8d.toggled.connect(_on_8d_toggled)
 
         preset_row.addWidget(self._btn_slowed)
         preset_row.addWidget(self._btn_speedup)
+        preset_row.addWidget(self._btn_8d)
         rv1.addLayout(preset_row)
         rv1.addWidget(self._preset_status_lbl)
 
@@ -4574,8 +4601,15 @@ class MainWindow(QMainWindow):
                 self._btn_speedup.setChecked(False)
                 self._btn_speedup.setEnabled(True)
                 self._btn_speedup.blockSignals(False)
+            if hasattr(self, "_btn_8d"):
+                self._btn_8d.blockSignals(True)
+                self._btn_8d.setChecked(False)
+                self._btn_8d.setEnabled(True)
+                self._btn_8d.blockSignals(False)
             if hasattr(self, "_preset_status_lbl"):
                 self._preset_status_lbl.hide()
+        if self.settings.get("sound_8d") and hasattr(self, "_btn_8d") and not str(t.get("path", "")).startswith("stream:"):
+            QTimer.singleShot(200, lambda: self._btn_8d.isChecked() or self._btn_8d.setChecked(True))   # 8D — и дальше
         context_changed = (context != self.queue_context)
         self.current_index=idx; self.queue_context=context; self._track_finished_guard=False
         if self.shuffle:
@@ -5903,10 +5937,15 @@ class MainWindow(QMainWindow):
                 self._btn_speedup.setChecked(False)
                 self._btn_speedup.setEnabled(True)
                 self._btn_speedup.blockSignals(False)
+            if hasattr(self, "_btn_8d"):
+                self._btn_8d.blockSignals(True)
+                self._btn_8d.setChecked(False)
+                self._btn_8d.setEnabled(True)
+                self._btn_8d.blockSignals(False)
             if hasattr(self, "_preset_status_lbl"):
                 self._preset_status_lbl.hide()
             # Если был slowed — temp файл уже удалён, перезагружаем оригинал
-            if prev_mode == "slowed":
+            if prev_mode in ("slowed", "8d"):
                 t_list = self.library if self.queue_context == "library" \
                     else self.playlists.get(self.queue_context, {}).get("tracks", [])
                 if 0 <= self.current_index < len(t_list):

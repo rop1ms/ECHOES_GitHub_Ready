@@ -33,6 +33,7 @@ A Russian installer entry point is included as `УСТАНОВИТЬ ECHOES.bat`
 
 - VLC playback plus an optional native audio output and mixer; gapless/crossfade controls, volume normalization, equalizer presets, bass and stereo controls.
 - Speed, pitch, slowed/reverb processing, sound-scene controls, headphone EQ profiles, and DSP export tools.
+- **Smart 8D:** beat-synced sound rotation for headphones, with centered bass and preserved loudness. Enable **8D** in the Sound panel; the effect is also supported in exports.
 - A listening workbench with **A/B fragments and loops, timestamp bookmarks, EQ comparison, tap BPM, sleep/track routines, and a listening diary**.
 - Mini player, global shortcuts, media keys, Windows media integration, tray controls, configurable animation FPS, and Discord Rich Presence.
 

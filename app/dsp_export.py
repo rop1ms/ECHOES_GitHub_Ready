@@ -30,7 +30,7 @@ def player_fx(win):
     return {'linked':True,'slowed':factor<.999,'speedup':factor>1.001,
             'slowed_rate':factor if factor<1 else .8,
             'speed_rate':factor if factor>1 else 1.25,
-            'reverb':mode=='slowed','reverb_wet':getattr(engine,'_REVERB_WET',.45),
+            'reverb':mode=='slowed','reverb_wet':getattr(engine,'_REVERB_WET',.45),'8d':mode=='8d',
             'bass':win.bass_boost()>0,'bass_db':12*win.bass_boost()/100,
             'eq_gains':eq,'gain':max(1.,min(100.,win._boost_percent()/100))}
 
@@ -55,6 +55,8 @@ def effect_label(fx: dict) -> str:
         parts.append("sped up")
     if fx.get("reverb"):
         parts.append("reverb")
+    if fx.get("8d"):
+        parts.append("8D")
     if fx.get("bass"):
         parts.append("bass boosted")
     if fx.get('eq_gains') and any(abs(g)>.01 for g in fx['eq_gains']):parts.append('EQ')
@@ -77,6 +79,9 @@ def render(engine, src: str, dst: str, fx: dict, fmt: str = "mp3", meta: dict | 
     audio, sr, ch = engine._decode_to_numpy(src, SR, speed_factor(fx))
     if fx.get("reverb"):
         audio = engine._apply_reverb_to_audio(audio, sr,wet_amount=fx.get('reverb_wet',.45))
+    if fx.get("8d"):                                   # умный 8D — тот же, что играет в плеере
+        import spatial8d
+        audio, _info = spatial8d.render(audio, sr)
     tmp = tempfile.NamedTemporaryFile(suffix=".wav", prefix="echoes_fx_", delete=False)
     tmp.close()
     try:

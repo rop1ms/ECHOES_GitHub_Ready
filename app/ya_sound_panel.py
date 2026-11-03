@@ -6,14 +6,19 @@
     не меняются, звучит «ползунок + буст»; мини-эквалайзер сверху показывает, что реально играет;
   • Супер громкость — тот же множитель, что «Экстремальная громкость» в настройках (100 %…10 000 %);
   • Найткор / Словед — те же пресеты, что в настройках (Speed Up 1.25× и Slowed + Reverb 0.80×):
-    темп и тон меняются вместе, позиция в треке сохраняется.
+    темп и тон меняются вместе, позиция в треке сохраняется;
+  • 8D — звук летает вокруг головы (spatial8d): ИИ находит темп и сильные доли, круг идёт в такт; на кнопке
+    точка облетает голову, пока 8D включён. Остаётся включённым и на следующих треках.
 
 Все значения общие с настройками — меняете здесь, меняется и там.
 """
 from __future__ import annotations
 
-from PyQt6.QtCore import QPoint, QRectF, Qt, QTimer
-from PyQt6.QtGui import QColor, QGuiApplication, QPainter, QPainterPath
+import math
+import time
+
+from PyQt6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer
+from PyQt6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QSlider, QVBoxLayout, QWidget,QCheckBox
 
 YELLOW = "#ffdb1a"
@@ -88,6 +93,90 @@ class MiniEq(QWidget):
         for i, lbl in enumerate(("31", "62", "125", "250", "500", "1K", "2K", "4K", "8K", "16K")):
             p.drawText(QRectF(i * bw, h + 2, bw, 12), Qt.AlignmentFlag.AlignCenter, lbl)
         p.end()
+
+
+class Orbit8D(QPushButton):
+    """Кнопка 8D: голова, вокруг которой летает звук; пока включено — точка кружит (и тень, когда она сзади)."""
+
+    def __init__(self):
+        super().__init__()
+        self.setObjectName("SndBig")
+        self.setCheckable(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.setMinimumHeight(58)
+        self.setToolTip("Умный 8D: ИИ находит темп и сильные доли трека, и звук облетает голову в такт; "
+                        "басы остаются в центре. Лучше всего в наушниках")
+        self.busy = False
+        self._t = QTimer(self)
+        self._t.setInterval(33)
+        self._t.timeout.connect(self.update)
+        self.toggled.connect(self._anim)
+
+    def _anim(self, *_):
+        if self.isChecked() and self.isVisible():
+            self._t.start()
+        else:
+            self._t.stop()
+            self.update()
+
+    def showEvent(self, e):
+        super().showEvent(e)
+        self._anim()
+
+    def hideEvent(self, e):
+        self._t.stop()
+        super().hideEvent(e)
+
+    def paintEvent(self, e):
+        super().paintEvent(e)                                  # фон и рамка — из стиля SndBig
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        on = self.isChecked()
+        ink = QColor("#111111") if on else QColor("#ffffff")
+        cx, cy = 34.0, self.height() / 2
+        rx, ry = 20.0, 9.0
+        a = (time.monotonic() * (2 * math.pi / 2.4)) if on else 0.9
+        dot = QPointF(cx + math.sin(a) * rx, cy - math.cos(a) * ry)
+        behind = math.cos(a) > 0                           # верх эллипса — «сзади» головы
+        p.setPen(QPen(QColor(ink.red(), ink.green(), ink.blue(), 70), 1.4, Qt.PenStyle.DashLine))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(QPointF(cx, cy), rx, ry)              # орбита
+        if behind:                                          # сзади — точка за головой
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(ink.red(), ink.green(), ink.blue(), 120))
+            p.drawEllipse(dot, 3.2, 3.2)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(ink)
+        p.drawEllipse(QPointF(cx, cy - 2), 7.5, 8.5)        # голова
+        p.drawRoundedRect(QRectF(cx - 10, cy + 6, 20, 7), 3.5, 3.5)   # плечи
+        if not behind:
+            p.setBrush(QColor("#ffdb1a") if not on else QColor("#111111"))
+            p.drawEllipse(dot, 4.0, 4.0)
+            if on:                                          # след за точкой
+                for k in range(1, 4):
+                    b = a - k * 0.22
+                    if math.cos(b) <= 0:
+                        c = QColor(17, 17, 17, 110 - k * 30)
+                        p.setBrush(c)
+                        p.drawEllipse(QPointF(cx + math.sin(b) * rx, cy - math.cos(b) * ry), 3.2 - k * .6, 3.2 - k * .6)
+        p.setPen(ink)
+        f = QFont(self.font())
+        f.setPixelSize(15)
+        f.setWeight(QFont.Weight.Black)
+        p.setFont(f)
+        r = QRectF(66, 8, self.width() - 74, self.height() / 2 - 6)
+        p.drawText(r, int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom), "8D-звук")
+        f.setPixelSize(12)
+        f.setWeight(QFont.Weight.DemiBold)
+        p.setFont(f)
+        sub = ("ИИ строит полёт…" if self.busy else "летает вокруг головы, в такт") if on else             "звук летает вокруг головы · ИИ"
+        p.drawText(QRectF(66, self.height() / 2 + 1, self.width() - 74, self.height() / 2 - 8),
+                   int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop), sub)
+        p.end()
+
+    def text(self):
+        return "8D"
 
 
 class SoundPanel(QFrame):
@@ -188,6 +277,9 @@ class SoundPanel(QFrame):
         row.addWidget(self.b_night)
         row.addWidget(self.b_slow)
         v.addLayout(row)
+        self.b_8d = Orbit8D()
+        self.b_8d.clicked.connect(lambda: self._toggle_preset("_btn_8d", self.b_8d))
+        v.addWidget(self.b_8d)
         self.preset_status = QLabel("")
         self.preset_status.setObjectName("SndSub")
         v.addWidget(self.preset_status)
@@ -310,7 +402,7 @@ class SoundPanel(QFrame):
                                "Аномальная громкость — перегруз гарантирован" if pct >= 5000 else
                                "Очень громко: возможен перегруз" if pct >= 1000 else
                                f"Громче обычного в {pct / 100:g} раз")
-        for mine, attr in ((self.b_night, "_btn_speedup"), (self.b_slow, "_btn_slowed")):
+        for mine, attr in ((self.b_night, "_btn_speedup"), (self.b_slow, "_btn_slowed"), (self.b_8d, "_btn_8d")):
             src = getattr(w, attr, None)
             on = bool(src is not None and src.isChecked())
             if mine.isChecked() != on:
@@ -318,7 +410,11 @@ class SoundPanel(QFrame):
         st = getattr(w, "_preset_status_lbl", None)
         busy = bool(st is not None and not st.isHidden() and st.text())
         self.preset_status.setText(st.text() if busy else ("Играет как обычно" if not (self.b_night.isChecked()
-                                                          or self.b_slow.isChecked()) else ""))
+                                                          or self.b_slow.isChecked() or self.b_8d.isChecked()) else
+                                                          ("8D: " + getattr(w.engine, "last_8d", "")
+                                                           if self.b_8d.isChecked() and getattr(w.engine, "last_8d", "")
+                                                           else "")))
+        self.b_8d.busy = busy and self.b_8d.isChecked()
         self.eq.refresh()
 
     def popup(self, anchor: QWidget):
