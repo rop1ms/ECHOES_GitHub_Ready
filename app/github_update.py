@@ -124,6 +124,8 @@ class GitHubUpdater(QObject):
     """Проверка в фоне и кнопка «Обновить» в шапке окна."""
 
     found = pyqtSignal(str, str)          # версия, что нового
+    latest = pyqtSignal(str)              # ручная проверка: новее нет (версия на GitHub)
+    message = pyqtSignal(str)             # ручная проверка: что сказать человеку
     progress = pyqtSignal(int)            # 0..100
     failed = pyqtSignal(str)
     ready = pyqtSignal(str)               # папка скачанной версии
@@ -139,6 +141,8 @@ class GitHubUpdater(QObject):
         self.progress.connect(self._on_progress)
         self.failed.connect(self._on_failed)
         self.ready.connect(self._on_ready)
+        self.latest.connect(self._on_latest)
+        self.message.connect(lambda m: getattr(self.win, "_toast", print)(m))
         self.timer = QTimer(self)
         self.timer.setInterval(CHECK_EVERY_S * 1000)
         self.timer.timeout.connect(self.check)
@@ -146,17 +150,23 @@ class GitHubUpdater(QObject):
         QTimer.singleShot(FIRST_CHECK_MS, self.check)
 
     # ── проверка ──
-    def check(self):
-        if self.busy or os.environ.get("ECHOES_NO_GH_UPDATE"):
+    def check(self, manual=False):
+        if self.busy or (os.environ.get("ECHOES_NO_GH_UPDATE") and not manual):
             return
 
         def work():
             try:
                 rv = remote_version()
                 if parse_version(rv) > parse_version(local_version()):
+                    if manual:
+                        self._manual = True
                     self.found.emit(rv, changes_note())
+                elif manual:
+                    self.latest.emit(rv)
             except Exception as e:                       # noqa: BLE001
                 print("[github update] check:", e)
+                if manual:
+                    self.message.emit(f"Не удалось проверить обновления: GitHub не ответил ({e.__class__.__name__})")
         threading.Thread(target=work, daemon=True, name="gh-update-check").start()
 
     def pending(self) -> bool:
@@ -168,10 +178,19 @@ class GitHubUpdater(QObject):
             tb.set_update(on, self.ask, text)
 
     def _on_found(self, ver, note):
-        skipped = (self.win.settings.get("gh_update_skip") or "") == ver
+        manual = self.__dict__.pop("_manual", False)
+        skipped = (self.win.settings.get("gh_update_skip") or "") == ver and not manual
         self.remote, self.note = ver, note
         if not skipped:
             self._button()
+        if manual:
+            self.ask()
+
+    def _on_latest(self, ver):
+        try:
+            self.win._toast(f"У вас последняя версия ECHOES ({local_version() or ver})")
+        except Exception:                                # noqa: BLE001
+            pass
 
     # ── установка ──
     def ask(self):

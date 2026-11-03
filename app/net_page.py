@@ -1017,6 +1017,8 @@ class NetPage(QWidget):
                        "Остальные получат его, когда появятся в сети")
             if self._tab == "net":
                 self._fill_net()
+        elif kind == "notify" and isinstance(data, dict) and data.get("kind") == "update":
+            pass                         # раздачи через Echoes.NET больше нет — обновления приходят с GitHub
         elif kind == "notify" and isinstance(data, dict):
             d = data
             shown = self.alert(d.get("kind", "info"), d.get("title", ""), d.get("text", ""), d.get("onion", ""),
@@ -2333,28 +2335,6 @@ class NetPage(QWidget):
             row.addWidget(ub)
             v.addLayout(row)
         page.v.addWidget(f)
-        # обновления для всех — только админ
-        if r == "admin":
-            page.v.addSpacing(10)
-            f, v = card()
-            v.addWidget(lbl("ОБНОВЛЕНИЕ ДЛЯ ВСЕХ", "Section"))
-            v.addWidget(lbl("Разослать вашу текущую сборку ECHOES всем пользователям — не только друзьям. Объявление "
-                            "уходит через публичные релеи, файлы раздаёте вы и все, кто уже обновился (нагрузка "
-                            "делится). Принимают его только потому, что оно подписано вашим ключом автора.",
-                            "YaSub", wrap=True))
-            pb = accent_btn("  Разослать обновление всем…")
-            pb.setIcon(ya_icon("send", 14, "#000000"))
-
-            def pub_all():
-                from PyQt6.QtWidgets import QInputDialog
-                note, ok = QInputDialog.getText(self, "Обновление для всех", "Что нового (увидят все):")
-                if ok:
-                    nd.call(nd.upd_publish, note.strip(), True)
-                    self.toast("Готовлю обновление для всех: считаю файлы и подписываю…")
-            pb.clicked.connect(pub_all)
-            rr = QHBoxLayout(); rr.addWidget(pb); rr.addStretch(1)
-            v.addLayout(rr)
-            page.v.addWidget(f)
         page.v.addStretch(1)
 
     def _report_menu(self, m, target, extra=(), name=""):
@@ -4441,10 +4421,7 @@ class NetPage(QWidget):
         show = bool(view and view.get("trusted") and view.get("state") in
                     ("offer", "downloading", "checking", "ready", "error"))
         self.b_upd.setVisible(False)                           # обновление — только маленькая кнопка в шапке окна
-        tb = getattr(self.win, "titlebar", None)
-        gh = getattr(self.win, "_gh_updater", None)
-        if not show and gh is not None and (gh.pending() or gh.busy):
-            tb = None                                          # кнопку держит обновление с GitHub (github_update)
+        tb = None                    # кнопку «Обновить» в шапке ведёт только обновление с GitHub (github_update)
         if tb is not None and hasattr(tb, "set_update"):
             if view and view.get("state") in ("downloading", "checking") and view.get("total"):
                 txt = f"{int(100 * (view.get('done_bytes') or 0) / max(1, view['total']))}%"
@@ -4503,78 +4480,27 @@ class NetPage(QWidget):
             QApplication.instance().quit()
 
     def _update_card(self) -> QWidget:
-        """«Обновления ECHOES»: какая сборка стоит, разослать свою, кому доверять."""
-        import net_update
-        import datetime
-        nd = self.node
+        """«Обновления ECHOES»: новые версии приходят с GitHub (github_update) — кнопка «Обновить» в шапке окна.
+        Раздача сборок через Echoes.NET убрана: старые версии, получившие её раньше, ещё докачиваются у тех,
+        у кого она есть (протокол в net_core остаётся), но новые раздачи не принимаются и не создаются."""
+        import github_update
         f, v = card()
         head = QHBoxLayout()
         head.addWidget(lbl("ОБНОВЛЕНИЯ ECHOES", "Section"), 1)
-        ask = ghost_btn("  Проверить у друзей")
+        ask = ghost_btn("  Проверить сейчас")
         ask.setIcon(ya_icon("search", 14))
-        ask.clicked.connect(lambda: (nd.call(nd.upd_ask), self.toast("Спросил у друзей в сети, нет ли новой версии")))
+
+        def check():
+            gh = github_update.install(self.win)
+            gh.check(manual=True)
+            self.toast("Проверяю новую версию на GitHub…")
+        ask.clicked.connect(check)
         head.addWidget(ask)
         v.addLayout(head)
-        v.addWidget(lbl("Новые версии приходят от друзей через Echoes.NET — без архивов и ссылок. Скачиваются только "
-                        "изменившиеся файлы, каждый сверяется с подписью автора.", "YaSub", wrap=True))
-        st = net_update.installed(nd.app_dir)
-        ver = net_update.app_version(nd.app_dir)
-        if st.get("id"):
-            when = datetime.datetime.fromtimestamp(float(st.get("ts") or 0)).strftime("%d.%m.%Y %H:%M")
-            cur = f"Установлена сборка {st.get('ver') or ver} от {when} · {self._upd_who(st.get('pub', ''))}"
-        else:
-            cur = f"Установлена версия {ver or '—'} (из архива)"
-        v.addWidget(lbl(cur, "NetName", wrap=True))
-        u = nd.upd_view()
-        if u:
-            who = self._upd_who(u["pub"])
-            if not u["trusted"]:
-                box = QHBoxLayout()
-                box.addWidget(lbl(f"{who} предлагает обновление ECHOES {u.get('ver') or ''}, но он(а) не в доверенных. "
-                                  "Доверяйте только тому, от кого вы и так брали ECHOES.", "YaSub", wrap=True), 1)
-                tb = accent_btn("Доверять")
-                tb.clicked.connect(lambda: (nd.upd_set_trust(u["pub"], True), self.open_update()))
-                box.addWidget(tb)
-                sk = ghost_btn("Пропустить")
-                sk.clicked.connect(lambda: (nd.upd_skip(), self._fill_net()))
-                box.addWidget(sk)
-                v.addLayout(box)
-            else:
-                ob = accent_btn(f"  Доступно обновление {u.get('ver') or ''} — открыть")
-                ob.setIcon(ya_icon("download", 14, "#000000"))
-                ob.clicked.connect(self.open_update)
-                r = QHBoxLayout(); r.addWidget(ob); r.addStretch(1)
-                v.addLayout(r)
-        # своя сборка — разослать
-        v.addSpacing(6)
-        v.addWidget(lbl("РАЗОСЛАТЬ СВОЮ СБОРКУ", "YaSub"))
-        v.addWidget(lbl("Друзья получат её, если доверяют вам. Нажимайте после того, как сами обновили ECHOES "
-                        "до новой версии.", "YaSub", wrap=True))
-        pr = QHBoxLayout()
-        pub = ghost_btn("  Разослать обновление друзьям…")
-        pub.setIcon(ya_icon("send", 14))
-
-        def do_pub():
-            from PyQt6.QtWidgets import QInputDialog
-            note, ok = QInputDialog.getText(self, "Разослать обновление",
-                                            "Что нового (увидят друзья):", text="")
-            if ok:
-                nd.call(nd.upd_publish, note.strip())
-                self.toast("Готовлю обновление: считаю файлы и подписываю…")
-        pub.clicked.connect(do_pub)
-        pr.addWidget(pub)
-        pr.addStretch(1)
-        v.addLayout(pr)
-        # доверенные
-        v.addSpacing(6)
-        v.addWidget(lbl("ОТ КОГО ПРИНИМАТЬ ОБНОВЛЕНИЯ", "YaSub"))
-        for o in nd.upd_trusted():
-            h = QHBoxLayout()
-            h.addWidget(lbl(self._upd_who(o) + ("" if o == net_update.DEV_ONION else f"  ·  {o[:8]}…"), "NetName"), 1)
-            rm = ghost_btn("Не доверять")
-            rm.clicked.connect(lambda _=False, o=o: (nd.upd_set_trust(o, False), self._fill_net()))
-            h.addWidget(rm)
-            v.addLayout(h)
+        v.addWidget(lbl("Новые версии приходят с GitHub: когда выйдет обновление, в шапке окна появится кнопка "
+                        "«Обновить». ECHOES скачает его, закроется на минуту и откроется уже обновлённым — "
+                        "настройки, плейлисты и библиотека не трогаются.", "YaSub", wrap=True))
+        v.addWidget(lbl(f"Установлена версия {github_update.local_version() or '—'}", "NetName", wrap=True))
         return f
 
     def _notify_card(self) -> QWidget:
