@@ -7049,7 +7049,7 @@ class MainWindow(QMainWindow):
                     st["status"] = "Устанавливаю faster-whisper (1–3 минуты)…"
                     if not LS.install_whisper(lambda s: st.__setitem__("status", s)):
                         raise RuntimeError("не удалось установить faster-whisper (нет интернета?)")
-                lrc = LS.sync_lyrics(path, text, progress=lambda s: st.__setitem__("status", s),
+                lrc = LS.sync_lyrics_isolated(path, text, progress=lambda s: st.__setitem__("status", s),
                                      cancel=st["cancel"], model='base' if self.settings.get('lyrics_sync_fast') else 'small',
                                      use_vocals=not self.settings.get('lyrics_sync_fast',False))
             except LS.SyncCancelled:
@@ -8579,11 +8579,19 @@ if __name__=="__main__":
         raise
     except Exception as _e:                            # noqa: BLE001
         print("[single]", _e); _single = None
+    _native_intro = False
+    try:                  # заставка в своём потоке — сразу, пока строится окно (intro_win.cpp)
+        import intro_anim
+        _st = json.loads(SETTINGS_FILE.read_text("utf-8")) if SETTINGS_FILE.exists() else {}
+        if intro_anim.enabled(_st):
+            _native_intro = intro_anim.start_native()
+    except Exception as _e:                            # noqa: BLE001
+        print("[intro]", _e)
     win=MainWindow()
     try:                  # заставка: солнце с вылетающими лучами и надпись ECHOES (Настройки → Оформление)
         import intro_anim
-        if intro_anim.enabled(win.settings):
-            intro_anim.play(win)
+        if intro_anim.enabled(win.settings) and not _native_intro:
+            intro_anim.play(win)                       # без DLL — прежняя заставка поверх окна
     except Exception as _e:                            # noqa: BLE001
         print("[intro]", _e)
     try:                                               # окно сразу с GPU-совмещением: иначе первый GPU-слой
@@ -8592,6 +8600,15 @@ if __name__=="__main__":
     except Exception as _e:                            # noqa: BLE001
         print("[gpu] anchor:", _e)
     win.show()
+    if _native_intro:     # за заставкой — загрузить всё заранее, потом она растворится
+        try:
+            import intro_anim, warmup
+            intro_anim.follow(win)
+            warmup.preload(win)
+        except Exception as _e:                        # noqa: BLE001
+            print("[preload]", _e)
+        finally:
+            intro_anim.ready()
     try:                  # прогрев: первое открытие разделов — без подлагиваний (warmup.py)
         import warmup
         warmup.start(win)

@@ -1,25 +1,31 @@
 # wave_veil.py
 """
-«Моя волна» во весь экран: пустота поглощает панели вокруг (верх, разделы, плеер, угловые блоки).
+«Моя волна» во весь экран: волна заполняет весь интерфейс, ничто её не обрезает.
 
-Входишь в «Мою волну» — от неё наружу по всем стеклянным панелям расходится абсолютная чернота (фронт с
-мягким краем). Когда панели почти чёрные (VOID_AT), у кнопок в них пропадают фоны и рамки, а их значки
-и текст становятся белыми — остаются только символы (плей в плеере — тоже: ya_decor.PlayButton смотрит
-void()). Подписи-украшения («РАЗДЕЛЫ», карточка исполнителя) растворяются. Обложки плейлистов наверху —
-картинки, а не символы, их не трогаем. Выходишь — кнопки сразу становятся как были, чернота уходит.
+Под всем окном лежит своя туманность на весь размер окна (backdrop, NebulaGL из echoes_ui.dll) — с теми же
+параметрами, что у страницы, только центр сдвинут на место страницы в окне, поэтому она продолжает
+туманность страницы без шва. Входишь в «Мою волну» — от неё наружу расходится фронт, и внутри него
+стекло панелей (верх, разделы, плеер, угловые блоки, заголовок окна) стирается до прозрачности: волна
+разливается по всему окну, где её нет — чернота. Когда фронт почти дошёл (VOID_AT), у кнопок пропадают
+фоны и рамки, значки и текст белеют — остаются только символы (плей в плеере — тоже: ya_decor.PlayButton
+смотрит void()). Подписи-украшения («РАЗДЕЛЫ», карточка исполнителя) растворяются, обложки плейлистов —
+картинки, их не трогаем. Выходишь — кнопки сразу как были, фронт сходится обратно, стекло возвращается.
 
-Рисует AmbientFrame.paintEvent (paint): поверх своего стекла — черноту этой панели.
+Стирает AmbientFrame.paintEvent и TitleBar.paintEvent (paint): DestinationOut по своему стеклу.
 """
 from __future__ import annotations
 
-from PyQt6.QtCore import QEasingCurve, QObject, QPointF, QRectF, QSize, Qt, QVariantAnimation
+import ctypes
+
+from PyQt6.QtCore import QEasingCurve, QEvent, QObject, QPointF, QRectF, QSize, Qt, QVariantAnimation
 from PyQt6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPixmap, QRadialGradient
 from PyQt6.QtWidgets import QAbstractButton, QGraphicsOpacityEffect, QWidget
 
 IN_MS = 950
 OUT_MS = 700
 VOID_AT = 0.6                                                  # с этой черноты кнопки — только белые символы
-SKIP = ("YaContent", "ListenerCard")                           # сама «Моя волна» и карточки настроек
+SKIP = ("ListenerCard",)                                       # карточки настроек — не панели окна
+NO_VOID = ("YaContent",)                                       # кнопки самой «Моей волны» — как есть
 KEEP_ICONS = ("PlaylistStrip",)                                # обложки — картинки, не перекрашивать
 VOID_QSS = ("QAbstractButton{background:transparent;border:1px solid transparent;color:#ffffff;}"
             "QAbstractButton:hover{background:rgba(255,255,255,0.08);}"
@@ -35,6 +41,31 @@ def level() -> float:
 def void() -> bool:
     """Кнопки в панелях сейчас — только белые символы на черноте."""
     return _VEIL is not None and _VEIL.voided
+
+
+def feed(page, P, burst: float, scale: float):
+    """Кадр туманности страницы → та же туманность на всё окно (центр сдвинут на место страницы)."""
+    v = _VEIL
+    if v is None or v.level <= 0.001 or v.backdrop is None:
+        return
+    try:
+        bd = v.backdrop
+        if not bd.ok():
+            return
+        win = v.shell.window()
+        o = page.mapTo(win, page.rect().topLeft())
+        dpr = page.devicePixelRatioF()
+        P2 = type(P)()
+        ctypes.memmove(ctypes.byref(P2), ctypes.byref(P), ctypes.sizeof(P))
+        P2.cx += o.x() * dpr
+        P2.cy += o.y() * dpr
+        P2.W, P2.H = int(win.width() * dpr), int(win.height() * dpr)
+        P2.gain = P.gain * min(1.0, v.level * 1.3)            # снаружи страницы волна разгорается с фронтом
+        bd.scale(scale)
+        bd.burst(burst)
+        bd.params(P2)
+    except RuntimeError:
+        pass
 
 
 def install(shell):
@@ -71,10 +102,87 @@ class Veil(QObject):
         self.anim.valueChanged.connect(self._set)
         self._fx = {}
         self._saved = {}                                       # id(кнопки) → (кнопка, стиль, значок, белый значок)
+        self.backdrop = None                                   # туманность на всё окно (под всем)
+        self._panels = None                                    # панели окна (на время перехода)
+        self._root_qss = None                                  # стиль Root до прозрачности
+        self._amb_hidden = False
 
     def panels(self):
-        from yamusic_theme import AmbientFrame
-        return [f for f in self.shell.findChildren(AmbientFrame) if f.objectName() not in SKIP and f.isVisible()]
+        """Панели окна — список один на переход (findChildren по всему окну на каждом кадре стоил секунды)."""
+        if self._panels is None:
+            from yamusic_theme import AmbientFrame
+            out = [f for f in AmbientFrame.live(self.shell) if f.objectName() not in SKIP]
+            tb = getattr(self.shell.window(), "titlebar", None)
+            if tb is not None:
+                out.append(tb)
+            self._panels = out
+        alive = []
+        for f in self._panels:
+            try:
+                if f.isVisible():
+                    alive.append(f)
+            except RuntimeError:
+                pass
+        return alive
+
+    # ── туманность под всем окном ──
+    def _ensure_backdrop(self):
+        if self.backdrop is not None:
+            return
+        try:
+            import ya_wave
+            win = self.shell.window()
+            anchor = getattr(win, "_gpu_anchor", None)
+            if not ya_wave.gpu_enabled() or anchor is None or not anchor.ok():
+                return
+            import native_ui
+            bd = native_ui.NebulaGL()
+            bd.widget.setParent(win)
+            bd.widget.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            bd.widget.setGeometry(win.rect())
+            bd.widget.lower()
+            bd.widget.hide()
+            self.backdrop = bd
+            win.installEventFilter(self)
+        except Exception as e:                                 # noqa: BLE001
+            print("[veil] backdrop:", e)
+            self.backdrop = None
+
+    def eventFilter(self, obj, ev):
+        if ev.type() == QEvent.Type.Resize and self.backdrop is not None and obj is self.shell.window():
+            self.backdrop.widget.setGeometry(obj.rect())
+        return False
+
+    def _window_layers(self, on: bool):
+        """Фон Root прозрачен (между панелями видно волну), «дыхание» фона спрятано — или как было."""
+        win = self.shell.window()
+        root = win.centralWidget() if hasattr(win, "centralWidget") else None
+        if on:
+            if self.backdrop is not None and not self.backdrop.widget.isVisible():
+                self.backdrop.widget.setGeometry(win.rect())
+                self.backdrop.widget.lower()
+                self.backdrop.widget.show()
+            if root is not None and self._root_qss is None:
+                # фон Root — из стиля; не менять стиль (это перестиливает ВСЁ окно — секунды), а просто
+                # не рисовать его: атрибут, без перестилизации
+                self._root_qss = root.testAttribute(Qt.WidgetAttribute.WA_StyledBackground)
+                root.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
+                root.update()
+            amb = getattr(win, "_ambience", None)
+            if amb is not None and amb.isVisible() and not self._amb_hidden:
+                self._amb_hidden = True
+                amb.hide()
+        else:
+            if root is not None and self._root_qss is not None:
+                root.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, bool(self._root_qss))
+                self._root_qss = None
+                root.update()
+            amb = getattr(win, "_ambience", None)
+            if amb is not None and self._amb_hidden:
+                self._amb_hidden = False
+                amb.show()
+            if self.backdrop is not None:
+                self.backdrop.widget.hide()
 
     def decor(self):
         return [w for w in (getattr(self.shell, "_side_head", None), getattr(self.shell, "artist_card", None))
@@ -85,6 +193,9 @@ class Veil(QObject):
         if on == self.on:
             return
         self.on = on
+        self._panels = None                                    # раскладка могла смениться — собрать заново
+        if on:
+            self._ensure_backdrop()
         if not on:
             self._void(False)                                  # выходим — кнопки сразу как были
         import motion
@@ -101,6 +212,7 @@ class Veil(QObject):
 
     def _set(self, v):
         self.level = float(v)
+        self._window_layers(self.level > 0.001)
         if self.on and self.level >= VOID_AT:
             self._void(True)
         for f in self.panels():
@@ -132,6 +244,8 @@ class Veil(QObject):
 
     def _buttons(self):
         for f in self.panels():
+            if f.objectName() in NO_VOID:
+                continue
             for b in f.findChildren(QAbstractButton):
                 if b.isVisible():
                     yield b
@@ -170,29 +284,28 @@ class Veil(QObject):
 
 
 def paint(frame, p: QPainter, radius: float):
-    """Поверх стекла панели — чернота, расходящаяся от «Моей волны»."""
+    """Стекло панели стирается до прозрачности внутри фронта, расходящегося от «Моей волны» —
+    под ним видно туманность на всё окно (или черноту)."""
     v = level()
     if v <= 0.001 or frame.objectName() in SKIP or _VEIL is None:
         return
     W, H = frame.width(), frame.height()
-    shape = QPainterPath()
-    shape.addRoundedRect(QRectF(0, 0, W, H), radius, radius)
     p.save()
-    p.setClipPath(shape)
     if v >= 0.999:
-        p.fillRect(QRectF(0, 0, W, H), QColor(0, 0, 0))
+        p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+        p.fillRect(QRectF(0, 0, W, H), Qt.GlobalColor.transparent)
         p.restore()
         return
     content = getattr(_VEIL.shell, "content", None)
     win = frame.window()
     if content is not None:
-        c = content.mapTo(win, QPointF(content.width() / 2, content.height() / 2).toPoint())
+        c = content.mapTo(win, QPointF(content.width() * 0.62, content.height() / 2).toPoint())
         centre = QPointF(frame.mapFrom(win, c))
     else:
         centre = QPointF(W / 2, H / 2)
     reach = (win.width() ** 2 + win.height() ** 2) ** 0.5
-    front = min(1.0, v * 1.2)                                  # фронт пустоты растёт от «Моей волны»
-    edge = max(0.0, front - 0.2)
+    front = min(1.0, v * 1.2)                                  # фронт растёт от «Моей волны» наружу
+    edge = max(0.0, front - 0.22)
     ink = QColor(0, 0, 0)
     g = QRadialGradient(centre, reach)
     g.setColorAt(0.0, ink)
@@ -202,5 +315,6 @@ def paint(frame, p: QPainter, radius: float):
         g.setColorAt(1.0, QColor(0, 0, 0, 0))
     else:
         g.setColorAt(1.0, ink)
+    p.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationOut)
     p.fillRect(QRectF(0, 0, W, H), g)
     p.restore()

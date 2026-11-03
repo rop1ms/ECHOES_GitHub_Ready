@@ -366,7 +366,9 @@ class GenreModel:
         mW, vW, mb, vb = np.zeros_like(W), np.zeros_like(W), np.zeros_like(b), np.zeros_like(b)
         b1, b2 = 0.9, 0.999
         swn = sw / sw.sum()
+        from bgproc import throttle                            # фоновый поток — уступать GIL интерфейсу
         for t in range(1, epochs + 1):
+            throttle()
             Z = X @ W + b
             Z -= Z.max(axis=1, keepdims=True)
             P = np.exp(Z)
@@ -509,6 +511,8 @@ class GenreModel:
     def predict(self, vec) -> dict:
         if not self.ready or vec is None:
             return {}
+        from bgproc import throttle                            # по трекам в фоне — не держать GIL подряд
+        throttle()
         try:
             v = np.asarray(vec, np.float64).reshape(1, -1)
         except (TypeError, ValueError):

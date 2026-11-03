@@ -1174,8 +1174,21 @@ class TrackListView(QListView):
     """Список треков в стиле Я.Музыки: клик по обложке / двойной клик —
     играть, сердце — «Мне нравится», ПКМ — меню."""
 
+    LIVE = __import__("weakref").WeakSet()                     # все списки: findChildren по окну — сотни мс
+
+    @staticmethod
+    def refresh_visible():
+        """Перерисовать видимые списки (сменился трек, пауза, лайк)."""
+        for v in list(TrackListView.LIVE):
+            try:
+                if v.isVisible():
+                    v.viewport().update()
+            except RuntimeError:
+                pass
+
     def __init__(self, shell, parent=None):
         super().__init__(parent)
+        TrackListView.LIVE.add(self)
         self.shell = shell
         self.model_ = TrackModel(self)
         self.setModel(self.model_)
@@ -2055,8 +2068,23 @@ class Logo(QWidget):
 class AmbientFrame(QFrame):
     """Cached graphite liquid glass, independent of the playing track."""
 
+    LIVE = __import__("weakref").WeakSet()                     # findChildren(AmbientFrame) по окну — сотни мс
+
+    @staticmethod
+    def live(root):
+        """Стеклянные панели внутри root — без обхода всего дерева виджетов."""
+        out = []
+        for f in list(AmbientFrame.LIVE):
+            try:
+                if root is f or root.isAncestorOf(f):
+                    out.append(f)
+            except RuntimeError:
+                pass
+        return out
+
     def __init__(self, parent=None):
         super().__init__(parent)
+        AmbientFrame.LIVE.add(self)
         self._surface = None
 
     def paintEvent(self, e):
@@ -2913,8 +2941,7 @@ class YaShell(QWidget):
         self._liked_cache = None
         self.win._ya_save_playlists()
         self._update_like_btn()
-        for v in self.findChildren(TrackListView):
-            v.viewport().update()
+        TrackListView.refresh_visible()
         if self._cur_page == "playlist" and self._pl_name == LIKED:
             self.open_playlist(LIKED, keep_history=True)
 
@@ -2973,8 +3000,7 @@ class YaShell(QWidget):
                 self.show_page("albums")
         elif cur in ("collection", "albums", "search"):
             self._rebuild(cur)
-        for v in self.findChildren(TrackListView):
-            v.viewport().update()
+        TrackListView.refresh_visible()
 
     def new_playlist(self):
         from PyQt6.QtWidgets import QInputDialog
@@ -3572,8 +3598,7 @@ class YaShell(QWidget):
             self._playing_ui = playing
             self.b_play.playing = playing
             self.b_play.update()
-            for v in self.findChildren(TrackListView):
-                v.viewport().update()
+            TrackListView.refresh_visible()
             self.wave_play.setIcon(ya_icon("pause" if playing else "play", 26, "#000000"))
         try:
             dur = float(eng.duration or 0)
@@ -3648,8 +3673,7 @@ class YaShell(QWidget):
             if self.__dict__.get("_nav_icons"):
                 card.hide()
         QTimer.singleShot(1500, self._wave_arts_check)     # прослушивание уже записано в статистику
-        for v in self.findChildren(TrackListView):
-            v.viewport().update()
+        TrackListView.refresh_visible()
         # «Моя волна» и текст — под новый трек
         wl = self.wave.track_lbl
         wl.setText(QFontMetrics(wl.font()).elidedText(f"{title}  ·  {artist}", Qt.TextElideMode.ElideRight, 400))
@@ -4518,8 +4542,9 @@ class YaShell(QWidget):
                            and not t.get("snip")]
                     random.shuffle(lst)
                     per_seed.append(lst)
-                    seeds = []
-                for sd in seeds:
+                # раньше здесь было seeds = [] — переменная становилась локальной для всей work(), и в любой
+                # волне, кроме «по исполнителю», поток падал на первой строке цикла (новое из сети не приходило)
+                for sd in ([] if only else seeds):
                     if gen != self._disc_gen:
                         return
                     try:

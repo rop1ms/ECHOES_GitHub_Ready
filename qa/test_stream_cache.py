@@ -87,7 +87,9 @@ class StreamCache(unittest.TestCase):
         b = S.make_track({'artist': 'A', 'title': 'Hover2', 'duration': 100})
         r.hint(a)
         r.hint(b)                                               # moved on before the delay passed
-        time.sleep(0.8)
+        end = time.perf_counter() + 2.0
+        while not r.cached(b['path']) and time.perf_counter() < end:
+            time.sleep(0.05)
         self.assertTrue(r.cached(b['path']))
         self.assertFalse(r.cached(a['path']))
 

@@ -41,6 +41,7 @@ FIND = "stream:find:"
 _SEP = "\x1f"
 MIN_MATCH = 0.72                     # как в online_search.find_best
 CACHE_FILE = Path.home() / ".neon_player" / "stream_cache.json"
+_SAVE_LOCK = threading.Lock()                          # one writer at a time: saves share the .tmp file
 
 
 def is_stream(path) -> bool:
@@ -134,16 +135,17 @@ class StreamResolver:
         if not force and now - self._saved < 3.0:
             return
         self._saved = now
-        with self.lock:
-            pages = dict(list(self.pages.items())[-3000:])
-            urls = {k: v for k, v in self.cache.items() if float(v.get("exp") or 0) > now}
-        try:
-            CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-            tmp = CACHE_FILE.with_suffix(".tmp")
-            tmp.write_text(json.dumps({"pages": pages, "urls": urls}, ensure_ascii=False), "utf-8")
-            os.replace(tmp, CACHE_FILE)
-        except Exception as e:                             # noqa: BLE001
-            print("[stream] cache:", e)
+        with _SAVE_LOCK:
+            with self.lock:
+                pages = dict(list(self.pages.items())[-3000:])
+                urls = {k: v for k, v in self.cache.items() if float(v.get("exp") or 0) > now}
+            try:
+                CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+                tmp = CACHE_FILE.with_suffix(".tmp")
+                tmp.write_text(json.dumps({"pages": pages, "urls": urls}, ensure_ascii=False), "utf-8")
+                os.replace(tmp, CACHE_FILE)
+            except Exception as e:                         # noqa: BLE001
+                print("[stream] cache:", e)
 
     # ── кэш ──
     def cached(self, path: str) -> str | None:

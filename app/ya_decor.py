@@ -1301,7 +1301,7 @@ class Decor(QObject):
         sh = self.shell
         try:
             from yamusic_theme import AmbientFrame, Logo
-            for f in sh.findChildren(AmbientFrame):
+            for f in AmbientFrame.live(sh):
                 f.__dict__.pop("_deco_pm", None)
             sh.update()
             for w in sh.findChildren(QWidget):
@@ -1351,7 +1351,7 @@ class Decor(QObject):
         try:
             from yamusic_theme import AmbientFrame
             if _CFG["glass"] in ("tint",) or self.weather or on("weather"):
-                for f in self.shell.findChildren(AmbientFrame):
+                for f in AmbientFrame.live(self.shell):
                     f.update()
         except RuntimeError:
             pass
@@ -1379,7 +1379,7 @@ class Decor(QObject):
         if float(v) >= 1.0:
             from yamusic_theme import AmbientFrame
             if _CFG["glass"] == "tint":
-                for f in sh.findChildren(AmbientFrame):
+                for f in AmbientFrame.live(sh):
                     f.update()
             st = getattr(sh.pages.get("artist"), "_sticky", None) if hasattr(sh, "pages") else None
             if st is not None:
@@ -1464,7 +1464,7 @@ class Decor(QObject):
         reg = QRegion(sh.rect())
         try:
             from yamusic_theme import AmbientFrame
-            for f in sh.findChildren(AmbientFrame):
+            for f in AmbientFrame.live(sh):
                 if not f.isVisible() or f.window() is not sh.window():
                     continue
                 r = QRect(f.mapTo(sh, QPoint(0, 0)), f.size())
@@ -1689,7 +1689,7 @@ class Decor(QObject):
     def _update_rims(self):
         try:
             from yamusic_theme import AmbientFrame
-            frames = self.shell.findChildren(AmbientFrame)
+            frames = AmbientFrame.live(self.shell)
         except RuntimeError:
             return
         for f in frames:

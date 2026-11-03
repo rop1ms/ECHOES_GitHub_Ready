@@ -416,19 +416,55 @@ def envelope(audio):
     return np.convolve(rms, np.ones(k) / k, mode="same")
 
 
+IDLE_RELEASE_S = 45.0           # модель в процессе плеера (проверка текста) — выгрузить после простоя
+_USE = {"t": 0.0, "thread": None}
+
+
 def release():
-    """Модели (~0.5 ГБ) — из памяти (режим геймера, после синхронизации)."""
+    """Модели (~0.5 ГБ) — из памяти и память — системе (режим геймера, простой после проверки текста)."""
+    if not _MODEL:
+        return
     _MODEL.clear()
+    import gc
+    gc.collect()
+    try:
+        import mem_trim
+        mem_trim.trim()                                    # пустые страницы кучи — системе
+    except Exception:                                      # noqa: BLE001
+        pass
+
+
+def _touch():
+    """Модель только что нужна; через IDLE_RELEASE_S без дела — выгрузить (поток-сторож один)."""
+    _USE["t"] = time.monotonic()
+    th = _USE["thread"]
+    if th is not None and th.is_alive():
+        return
+
+    def watch():
+        while True:
+            time.sleep(5.0)
+            if _MODEL and time.monotonic() - _USE["t"] >= IDLE_RELEASE_S:
+                release()
+                return
+            if not _MODEL:
+                return
+    th = threading.Thread(target=watch, daemon=True, name="whisper-release")
+    _USE["thread"] = th
+    th.start()
 
 
 def _load_model(size: str, progress, local_only=False):
     if size in _MODEL:
+        _touch()
         return _MODEL[size]
     from faster_whisper import WhisperModel
     progress("Загружаю модель распознавания (первый раз — скачивание, до ~460 МБ)…")
     cpu = os.cpu_count() or 4
     mdl = WhisperModel(size, device="cpu", compute_type="int8", cpu_threads=max(1, min(4, cpu - 1)), local_files_only=local_only)
     _MODEL[size] = mdl
+    if not os.environ.get("ECHOES_BGPROC"):                # в плеере — выгрузить после простоя
+        _touch()
     return mdl
 
 
@@ -564,6 +600,25 @@ def aligned_times(lines: list[str], aligned):
             fixed.append(p)
         words.append(fixed)
     return out, words
+
+
+def sync_lyrics_isolated(audio_path: str, text: str, progress=None, cancel: threading.Event | None = None,
+                         model: str = MODEL_DEFAULT, use_vocals: bool = True) -> str:
+    """sync_lyrics в отдельном процессе (bgproc): Whisper (~0.5 ГБ), сеть вокала и звук трека живут только
+    в нём — процесс завершился, вся память вернулась системе (раньше модель оставалась в плеере навсегда).
+    Заодно расчёт не делит GIL с интерфейсом. Отмена — процесс просто убивается."""
+    import bgproc
+    progress = progress or (lambda s: None)
+    progress("Запускаю нейросеть…")
+    try:
+        return bgproc.call("lyrics_sync", "sync_lyrics", audio_path, text, model=model, use_vocals=use_vocals,
+                           progress=lambda *a: progress(str(a[0]) if a else ""), cancel=cancel)
+    except bgproc.Cancelled:
+        raise SyncCancelled()
+    except RuntimeError:
+        if cancel is not None and cancel.is_set():
+            raise SyncCancelled()
+        raise
 
 
 def sync_lyrics(audio_path: str, text: str, progress=None, cancel: threading.Event | None = None,

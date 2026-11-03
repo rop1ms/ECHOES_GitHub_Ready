@@ -396,7 +396,7 @@ class LyricsEditorDialog(QDialog):
                     if not LS.install_whisper(lambda s: self._sync_status.emit(s)):
                         self._sync_done.emit(None, "Не удалось установить faster-whisper (нет интернета?)")
                         return
-                lrc = LS.sync_lyrics(path, text, progress=lambda s: self._sync_status.emit(s), cancel=cancel,
+                lrc = LS.sync_lyrics_isolated(path, text, progress=lambda s: self._sync_status.emit(s), cancel=cancel,
                                      model='base' if fast else 'small', use_vocals=not fast)
                 self._sync_done.emit(lrc, "")
             except LS.SyncCancelled:

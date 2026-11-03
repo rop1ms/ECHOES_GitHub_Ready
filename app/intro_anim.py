@@ -288,6 +288,49 @@ class IntroOverlay(QWidget):
             p.fillRect(QRectF(cx - w / 2, base_y + 22, w, 3), uc)
 
 
+# ── заставка в своём потоке (echoes_ui.dll: intro_win.cpp) ── #
+
+def start_native() -> bool:
+    """Заставка в своём окне и потоке — сразу после QApplication, ещё до сборки окна плеера: она не
+    дёргается, пока плеер строит окно и загружает всё заранее (warmup.preload). False — нет DLL."""
+    try:
+        import native_ui
+        if not native_ui.available() or not hasattr(native_ui._lib, "eui_intro_start"):
+            return False
+        from PyQt6.QtGui import QGuiApplication
+        scr = QGuiApplication.primaryScreen()
+        ag = scr.availableGeometry()
+        dpr = scr.devicePixelRatio()
+        w, h = min(1120, ag.width()), min(720, ag.height())     # там, где откроется окно плеера
+        x, y = ag.x() + (ag.width() - w) // 2, ag.y() + (ag.height() - h) // 2
+        acc = _accent()
+        fam = _font(66).family()
+        ok = native_ui._lib.eui_intro_start(int(x * dpr), int(y * dpr), int(w * dpr), int(h * dpr), float(dpr),
+                                            acc.red(), acc.green(), acc.blue(), TEXT, fam)
+        return bool(ok)
+    except Exception as e:                                     # noqa: BLE001
+        print("[intro] native:", e)
+        return False
+
+
+def follow(win):
+    """Окно плеера показано — заставка встаёт ровно поверх него."""
+    try:
+        import native_ui
+        native_ui._lib.eui_intro_follow(int(win.winId()))
+    except Exception as e:                                     # noqa: BLE001
+        print("[intro] follow:", e)
+
+
+def ready():
+    """Плеер всё загрузил — заставка досматривает сюжет и растворяется."""
+    try:
+        import native_ui
+        native_ui._lib.eui_intro_ready()
+    except Exception as e:                                     # noqa: BLE001
+        print("[intro] ready:", e)
+
+
 def enabled(settings) -> bool:
     return bool((settings or {}).get("intro_anim", True))
 

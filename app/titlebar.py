@@ -221,7 +221,17 @@ class TitleBar(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         W, H = self.width(), self.height()
-        getattr(self, f"_paint_{self.variant}")(p, W, H)
+        import wave_veil
+        if self.variant == "ya" and wave_veil.level() > 0:     # «Моя волна»: фон заголовка растворяется,
+            p.fillRect(0, 0, W, H, QColor("#000000"))          # под ним — волна на всё окно; знаки остаются
+            wave_veil.paint(self, p, 0)
+            self._no_bg = True
+            try:
+                self._paint_ya(p, W, H)
+            finally:
+                self._no_bg = False
+        else:
+            getattr(self, f"_paint_{self.variant}")(p, W, H)
         p.end()
 
     def _draw_brand(self, p, x, color, weight=QFont.Weight.ExtraBold, size=10, spacing=2.4, upper=True):
@@ -257,7 +267,8 @@ class TitleBar(QWidget):
 
     # Echoes Music (Я.Музыка): чёрная плоская панель
     def _paint_ya(self, p, W, H):
-        p.fillRect(0, 0, W, H, QColor("#000000"))
+        if not getattr(self, "_no_bg", False):
+            p.fillRect(0, 0, W, H, QColor("#000000"))
         ic = self._icon()
         try:                                                   # солнце — в акцент темы / обложки, как логотип
             import ya_decor

@@ -393,7 +393,7 @@ class Arena(QWidget):
         if self._canvas is not None:                                  # скрыта 20 с — GL-контекст отдать (~19 МБ)
             if self.__dict__.get('_canvas_t') is None:
                 self._canvas_t=QTimer(self);self._canvas_t.setSingleShot(True);self._canvas_t.timeout.connect(self._drop_canvas)
-            self._canvas_t.start(20000)
+            self._canvas_t.start(600000)
     def _drop_canvas(self):
         if self.isVisible() or self._canvas is None:return
         c,self._canvas=self._canvas,None

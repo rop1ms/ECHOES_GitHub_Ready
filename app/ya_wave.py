@@ -1046,7 +1046,8 @@ def gpu_enabled() -> bool:
         return False
 
 
-GL_RELEASE_MS = 20000                  # страница скрыта дольше — её GL-контекст отдаём (≈19 МБ у драйвера)
+GL_RELEASE_MS = 600000                 # страница скрыта 10 мин — её GL-контекст отдаём (≈19 МБ у драйвера);
+                                       # раньше (20 с) возвращение на страницу пересоздавало его — рывок
 
 
 def release_gl_later(owner):
@@ -1490,6 +1491,8 @@ class WavePage(QWidget):
                                     self.devicePixelRatioF())
             self._gl.burst(b)
             self._gl.params(P)
+            import wave_veil                                 # та же туманность — на всё окно, под интерфейсом
+            wave_veil.feed(self, P, b, GPU_PAGE_SCALE)
             return
         res = self._worker.take()
         if res is not None:

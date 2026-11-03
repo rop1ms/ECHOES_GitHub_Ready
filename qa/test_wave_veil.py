@@ -1,6 +1,6 @@
 """My Wave veil (wave_veil.py): the void swallows the panels around My Wave, only symbols stay.
 
-- the veil turns a glass panel black but never the My Wave content panel;
+- the veil erases the glass of the panels (the window-wide nebula shows through), the My Wave panel too;
 - buttons in the panels lose their backgrounds and get white icons; leaving restores them exactly;
 - decorations (section heading, artist card) fade and hide, and come back when leaving;
 - leaving returns the panels exactly to their normal look."""
@@ -92,7 +92,7 @@ class WaveVeil(unittest.TestCase):
         self.assertIn('transparent', self.shell.btn.styleSheet())
         ic = self.shell.btn.icon().pixmap(20, 20).toImage()
         self.assertEqual(ic.pixelColor(10, 10).lightness(), 255, 'dark symbol turns white')
-        self.assertAlmostEqual(brightness(self.grab(self.shell.content)), content0, delta=1.0)
+        self.assertLess(brightness(self.grab(self.shell.content)), content0 * 0.6, 'My Wave glass erased too (nebula shows at its corners)')
         self.assertTrue(self.shell.btn.isVisible(), 'buttons stay')
         self.assertFalse(self.shell._side_head.isVisible())
         self.assertFalse(self.shell.artist_card.isVisible())

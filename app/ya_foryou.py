@@ -69,12 +69,31 @@ def _genre_of(text: str):
 #  Вкус
 # ══════════════════════════════════════════════════════════════════════════ #
 
+_TASTE = {"key": None, "val": None}
+
+
 def taste(win) -> dict:
     """{'top': [(artist, score)], 'now': [(artist, score)], 'genres': [(gid, name, share)], 'owned': set,
-        'owned_artists': set, 'total': N}"""
+        'owned_artists': set, 'total': N}
+    Запоминается, пока не поменялись библиотека, статистика и последние прослушивания (не дольше 10 мин —
+    «сейчас слушаете» затухает по дням): раньше весь проход по библиотеке шёл на каждой смене трека
+    в потоке интерфейса — десятки-сотни мс, на быстрой смене волн — рывки."""
     lib = list(getattr(win, "library", []) or [])
     stats = getattr(getattr(win, "stats", None), "data", None) or {}
     now = time.time()
+    recent = stats.get("recent") or []
+    prof = getattr(getattr(win, "_ya", None), "_profiles", None) or {}
+    key = (id(getattr(win, "library", None)), len(lib), len(stats.get("artists") or {}), int(stats.get("total", 0) // 60),
+           len(recent), (recent[-1].get("ts") if recent and isinstance(recent[-1], dict) else None),
+           len(prof), int(now // 600))
+    if _TASTE["key"] == key and _TASTE["val"] is not None:
+        return _TASTE["val"]
+    val = _taste(win, lib, stats, now)
+    _TASTE["key"], _TASTE["val"] = key, val
+    return val
+
+
+def _taste(win, lib, stats, now) -> dict:
     from artist_identity import index_for, credits, split
     idx = index_for(lib)                                   # Lil Flash$ = LiL Flash$, «A & B» — двое
     disp = {}

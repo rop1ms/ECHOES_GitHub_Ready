@@ -48,6 +48,65 @@ def _warm_intel(library):
         bgproc.throttle(0.35)
 
 
+PRELOAD_PAGES = ("foryou", "wave", "collection", "albums", "profile", "net", "follows", "tierlist", "duel", "queue")
+
+
+def preload(win, budget_s: float = 14.0):
+    """Пока идёт заставка (своё окно и поток — ей это не мешает): собрать все основные разделы и один раз
+    показать каждый за заставкой — первая отрисовка, стили, шрифты, обложки, GL-контексты (туманность,
+    огонь дуэли) случаются сейчас, а не при первом клике. Потом — обратно на стартовую страницу."""
+    app = QApplication.instance()
+    t0 = time.monotonic()
+
+    def pump(sec):
+        end = time.monotonic() + sec
+        while time.monotonic() < end:
+            app.processEvents()
+            time.sleep(0.004)
+    pump(0.25)
+    anchor = getattr(win, "_gpu_anchor", None)
+    end = time.monotonic() + 1.5
+    while anchor is not None and time.monotonic() < end:      # окно на GPU-совмещении готово
+        try:
+            if anchor.ok():
+                break
+        except RuntimeError:
+            break
+        pump(0.05)
+    sh = getattr(win, "_ya", None)
+    if sh is None:
+        return
+    start_page = getattr(sh, "_cur_page", None)
+    for key in PRELOAD_PAGES:
+        if time.monotonic() - t0 > budget_s:
+            break
+        page = sh.pages.get(key)
+        if page is None:
+            continue
+        try:
+            if key in ("foryou", "collection", "wave", "albums"):
+                if key in sh._dirty or (key == "foryou" and not sh.pages["foryou"].v.count()):
+                    sh._rebuild(key)
+            elif key == "net" and hasattr(page, "_refresh_tab"):
+                page._refresh_tab(page._tab or "feed")
+            elif hasattr(page, "refresh"):
+                page.refresh()
+            sh.stack.setCurrentWidget(page)                    # первая отрисовка — за заставкой
+            pump(0.15)
+        except Exception as e:                                 # noqa: BLE001
+            print("[preload]", key, e)
+    try:
+        if start_page in sh.pages:
+            sh.stack.setCurrentWidget(sh.pages[start_page])
+        pump(0.05)
+        import gpu_scroll                                      # первый снимок + слой прокрутки
+        gpu_scroll.warm(win)
+        pump(0.1)
+    except Exception as e:                                     # noqa: BLE001
+        print("[preload] scroll:", e)
+    win._warm_render_started = True                            # лёгкий прогрев уже сделан
+
+
 def start(win):
     """Запустить прогрев (вызывать один раз после показа окна)."""
     from performance import config
