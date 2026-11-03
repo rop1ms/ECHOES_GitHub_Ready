@@ -4,7 +4,7 @@ import numpy as np
 from PyQt6.QtCore import Qt, QTimer, QRectF, QPointF
 from frameclock import FrameTimer, animation_delta
 from PyQt6.QtWidgets import QWidget
-from PyQt6.QtGui import QPainter, QColor, QLinearGradient, QPen, QBrush, QPainterPath
+from PyQt6.QtGui import QPainter, QColor, QLinearGradient, QPen, QBrush, QPainterPath, QImage
 
 try:                                                       # C++-ядро (echoes_fx.dll): фон MilkdropVisualizer
     import native_fx as _NF
