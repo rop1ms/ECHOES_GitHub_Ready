@@ -96,7 +96,8 @@ class BugReportsDialog(QDialog):
             detail.setPlainText(p['title']+'\n\n'+self.t('Версия: ','Version: ')+p['version']+'\n'+
                                 self.t('Код: ','Code: ')+'echoes:'+row['peer']+'\n\n'+p['details']+
                                 ('\n\n'+self.t('Шаги:\n','Steps:\n')+p['steps'] if p['steps'] else '')+
-                                ('\n\n'+self.t('Ответ:\n','Reply:\n')+p['answer'].get('text','') if p.get('answer') else ''))
+                                ('\n\n'+self.t('Ответ:\n','Reply:\n')+p['answer'].get('text','') if p.get('answer') else '')+
+                                ('\n\n'+self.t('Система:\n','System:\n')+p['diag'] if p.get('diag') else ''))
         listing.currentItemChanged.connect(selected);self.tabs.addTab(widget,title)
         return (direction,listing,detail)
 
@@ -133,7 +134,12 @@ class BugReportsDialog(QDialog):
     def submit(self):
         try:
             version=Path(__file__).with_name('version.txt').read_text('utf-8').strip()
-            net_bugs.queue(self.node,self.recipient.currentData(),self.subject.text(),self.details.toPlainText(),self.steps.toPlainText(),version,self.category.currentData())
+            try:                                              # видеокарта, звук, FPS, ошибки — сразу видно, что у человека
+                import diagnostics
+                diag=diagnostics.report(self.win)
+            except Exception:                                 # noqa: BLE001
+                diag=''
+            net_bugs.queue(self.node,self.recipient.currentData(),self.subject.text(),self.details.toPlainText(),self.steps.toPlainText(),version,self.category.currentData(),diag)
         except ValueError:
             self.status.setText(self.t('Проверь тему (4–120 символов), описание (15–3000), шаги (до 1500) и получателя. Очередь: до 30 репортов.',
                                       'Check subject (4–120), description (15–3000), steps (up to 1500), and recipient. The queue holds 30 reports.'))

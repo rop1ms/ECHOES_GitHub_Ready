@@ -458,6 +458,38 @@ def _soft_limit(x: np.ndarray):
     return x
 
 
+class MasterFX:
+    """То же, что в echoes_audio.dll после микса: умный бас (низы < 120 Гц до +12 дБ с мягким насыщением) и
+    «перегруз» при бусте громкости вместо мягкого ограничителя — для вывода на Python (не Windows, запасной путь)."""
+
+    def __init__(self, sr):
+        self.sr = sr
+        self.bass = 0.0
+        self.drive = False
+        self._sos = None
+        self._zi = None
+
+    def process(self, out):
+        if self.bass > 1e-3:
+            try:
+                from scipy import signal as sg
+            except Exception:                                # noqa: BLE001
+                sg = None
+            if sg is not None:
+                if self._sos is None:
+                    self._sos = np.concatenate([sg.butter(2, 120.0 / (self.sr / 2), output="sos")] * 2)
+                    self._zi = np.zeros((self._sos.shape[0], 2, CH), dtype=np.float64)
+                lo, self._zi = sg.sosfilt(self._sos, out, axis=0, zi=self._zi)
+                lo = lo.astype(np.float32)
+                boosted = lo * (1.0 + 2.98 * self.bass)
+                k = 0.95
+                shaped = boosted + (k * np.tanh(boosted / k) - boosted) * min(1.0, 1.6 * self.bass)
+                out += shaped - lo
+        if self.drive:
+            return (0.97 * np.tanh(out / 0.97)).astype(np.float32)
+        return _soft_limit(out)
+
+
 class Mixer:
     def __init__(self, backend_factory):
         self.decks: list[Deck] = []
@@ -471,6 +503,15 @@ class Mixer:
         self._lock = threading.Lock()
         self.backend = backend_factory(self._render)
         self.latency_s = self.backend.latency_s
+        self.fx = MasterFX(SR)
+
+    def set_drive(self, on):
+        self.fx.drive = bool(on)
+        return True
+
+    def set_bass(self, amount):
+        self.fx.bass = max(0.0, min(1.0, float(amount)))
+        return True
 
     def new_deck(self, name) -> Deck:
         d = Deck(self, name)
@@ -519,7 +560,7 @@ class Mixer:
                 cb(out.mean(axis=1))
             except Exception:                            # noqa: BLE001
                 pass
-        return _soft_limit(out)
+        return self.fx.process(out)
 
     def close(self):
         self.closed = True

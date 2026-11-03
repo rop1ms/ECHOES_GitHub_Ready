@@ -102,6 +102,11 @@ class Layer(QWidget):
         self._manual_geometry = None
         self._maximized = False
         self._drag = None
+        # страховка: окно внутри закрылось/удалилось, а слой остался — он бы забирал все клики по ECHOES
+        self._orphan = QTimer(self)
+        self._orphan.setInterval(1000)
+        self._orphan.timeout.connect(self._check_orphan)
+        self._orphan.start()
         self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, True)
         self._backdrop = None
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -262,7 +267,21 @@ class Layer(QWidget):
             c.reject() if self.modal else c.hide()
         else:
             c.hide()
-        self._finish()
+        # не прямо здесь: мы внутри reject()/hide() диалога, а _finish переподвешивает его к другому
+        # родителю — так ECHOES и падал (access violation в журнале: inapp._finish ← request_close)
+        QTimer.singleShot(0, self._finish)
+
+    def _check_orphan(self):
+        if self._closing:
+            return
+        try:
+            from PyQt6 import sip
+            gone = sip.isdeleted(self.content) or (self.isVisible() and not self.content.isVisible())
+        except RuntimeError:
+            gone = True
+        if gone:
+            print("[inapp] слой без окна — убираю")
+            self._finish()
 
     def _finish(self):
         if self._closing:
@@ -326,7 +345,7 @@ def _exec_inapp(self):
     loop = QEventLoop()
     L = Layer(win, self, self.windowTitle(), modal=True)
     L.closed_cb = loop.quit
-    self.finished.connect(lambda *_: L._finish())
+    self.finished.connect(lambda *_: QTimer.singleShot(0, L._finish))     # после выхода из done()
     loop.exec()
     return QDialog.result(self)                            # метод Qt: у некоторых диалогов поле result — их ответ
 

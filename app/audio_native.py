@@ -31,6 +31,10 @@ def library():
     }
     for name,(result,args) in signatures.items():
         fn=getattr(lib,name);fn.restype=result;fn.argtypes=args
+    for name in ('na_drive','na_bass'):              # громкость сверх ×1 и умный бас (есть в новых сборках DLL)
+        fn=getattr(lib,name,None)
+        if fn is not None:
+            fn.restype=None;fn.argtypes=[p,f]
     _LIB=lib
     return lib
 
@@ -195,6 +199,18 @@ class NativeMixer:
                 except Exception as exc:
                     print('[native-audio] reconnect:',exc)
                     delay=min(3.,delay*1.5)
+
+    def set_drive(self,on):
+        """Буст громкости > ×1: мягкий перегруз вместо лимитера (иначе лимитер съедал всё усиление)."""
+        fn=getattr(self.lib,'na_drive',None)
+        if fn is not None:fn(self.handle,1. if on else 0.)
+        return fn is not None
+
+    def set_bass(self,amount):
+        """Умный басс буст 0…1: низы до +12 дБ с мягким насыщением (слышно и на динамиках ноутбука)."""
+        fn=getattr(self.lib,'na_bass',None)
+        if fn is not None:fn(self.handle,max(0.,min(1.,float(amount))))
+        return fn is not None
 
     def new_deck(self,name):
         deck=NativeDeck(self,name)

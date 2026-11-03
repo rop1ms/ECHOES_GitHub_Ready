@@ -1187,7 +1187,7 @@ class _ShadowLabel(QLabel):
 
 def gpu_enabled() -> bool:
     import os
-    if os.environ.get("ECHOES_NO_GPU_NEBULA") == "1" or not (_NATIVE and hasattr(_NF, "NebParams")):
+    if os.environ.get("ECHOES_NO_GPU_NEBULA") == "1" or os.environ.get("ECHOES_SOFT_GL") == "1"             or not (_NATIVE and hasattr(_NF, "NebParams")):       # программный OpenGL (sysprobe) — без GL-слоёв
         return False
     try:
         import native_ui
@@ -1653,6 +1653,8 @@ class WavePage(QWidget):
         acc = min(.1, getattr(self, "_acc_dt", 0.0) + dt)
         target = __import__("frameclock").clock().rate
         step = 1 / min(NEBULA_MAX_FPS, max(30, target)) if _NATIVE else 1 / 30
+        if (getattr(self.window(), "settings", None) or {}).get("lite_mode"):
+            step = max(step, 1 / 24)                      # лёгкий режим: туманность 24 к/с
         # Рендер туманности ограничен 60 к/с и идёт в фоновом потоке сразу в размер окна.
         if acc >= step and self._worker.submit(max(8, int(W * NEBULA_RENDER_SCALE)),
                                                 max(8, int(H * NEBULA_RENDER_SCALE)),

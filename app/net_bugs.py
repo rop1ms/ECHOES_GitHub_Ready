@@ -28,16 +28,18 @@ def clean(payload):
         value = payload.get(key,'')
         if not isinstance(value,str) or not minimum <= len(value.strip()) <= limit:return None
         result[key]=value.strip()
+    diag = payload.get('diag')                     # техническая сводка о ПК (diagnostics.py), необязательно
+    if isinstance(diag,str) and diag.strip():result['diag']=diag.strip()[:4000]
     ts = payload.get('ts')
     if isinstance(ts,bool) or not isinstance(ts,(int,float)) or not math.isfinite(ts):return None
     result['ts']=max(0.,min(float(ts),time.time()+60))
     return result
 
 
-def queue(node, peer, title, details, steps='', version='', category='bug'):
+def queue(node, peer, title, details, steps='', version='', category='bug', diag=''):
     if peer not in recipients(node):raise ValueError('invalid_recipient')
     payload=clean({'id':secrets.token_hex(12),'title':title,'details':details,'steps':steps,
-                   'version':version,'name':node._name(),'ts':time.time(),'category':category})
+                   'version':version,'name':node._name(),'ts':time.time(),'category':category,'diag':diag})
     if payload is None:raise ValueError('invalid_report')
     if len(node.store.q("SELECT id FROM bug_reports WHERE direction='out' AND state='queued' LIMIT 30"))>=MAX_PENDING:
         raise ValueError('queue_full')

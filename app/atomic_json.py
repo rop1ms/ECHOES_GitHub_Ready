@@ -37,6 +37,13 @@ def load_json(path,default,validator=None):
     except (TypeError,ValueError):return default
     # Windows readers opened through normal Python IO do not share DELETE.
     # Avoid replacing a file while another local profile reader holds it open.
+    queued=pending(path)                                  # сохранено, но ещё пишется в фоне
+    if queued is not None:
+        try:
+            value=json.loads(queued.decode('utf-8'))
+            expected=list if isinstance(default,list) else dict if isinstance(default,dict) else None
+            if expected is None or isinstance(value,expected):return value
+        except ValueError:pass
     with _IO_LOCK:
         try:return _read(path,default,validator)
         except (OSError,ValueError,UnicodeError):pass
@@ -72,3 +79,62 @@ def save_json(path,obj):
         # by copying a potentially corrupt preexisting target over the good copy.
         try:_replace(backup_path(path),payload)
         except OSError as error:print('[data] last-good copy could not be updated:',path.name,str(error))
+
+
+# ── запись в фоне: поток интерфейса только сериализует (мс), диск — отдельный поток ──
+# На медленном диске и с антивирусом, который проверяет каждый новый файл, синхронная запись настроек
+# (0,5 МБ + копия) останавливала интерфейс на десятки и сотни мс — на каждом клике, ползунке, треке.
+_PENDING={}
+_COND=threading.Condition()
+_WRITER=[None]
+_BUSY=[0]
+
+
+def _writer():
+    while True:
+        with _COND:
+            while not _PENDING:
+                _COND.wait()
+            items=list(_PENDING.items());_PENDING.clear();_BUSY[0]+=1
+        try:
+            for key,payload in items:
+                path=Path(key)
+                try:
+                    with _IO_LOCK:
+                        _replace(path,payload)
+                        try:_replace(backup_path(path),payload)
+                        except OSError as error:print('[data] last-good copy could not be updated:',path.name,str(error))
+                except OSError as error:
+                    print('[data] write failed:',path.name,str(error))
+        finally:
+            with _COND:
+                _BUSY[0]-=1;_COND.notify_all()
+
+
+def save_json_async(path,obj):
+    """Как save_json, но запись — в фоне; одна и та же запись подряд склеивается (пишется последняя)."""
+    payload=json.dumps(obj,ensure_ascii=False,separators=(',',':')).encode('utf-8')
+    with _COND:
+        _PENDING[str(Path(path))]=payload
+        if _WRITER[0] is None or not _WRITER[0].is_alive():
+            _WRITER[0]=threading.Thread(target=_writer,daemon=True,name='json-writer');_WRITER[0].start()
+        _COND.notify_all()
+
+
+def pending(path):
+    """Ещё не записанное содержимое файла (чтобы чтение сразу после сохранения видело новое)."""
+    with _COND:
+        return _PENDING.get(str(Path(path)))
+
+
+def flush(timeout=10.0):
+    """Дождаться записи всего, что в очереди (при выходе)."""
+    import time
+    end=time.monotonic()+timeout
+    with _COND:
+        while (_PENDING or _BUSY[0]) and time.monotonic()<end:
+            _COND.wait(0.05)
+
+
+import atexit as _atexit
+_atexit.register(flush)

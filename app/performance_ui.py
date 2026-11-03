@@ -16,6 +16,17 @@ class PerformanceCard(GlassFrame):
                           'Balance memory use and visual detail. Audio keeps playing when interface FPS is reduced.'))
         info.setWordWrap(True);body.addWidget(info)
         self.memory=QLabel();self.memory.setStyleSheet('color:#a9dfce;');body.addWidget(self.memory)
+        # лёгкий режим для слабых ПК (sysprobe): включается сам на слабом железе или если интерфейс тормозит
+        import sysprobe
+        hw=QLabel(sysprobe.summary(win.settings.get('sys_probe') or None) or '');hw.setWordWrap(True)
+        hw.setStyleSheet('color:#9faac0;font-size:11px;');body.addWidget(hw)
+        self.lite=QCheckBox(self.t('Лёгкий режим для слабых ПК — плавность важнее эффектов','Lite mode for low-end PCs — smoothness over effects'))
+        self.lite.setChecked(bool(win.settings.get('lite_mode')));self.lite.setStyleSheet('font-weight:700;')
+        self.lite.toggled.connect(self._lite_toggled);body.addWidget(self.lite)
+        why={'auto':self.t('Включён сам: слабое железо или нет ускорения видеокартой.','Turned on automatically: low-end hardware or no GPU acceleration.'),
+             'guard':self.t('Включён сам: интерфейс долго показывал меньше 15 кадров в секунду.','Turned on automatically: the interface ran below 15 FPS.')}.get(win.settings.get('lite_reason') if win.settings.get('lite_mode') else '','')
+        self.lite_why=QLabel(why);self.lite_why.setWordWrap(True);self.lite_why.setStyleSheet('color:#ffdb1a;font-size:11px;')
+        self.lite_why.setVisible(bool(why));body.addWidget(self.lite_why)
         self.timer=QTimer(self);self.timer.setInterval(2000);self.timer.timeout.connect(self.refresh_memory)
         preset=QComboBox()
         for key,ru,en in [('custom','Свои настройки','Custom'),('balanced','Баланс','Balanced'),('memory','Меньше ОЗУ','Low memory'),('smooth','Плавность','Smooth')]:preset.addItem(self.t(ru,en),key)
@@ -63,11 +74,31 @@ class PerformanceCard(GlassFrame):
                           'Smaller caches save RAM but rebuild images more often. High aura detail and caching every GIF frame use more memory.'))
         note.setWordWrap(True);note.setStyleSheet('color:#9faac0;font-size:11px;');body.addWidget(note)
         buttons=QHBoxLayout();clear=QPushButton(self.t('Освободить кэши сейчас','Release caches now'));clear.clicked.connect(lambda:(P.clear_caches(win),self.refresh_memory()));buttons.addWidget(clear)
+        diag=QPushButton(self.t('Скопировать сведения о системе','Copy system info'))   # для баг-репорта / другу
+        diag.setToolTip(self.t('Видеокарта, звук, C++-модули, FPS и последние ошибки — без личных данных',
+                               'GPU, audio path, native modules, FPS and recent errors — no personal data'))
+        diag.clicked.connect(self._copy_diag);buttons.addWidget(diag)
         buttons.addStretch();save=QPushButton(self.t('Применить','Apply'));save.setObjectName('AccentBtn');save.clicked.connect(self.apply);buttons.addWidget(save);body.addLayout(buttons)
         self.feedback=QLabel();self.feedback.setWordWrap(True);body.addWidget(self.feedback)
         self.load(P.config(win.settings),win.settings)
 
     def t(self,ru,en):return tr(self.win,ru,en)
+    def _copy_diag(self):
+        import diagnostics
+        from PyQt6.QtWidgets import QApplication
+        QApplication.clipboard().setText(diagnostics.report(self.win))
+        self.feedback.setText(self.t('Сведения о системе скопированы — вставьте их в баг-репорт или сообщение.',
+                                     'System info copied — paste it into a bug report or a message.'))
+    def _lite_toggled(self,on):
+        import sysprobe
+        s=self.win.settings
+        sysprobe.set_lite(s,bool(on))
+        s['perf_user_set']=True
+        if not on:s['lite_guard_off']=True              # выключили сами — сторож больше не включает
+        s['lite_reason']='user'
+        self.lite_why.hide()
+        self.load(P.config(s),s)
+        self.apply()
     def _gamer_hook(self):
         try:
             import game_mode
@@ -123,6 +154,7 @@ class PerformanceCard(GlassFrame):
         def read(widget):
             return widget.isChecked() if isinstance(widget,QCheckBox) else widget.value() if isinstance(widget,QSpinBox) else widget.currentData()
         old=dict(self.win.settings);self.win.settings['performance']={key:read(widget) for key,widget in self.fields.items()}
+        self.win.settings['perf_user_set']=True             # свои настройки — автоподбор их больше не меняет
         self.win.settings.update({key:read(widget) for key,widget in self.globals.items()})
         for key,attr in [('fps_limit','fps_cb'),('fps_adaptive','fps_adapt_cb'),('video_hw','video_hw_cb'),('native_fx','native_fx_cb'),('ui_animations','ui_anim_cb')]:
             widget=getattr(self.win,attr,None)

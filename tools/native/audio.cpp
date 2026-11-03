@@ -52,9 +52,27 @@ struct Mixer {
     // instead of being clipped, which on boosted bass sounded like a buzz.
     static constexpr unsigned LA=72;              // 1.5 ms at 48 kHz
     float la[LA*2]{}; unsigned la_pos=0, hold=0; float g_hold=1, g=1;
+    // «Экстремальная громкость» и басс буст — здесь, после микса (настраивает Python: na_drive / na_bass).
+    // Прозрачный лимитер выше съедал любое усиление (×10 давало +0,2 дБ, +12 дБ баса — около +3 дБ), поэтому:
+    //  • drive (буст > ×1): вместо лимитера — мягкий перегруз c·tanh(x/c): громкость правда растёт, на больших
+    //    множителях — с честной перегрузкой, как и обещает подпись в интерфейсе;
+    //  • bass (0…1): низы (< 120 Гц, Линквиц–Райли 4-го порядка) усиливаются до +12 дБ и мягко насыщаются —
+    //    появляются гармоники 150–400 Гц, поэтому бас слышно даже на динамиках ноутбука и в дешёвых наушниках,
+    //    а его пики не заставляют лимитер приглушать всю песню.
+    std::atomic<float> drive{0}, bass{0};
+    float bass_cur=0, drive_cur=0;
+    struct Biquad { float b0=1,b1=0,b2=0,a1=0,a2=0,z1=0,z2=0;
+        float run(float x){float y=b0*x+z1;z1=b1*x-a1*y+z2;z2=b2*x-a2*y;return y;} };
+    Biquad lp[2][2];
     std::atomic<Deck*> fade_from{nullptr}, fade_to{nullptr};
     std::atomic<uint64_t> fade_duration{0}, fade_pos{0};
     explicit Mixer(Clock fn):clock(fn) {
+        const double w=2*3.14159265358979*120.0/SR, c=std::cos(w), al=std::sin(w)/(2*0.70710678);
+        const double a0=1+al;                          // Баттерворт 2-го порядка, дважды — Линквиц–Райли
+        for(auto& ch:lp) for(auto& b:ch) {
+            b.b0=float((1-c)/2/a0);b.b1=float((1-c)/a0);b.b2=float((1-c)/2/a0);
+            b.a1=float(-2*c/a0);b.a2=float((1-al)/a0);
+        }
         for(auto& v:visual) v.store(0);
         for(unsigned i=0;i<4;++i) matrix[i].store(current[i]);
     }
@@ -100,6 +118,8 @@ API void na_anchor(void* ptr,double ms,int expect) {
     auto* d=static_cast<Deck*>(ptr);d->anchor.store(ms);d->played.store(0);
     d->expect_flush.store(expect?now_s()+1.5:0);d->anchor_serial.fetch_add(1);
 }
+API void na_drive(void* ptr,float on) {static_cast<Mixer*>(ptr)->drive.store(std::clamp(on,0.f,1.f));}
+API void na_bass(void* ptr,float amount) {static_cast<Mixer*>(ptr)->bass.store(std::clamp(amount,0.f,1.f));}
 API void na_gain(void* ptr,float amp,int mute) {
     auto* d=static_cast<Deck*>(ptr);d->amp.store(std::max(0.f,amp));d->mute.store(mute!=0);
 }
@@ -266,10 +286,26 @@ API void na_render(void* ptr,float* out,unsigned n,double delay,unsigned long fl
     uint64_t vis=m->vis_pos.load(std::memory_order_relaxed);
     constexpr float CEIL=.94f;
     const float attack=1.f-std::exp(-5.f/Mixer::LA), release=1.f-std::exp(-1.f/(.15f*SR));
+    const float bass_t=m->bass.load(std::memory_order_relaxed), drive_t=m->drive.load(std::memory_order_relaxed);
     for(unsigned i=0;i<n;++i) {
         for(unsigned j=0;j<4;++j)m->current[j]+=(target[j]-m->current[j])*.0020811647f;
+        m->bass_cur+=(bass_t-m->bass_cur)*.0005f;m->drive_cur+=(drive_t-m->drive_cur)*.0005f;   // ~40 мс, без щелчков
         float l=out[i*2],r=out[i*2+1];
         float L=l*m->current[0]+r*m->current[1],R=l*m->current[2]+r*m->current[3];
+        if(m->bass_cur>1e-4f) {
+            float* io[2]={&L,&R};
+            for(unsigned ch=0;ch<2;++ch) {
+                float x=*io[ch];
+                float lo=m->lp[ch][1].run(m->lp[ch][0].run(x));
+                float boosted=lo*(1.f+2.98f*m->bass_cur);            // до +12 дБ
+                const float k=.95f;                                   // мягкое насыщение: плотность и гармоники
+                float sat=k*std::tanh(boosted/k);
+                float shaped=boosted+(sat-boosted)*std::min(1.f,1.6f*m->bass_cur);
+                *io[ch]=x+(shaped-lo);
+            }
+        } else {
+            for(unsigned ch=0;ch<2;++ch){float x=ch?R:L;m->lp[ch][1].run(m->lp[ch][0].run(x));}   // фильтр «в курсе»
+        }
         // limiter: the gain needed for the incoming sample is held for the look-ahead window and reached
         // before that sample leaves the delay line; release is slow (150 ms) so it does not pump or buzz
         float peak=std::max(std::abs(L),std::abs(R));
@@ -281,7 +317,12 @@ API void na_render(void* ptr,float* out,unsigned n,double delay,unsigned long fl
         unsigned k=m->la_pos*2;
         float dl=m->la[k],dr=m->la[k+1];m->la[k]=L;m->la[k+1]=R;
         m->la_pos=(m->la_pos+1)%Mixer::LA;
-        out[i*2]=dl*m->g;out[i*2+1]=dr*m->g;
+        float gl=dl*m->g,gr=dr*m->g;
+        if(m->drive_cur>1e-4f) {                       // буст: перегруз вместо лимитера (громкость растёт)
+            const float c=.97f, w=m->drive_cur;
+            gl=gl*(1-w)+c*std::tanh(dl/c)*w;gr=gr*(1-w)+c*std::tanh(dr/c)*w;
+        }
+        out[i*2]=gl;out[i*2+1]=gr;
         for(unsigned ch=0;ch<2;++ch) {                // last-resort safety, practically never reached
             float& x=out[i*2+ch];float a=std::abs(x);
             if(a>.985f)x=std::copysign(.985f+.015f*std::tanh((a-.985f)/.015f),x);

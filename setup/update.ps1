@@ -158,6 +158,25 @@ $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
 }
 $pipCode = $LASTEXITCODE
 $ErrorActionPreference = $old
+
+# C++-модуль интерфейса (echoes_ui.dll) собран под Qt 6.11.2 и на более старом Qt не загружается — тогда
+# молча выключаются все ускорения интерфейса (низкий FPS, «тугие» кнопки). Раньше обновление PyQt6 не трогало.
+$needQt = '6.11.2'
+$old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+$qt = (& $PY -c "from PyQt6.QtCore import qVersion; print(qVersion())" 2>$null | Select-Object -Last 1)
+$ErrorActionPreference = $old
+$qtOld = $true
+try { $qtOld = ([version]("$qt".Trim()) -lt [version]$needQt) } catch { $qtOld = $true }
+if ($qtOld) {
+    Step "Обновляю Qt интерфейса ($qt → $needQt+), это нужно для плавности (1-3 минуты)"
+    $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+    & $PY -m pip install --upgrade --prefer-binary --no-warn-script-location --disable-pip-version-check `
+          --timeout 120 --retries 3 PyQt6 "PyQt6-Qt6>=$needQt" 2>&1 | ForEach-Object {
+        $l = "$_"
+        if ($l -match '^Successfully installed (.+)') { Info "обновлено: $($Matches[1])" }
+    }
+    $ErrorActionPreference = $old
+}
 if ($pipCode -eq 0) { Ok 'готово' } else { Warn 'часть библиотек не обновилась (нет интернета?) — плеер всё равно обновлён' }
 
 # ── готово ───────────────────────────────────────────────────────────────

@@ -186,8 +186,8 @@ def load_library(path):
 def save_json(path, obj):
     # Compact encoding stays in the C encoder; pretty-printing large settings
     # recursively in Python used an entire input frame on every slider step.
-    from atomic_json import save_json as write_profile_json
-    return write_profile_json(path,obj)
+    from atomic_json import save_json_async               # диск — в фоновом потоке (atomic_json)
+    return save_json_async(path,obj)
 
 
 def _round_image(path, side: int, size: int):
@@ -8291,6 +8291,10 @@ class MainWindow(QMainWindow):
 
     def _bass_apply(self):
         add = self._bass_add()
+        k = self.bass_boost() / 100.0
+        if self.engine.set_bass(k):                          # свой вывод: умный бас (низы + гармоники, без лимитера)
+            import hp_eq
+            add = list(hp_eq.correction(self.settings.get("hp_profile", "")))
         sliders = getattr(self, "_eq_sliders", None) or []
         for i in range(10):
             base = sliders[i].value() if i < len(sliders) else 0
@@ -8742,10 +8746,19 @@ if __name__=="__main__":
         raise
     except Exception as _e:                            # noqa: BLE001
         print("[single]", _e); _single = None
+    try:                  # какой это ПК: без видеокарты — без GPU-слоёв, слабый — лёгкий режим (sysprobe.py)
+        import sysprobe
+        _ps = json.loads(SETTINGS_FILE.read_text("utf-8")) if SETTINGS_FILE.exists() else {}
+        _before = json.dumps({k: _ps.get(k) for k in ("sys_probe_sig", "sys_probe", "lite_mode", "motion_profile")})
+        sysprobe.apply_startup(_ps)
+        if json.dumps({k: _ps.get(k) for k in ("sys_probe_sig", "sys_probe", "lite_mode", "motion_profile")}) != _before                 or not SETTINGS_FILE.exists():
+            save_json(SETTINGS_FILE, _ps)
+    except Exception as _e:                            # noqa: BLE001
+        print("[sys]", _e)
     _native_intro = False
     try:                  # заставка в своём потоке — сразу, пока строится окно (intro_win.cpp)
         import intro_anim
-        _st = json.loads(SETTINGS_FILE.read_text("utf-8")) if SETTINGS_FILE.exists() else {}
+        _st = load_json(SETTINGS_FILE, {})             # с учётом ещё не записанного (запись — в фоне)
         if intro_anim.enabled(_st):
             _native_intro = intro_anim.start_native()
     except Exception as _e:                            # noqa: BLE001
@@ -8772,6 +8785,11 @@ if __name__=="__main__":
             print("[preload]", _e)
         finally:
             intro_anim.ready()
+    try:                  # сторож плавности: долго меньше ~15 к/с — сам включит лёгкий режим
+        import sysprobe
+        sysprobe.install_guard(win)
+    except Exception as _e:                            # noqa: BLE001
+        print("[sys] guard:", _e)
     try:                  # прогрев: первое открытие разделов — без подлагиваний (warmup.py)
         import warmup
         warmup.start(win)
@@ -8797,6 +8815,11 @@ if __name__=="__main__":
                 print("[taskbar]", e)
         QTimer.singleShot(700, _identity)
     _code = app.exec()
+    try:                                               # настройки и библиотека пишутся в фоне — дописать
+        import atomic_json
+        atomic_json.flush(8.0)
+    except Exception:                                  # noqa: BLE001
+        pass
     # closeEvent останавливает аудио и графические потоки до финализации Qt.
     # Не используем os._exit: он обходит очистку Python/Qt и вызывал нативный
     # сбой при выгрузке библиотек после открытия конструктора и смены тем.

@@ -1055,7 +1055,21 @@ class AudioEngine(QObject):
     def set_boost(self, factor: float):
         """Экстремальный множитель громкости (×1..×100 = 100..10 000 %) из настроек."""
         self._boost = max(1.0, min(self.BOOST_MAX, float(factor)))
+        m = getattr(self, "mixer", None)
+        if m is not None and hasattr(m, "set_drive"):       # свой вывод: перегруз вместо лимитера, иначе
+            m.set_drive(self._boost > 1.001)                 # лимитер съедал усиление (×10 давало +0,2 дБ)
         self._apply_loudness()
+
+    def set_bass(self, amount: float) -> bool:
+        """Умный басс буст 0…1 в своём выводе. False — вывода нет (тогда бас делает эквалайзер VLC)."""
+        m = getattr(self, "mixer", None)
+        if m is None or not hasattr(m, "set_bass"):
+            return False
+        try:
+            return bool(m.set_bass(amount))
+        except Exception as e:                               # noqa: BLE001
+            print("[audio] bass:", e)
+            return False
 
     def set_gain(self, gain: float):
         """Новый коэффициент выравнивания для играющего трека (например, когда закончилось измерение)."""
