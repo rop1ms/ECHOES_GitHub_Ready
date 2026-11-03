@@ -4076,13 +4076,6 @@ class YaShell(QWidget):
         except Exception as e:                         # noqa: BLE001
             print("[ya] wave hero:", e)
 
-        import native_spoken
-        if spoken is None:
-            spoken = self._spoken_panel = native_spoken.create(w)
-        if spoken is not None:
-            page.v.addWidget(spoken)
-            spoken.show()
-
         try:                                           # Echoes.NET: друзья сейчас слушают / открытые комнаты
             self.pages["net"].add_friends_row(page)
         except Exception as e:                         # noqa: BLE001
@@ -4131,6 +4124,13 @@ class YaShell(QWidget):
                          mix=(QColor.fromHsvF(hue, 0.85, 1.0), QColor.fromHsvF((hue + 0.12) % 1, 0.9, 0.7)))
                 c.clicked.connect(lambda k=key: self.start_wave("mood", k))
         page.v.addWidget(row.widget_)
+
+        import native_spoken
+        if spoken is None:
+            spoken = self._spoken_panel = native_spoken.create(w)
+        if spoken is not None:
+            page.v.addWidget(spoken)
+            spoken.show()
 
         # плейлисты
         pls = [n for n in w.playlists if n not in AUTO_PLAYLISTS or n == "Настроение дня"]
