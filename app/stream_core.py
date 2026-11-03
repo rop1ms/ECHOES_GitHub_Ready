@@ -109,8 +109,10 @@ class StreamResolver:
         self.lock = threading.Lock()
         self.cache = {}                                    # путь → {"url", "exp", "page", "match", "duration"}
         self.waiting = {}                                  # путь → [колбэки]
+        self.waiting_t = {}                                # путь → когда запрос ушёл (зависший запрос не держит клик)
         self.pool = ThreadPoolExecutor(max_workers=3, thread_name_prefix="stream-resolve")
-        self.urgent = ThreadPoolExecutor(max_workers=2, thread_name_prefix="stream-play")
+        # 4, а не 2: два зависших на плохой сети запроса держали все следующие клики — трек «не включался»
+        self.urgent = ThreadPoolExecutor(max_workers=4, thread_name_prefix="stream-play")
         self.errors = {}                                   # путь → (время, текст)
         self.pages = {}                                    # путь «find:…» → найденная страница (без срока)
         self._hint = None                                  # последняя подсказка (наведение мыши)
@@ -172,9 +174,19 @@ class StreamResolver:
             if path in self.waiting:
                 if cb:
                     self.waiting[path].append(cb)
-                return
-            self.waiting[path] = [cb] if cb else []
+                if not (urgent and time.time() - self.waiting_t.get(path, 0) > 8):
+                    return
+                # трек включают, а прошлый запрос висит дольше 8 с (сеть, заготовка в очереди) — ещё один,
+                # срочный; колбэки заберёт тот, что ответит первым
+            else:
+                self.waiting[path] = [cb] if cb else []
+            self.waiting_t[path] = time.time()
         (self.urgent if urgent else self.pool).submit(self._work, dict(track))
+
+    def forget(self, path: str):
+        """Ссылка оказалась мёртвой (VLC не открыл поток / поток оборвался) — при следующем включении взять новую."""
+        with self.lock:
+            self.cache.pop(str(path), None)
 
     def hint(self, track: dict):
         """Курсор над онлайн-треком: приготовить ссылку заранее — вдруг нажмут. Берётся только последняя
@@ -240,6 +252,7 @@ class StreamResolver:
                 if path in self.waiting or (self.cache.get(path) or {}).get("exp", 0) - 90 > time.time():
                     continue
                 self.waiting[path] = []
+                self.waiting_t[path] = time.time()
             self._work(track)
 
     def prefetch(self, track: dict):
@@ -274,6 +287,7 @@ class StreamResolver:
                     for k in list(self.cache)[:60]:
                         self.cache.pop(k, None)
             cbs = self.waiting.pop(path, [])
+            self.waiting_t.pop(path, None)
         for cb in cbs:
             if cb:
                 self._call(cb, ok, dict(res) if ok else res)

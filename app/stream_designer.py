@@ -7,7 +7,7 @@ from PyQt6.QtCore import Qt, QRectF, QPointF
 from PyQt6.QtGui import QColor, QFont, QPainter, QPen, QPixmap, QMovie
 from PyQt6.QtWidgets import (QWidget, QDialog, QHBoxLayout, QVBoxLayout, QFormLayout,
     QListWidget, QPushButton, QComboBox, QDoubleSpinBox, QLineEdit, QCheckBox,
-    QFileDialog, QMessageBox, QScrollArea)
+    QFileDialog, QMessageBox, QScrollArea, QFontComboBox)
 
 
 def default_design():
@@ -56,12 +56,27 @@ def normalize(raw):
     return design
 
 
+_FONTS_READY = []
+
+
+def _fonts():
+    """Свои шрифты из файлов (custom_fonts) — зарегистрировать до первой отрисовки окна стримера."""
+    if not _FONTS_READY:
+        _FONTS_READY.append(True)
+        try:
+            import custom_fonts
+            custom_fonts.load_all()
+        except Exception as exc:                          # noqa: BLE001
+            print('[stream] fonts:', exc)
+
+
 KINDS = {'cover': 'Обложка', 'title': 'Название', 'artist': 'Исполнитель',
          'spectrum': 'Визуализатор', 'progress': 'Прогресс', 'time': 'Время',
          'text': 'Свой текст', 'image': 'Изображение / GIF', 'panel': 'Плашка'}
 
 
 def paint_scene(widget, p, design, st, bands, cover, size=None):
+    _fonts()
     width, height = size or (widget.width(), widget.height())
     p.fillRect(QRectF(0, 0, width, height), QColor(design.get('background', '#0c0c12')))
     for item in design['items']:
@@ -202,6 +217,7 @@ class Canvas(QWidget):
 class StreamEditor(QDialog):
     def __init__(self, win):
         super().__init__(win)
+        _fonts()                                          # свои шрифты — в списке шрифтов
         self.finished.connect(self.deleteLater)
         self.win = win
         self.design = normalize(copy.deepcopy(win.settings.get('stream_design') or default_design()))
@@ -238,6 +254,20 @@ class StreamEditor(QDialog):
             form.addRow(title, field)
             self.fields[key] = field
         for key, title in [('color', 'Цвет (#RRGGBB / #AARRGGBB)'), ('family', 'Шрифт'), ('text', 'Текст'), ('file', 'Путь изображения / GIF')]:
+            if key == 'family':
+                # любой установленный шрифт или свой из файла (custom_fonts)
+                field = QFontComboBox()
+                field.setEditable(True)
+                field.currentTextChanged.connect(lambda text: self.change('family', text.strip()[:80] or 'Segoe UI'))
+                font_row = QHBoxLayout()
+                font_row.addWidget(field, 1)
+                from_file = QPushButton('Из файла…')
+                from_file.setToolTip('TTF, OTF, TTC, WOFF — шрифт сохранится в ECHOES')
+                from_file.clicked.connect(self.pick_font)
+                font_row.addWidget(from_file)
+                form.addRow(title, font_row)
+                self.fields[key] = field
+                continue
             field = QLineEdit()
             field.textEdited.connect(lambda text, key=key: self.change(key, text))
             form.addRow(title, field)
@@ -296,7 +326,9 @@ class StreamEditor(QDialog):
         item = self.design['items'][index]
         for key, field in self.fields.items():
             field.blockSignals(True)
-            if isinstance(field, QLineEdit):
+            if isinstance(field, QFontComboBox):
+                field.setCurrentText(str(item.get(key) or 'Segoe UI'))
+            elif isinstance(field, QLineEdit):
                 field.setText(str(item.get(key, '')))
             else:
                 value = item.get(key, 1 if key == 'opacity' else 20 if key == 'size' else 8 if key == 'radius' else 0)
@@ -337,6 +369,19 @@ class StreamEditor(QDialog):
         if filename:
             self.change('file',filename)
             self.select(self.canvas.selected)
+
+    def pick_font(self):
+        import custom_fonts
+        filename, _ = QFileDialog.getOpenFileName(self, 'Шрифт', '', custom_fonts.FILTER)
+        if not filename:
+            return
+        try:
+            family = custom_fonts.import_font(filename)
+        except (OSError, ValueError) as exc:
+            QMessageBox.warning(self, 'Шрифт', f'Не удалось подключить шрифт: {exc}')
+            return
+        self.fields['family'].setCurrentText(family)
+        self.change('family', family)
 
     def load(self):
         filename, _ = QFileDialog.getOpenFileName(self,'Дизайн','','JSON (*.json)')

@@ -33,15 +33,13 @@ FPS = SR / HOP                    # ≈ 86 кадров анализа в сек
 NBANDS = 40
 
 def _ffmpeg() -> str | None:
-    p = shutil.which("ffmpeg")
-    if p:
-        return p
+    # свой ffmpeg — первым: в PATH бывает древний (2013 г.), который не понимает современные ключи
     for base in (Path(__file__).resolve().parent.parent / "ffmpeg",
                  Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "ECHOES" / "ffmpeg"):
         f = base / "ffmpeg.exe"
         if f.exists():
             return str(f)
-    return None
+    return shutil.which("ffmpeg")
 
 
 def decode(path: str, seconds: float = 900.0) -> np.ndarray:

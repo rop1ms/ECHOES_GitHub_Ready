@@ -123,6 +123,9 @@ class NativeMixer:
         self.latency_s=self.LATENCY
         self.listening=NativeMatrix(self)
         self.stream=None
+        self.on_device=None          # callable(ok: bool) — устройство пропало / вернулось (из потока сторожа)
+        self._lost=False
+        self._opened_at=0.
         self._stop=threading.Event()
         self._stream_lock=threading.Lock()
         self._watchdog=None
@@ -152,6 +155,18 @@ class NativeMixer:
             raise
         self.stream=stream
         self.latency_s=float(stream.latency)
+        self._opened_at=time.perf_counter()
+
+    def _device(self,ok):
+        """Сообщить движку: пока устройства нет, VLC должен стоять на паузе. Иначе он копит звук в полную
+        очередь деки, а после переподключения выбрасывает «опоздавший» — трек перескакивал вперёд."""
+        if ok==(not self._lost):
+            return
+        self._lost=not ok
+        cb=self.on_device
+        if cb is not None:
+            try:cb(ok)
+            except Exception as exc:print('[native-audio] device callback:',exc)
 
     def _watch(self):
         delay=.5
@@ -160,13 +175,22 @@ class NativeMixer:
                 if self.closed:
                     return
                 try:
-                    if self.stream is not None and self.stream.active:
+                    now=time.perf_counter()
+                    stuck=(self.stream is not None and self.stream.active and now-self._opened_at>2.
+                           and now-self.stats()['last_render']>1.)    # поток «активен», но звуковая карта молчит
+                    if self.stream is not None and self.stream.active and not stuck:
+                        self._device(True)
                         delay=.5
                         continue
+                    self._device(False)
+                    if stuck:print('[native-audio] output stalled - reopening')
                     if self.stream is not None:
+                        try:self.stream.abort()
+                        except Exception:pass
                         self.stream.close()
                         self.stream=None
                     self._open()
+                    self._device(True)
                     delay=.5
                 except Exception as exc:
                     print('[native-audio] reconnect:',exc)

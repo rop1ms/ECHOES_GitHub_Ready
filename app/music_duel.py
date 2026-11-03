@@ -890,7 +890,10 @@ class DuelPage(QScrollArea):
         for key,text in (('king','Царь горы'),('pairs','Бесконечные дуэли')):
             b=chip(text);b.clicked.connect(lambda _=False,k=key:self._set_mode(k));top.addWidget(b,0,Qt.AlignmentFlag.AlignVCenter);self.mode_btns[key]=b
         self.start=QPushButton('Начать заново');self.start.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.start.setStyleSheet('QPushButton{background:#ffdb1a;color:#171717;border-radius:16px;padding:9px 18px;font-weight:800;} QPushButton:hover{background:#ffe85c;}')
+        import ya_skin                                                   # акцент темы, а не всегда жёлтый
+        _a,_on=ya_skin.CURRENT.get('accent','#ffdb1a'),ya_skin.CURRENT.get('on_accent','#000000')
+        self.start.setStyleSheet(f'QPushButton{{background:{_a};color:{_on};border-radius:16px;padding:9px 18px;font-weight:800;}}'
+                                 f' QPushButton:hover{{background:{ya_skin.lighter(_a,115)};}}')
         self.start.clicked.connect(self.begin);top.addWidget(self.start,0,Qt.AlignmentFlag.AlignVCenter);lay.addLayout(top)
         from duel_settings import tr
         self.settings_button=QPushButton(tr(self.win,'Настройки дуэли','Duel settings'))

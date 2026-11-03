@@ -11,7 +11,9 @@
 #include <vector>
 
 #define API extern "C" __declspec(dllexport)
-constexpr unsigned SR=48000, CAP=131072, MASK=CAP-1, VIS=131072;
+// CAP: 5.5 s per deck. A chained (gapless) deck fills its queue until the seam; when the queue was full VLC's
+// decoder blocked, and afterwards VLC dropped the "late" audio — the next track jumped ahead by 1-2 s.
+constexpr unsigned SR=48000, CAP=262144, MASK=CAP-1, VIS=131072;
 enum State { Idle, Sync, Play, Chained, Done, IdlePlay };
 struct Mixer;
 struct Frame { float l,r; int64_t pts; uint64_t gen; };
@@ -111,6 +113,10 @@ API int na_vari_busy(void* ptr) {
 API void na_chain(void* first,void* second) {
     auto* a=static_cast<Deck*>(first);auto* b=static_cast<Deck*>(second);
     b->prev.store(a);b->state.store(Chained);a->next.store(b);
+    // The predecessor already played out: nobody would hand off and the next track stayed silent forever.
+    if(a->state.load()==Done && a->next.exchange(nullptr)==b) {
+        b->prev.store(nullptr);b->state.store(queued(b)?Sync:Idle);
+    }
 }
 API void na_crossfade(void* ptr,void* first,void* second,double seconds) {
     auto* m=static_cast<Mixer*>(ptr);m->fade_pos.store(0);
@@ -173,7 +179,12 @@ static float envelope(Mixer* m,Deck* d,uint64_t at,bool running) {
     return float(incoming?std::sin(t*1.5707963267948966):std::cos(t*1.5707963267948966));
 }
 static Deck* render_deck(Deck* d,float* out,unsigned n,unsigned& pos,int64_t dac,uint64_t block,bool handoff,bool fade_running) {
-    if(d->block==block)return nullptr;d->block=block;
+    if(d->block==block)return nullptr;
+    // A chained deck waits for its predecessor, which hands off to it inside this same block. Marking the
+    // block here made that handoff a no-op whenever the chained deck came first in the list (every second
+    // gapless seam): the next track never started.
+    if(!handoff && d->state.load()==Chained)return nullptr;
+    d->block=block;
     d->sounding.store(false);
     uint64_t generation=d->gen.load();stale(d,generation);
     if(d->last_gen!=generation){d->played.store(0);d->last_gen=generation;d->varying=false;d->rate=1;d->phase=0;}

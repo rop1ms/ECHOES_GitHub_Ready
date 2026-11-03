@@ -153,6 +153,7 @@ class AudioEngine(QObject):
         # (следующий + предыдущий + запас), чтобы переключение в обе стороны
         # было мгновенным, а не только "вперёд".
         self._preload_cache = OrderedDict()
+        self._preload_urls = {}                     # путь «stream:…» → ссылка, с которой готовили media
         self.url_resolver = None                    # callable("stream:…") -> прямая ссылка на поток (stream_core)
         self._preload_cache_limit = 4
 
@@ -210,6 +211,9 @@ class AudioEngine(QObject):
                 _d.attach(_p)
                 self._decks[id(_p)] = _d
             self.mixer.vis_cb = self._mixer_vis
+            self._dev_paused = False
+            if hasattr(self.mixer, "on_device"):
+                self.mixer.on_device = self._device_state
             try:
                 from PyQt6.QtWidgets import QApplication
                 app = QApplication.instance()
@@ -429,6 +433,23 @@ class AudioEngine(QObject):
         d = self._deck(player)
         return d.lag_seconds() * max(0.25, float(self.speed or 1.0)) if d is not None else 0.0
 
+    def _device_state(self, ok: bool):
+        """Звуковое устройство пропало / вернулось (поток сторожа микшера; libvlc потокобезопасен).
+        Пока устройства нет, VLC стоит на паузе: иначе он копил звук, а потом выбрасывал «опоздавший» —
+        после запуска игры или смены наушников трек перескакивал вперёд на секунды."""
+        decks = [p for p in (self.player, self._fade_to if self._fade_active else None) if p is not None]
+        if not ok:
+            if self._want_playing and any(p.get_state() == vlc.State.Playing for p in decks):
+                self._dev_paused = True
+                for p in decks:
+                    p.set_pause(1)
+        elif self._dev_paused:
+            self._dev_paused = False
+            if self._want_playing:
+                for p in decks:
+                    if p.get_state() == vlc.State.Paused:
+                        p.set_pause(0)
+
     def _mixer_vis(self, mono):
         with self._audio_lock:
             self._ring_write(mono)
@@ -569,8 +590,20 @@ class AudioEngine(QObject):
         if not path.startswith("stream:"):
             media.parse_with_options(vlc.MediaParseFlag.local, 0)
         self._preload_cache[path] = media
+        self._preload_urls[path] = self.url_resolver(path) if path.startswith("stream:") and self.url_resolver else ""
         while len(self._preload_cache) > self._preload_cache_limit:
-            self._preload_cache.popitem(last=False)
+            old, _m = self._preload_cache.popitem(last=False)
+            self._preload_urls.pop(old, None)
+
+    def _take_preloaded(self, path: str):
+        """Заготовленный media (или None). Онлайн-трек — только если ссылка та же: после «ссылка умерла →
+        взяли новую» заготовка держала бы мёртвую, и трек снова не включился бы."""
+        media = self._preload_cache.pop(path, None)
+        url = self._preload_urls.pop(path, "")
+        if (media is not None and path.startswith("stream:") and self.url_resolver is not None
+                and (self.url_resolver(path) or "") != url):
+            return None
+        return media
 
     # ------------------------------------------------------------------ #
     #  Воспроизведение                                                     #
@@ -616,7 +649,7 @@ class AudioEngine(QObject):
         self._last_state  = None
         self._resume_at = None
 
-        media = self._preload_cache.pop(path, None)
+        media = self._take_preloaded(path)
         if media is None:
             media = self._media(path)
 
@@ -1206,7 +1239,7 @@ class AudioEngine(QObject):
         duration_ms = int(duration_ms if duration_ms is not None else self.crossfade_ms)
         duration_ms = max(100, duration_ms)
 
-        media = self._preload_cache.pop(next_path, None)
+        media = self._take_preloaded(next_path)
         if media is None:
             media = self._media(next_path)
 
@@ -1270,7 +1303,7 @@ class AudioEngine(QObject):
         if not next_path or not self.current_path or self._fade_active:
             return False
 
-        media = self._preload_cache.pop(next_path, None)
+        media = self._take_preloaded(next_path)
         if media is None:
             media = self._media(next_path)
             if not next_path.startswith("stream:"):

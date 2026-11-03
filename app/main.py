@@ -14,7 +14,13 @@ from pathlib import Path
 # ── портативные VLC и ffmpeg, которые кладёт установщик ECHOES рядом с app\ ──
 import os as _os
 _APP_DIR = Path(__file__).resolve().parent
+# запуск из папки исходников: рядом ffmpeg нет — берём установленный ECHOES, а не случайный из PATH
+# (у некоторых в PATH лежит ffmpeg 2013 года из pip-пакета: он не понимает -hide_banner, и анализ звука
+# — громкость, темп, жанр по звуку, припев в дуэли — молча ничего не находил)
+_INST = Path(_os.environ.get("LOCALAPPDATA", "")) / "Programs" / "ECHOES"
 for _d in (_APP_DIR.parent / "ffmpeg", _APP_DIR / "ffmpeg", _APP_DIR.parent / "vlc", _APP_DIR / "vlc"):
+    if not _d.is_dir() and _d.parent == _APP_DIR.parent and (_INST / _d.name).is_dir():
+        _d = _INST / _d.name
     if _d.is_dir():
         _os.environ["PATH"] = str(_d) + _os.pathsep + _os.environ.get("PATH", "")
 try:                                                     # одна HTTP-сессия на весь плеер (net_pool.py)
@@ -425,7 +431,7 @@ class MainWindow(QMainWindow):
         self.engine.state_changed.connect(self._on_engine_state)
         self.engine.finished.connect(self._on_engine_finished)
         self.engine.crossfade_started.connect(self._on_crossfade_started)
-        self.engine.error_changed.connect(lambda text: print("[audio]", text))
+        self.engine.error_changed.connect(self._on_engine_error)
         self._lyrics_fetched.connect(self._lyrics_ready)
         self.library = load_library(LIB_FILE)
         self.tierlist_path = TIER_FILE
@@ -5212,6 +5218,7 @@ class MainWindow(QMainWindow):
     def _on_engine_position(self, position):
         if self.current_index < 0:
             return
+        self._heard_at = (str(self.engine.current_path), float(position))   # где оборвался поток — оттуда и продолжить
         duration = float(self.engine.duration or 0.0)
         self.t_cur.setText(self._fmt(position))
         if duration > 0 and not self.seek.isSliderDown():
@@ -5256,7 +5263,9 @@ class MainWindow(QMainWindow):
                 next_path = self._peek_next_path()
                 if next_path:
                     self.engine.start_crossfade(next_path, cf_ms)
-            elif gapless and remain <= (5.0 if self.engine.mixer is not None else self._GAPLESS_LEAD_MS / 1000.0):
+            # свой вывод: следующая дека копит звук до стыка — 3 с с запасом влезают в её очередь (5.5 с);
+            # с 5 с очередь переполнялась, VLC вставал и потом выбрасывал «опоздавший» звук (скачок трека)
+            elif gapless and remain <= (3.0 if self.engine.mixer is not None else self._GAPLESS_LEAD_MS / 1000.0):
                 next_path = self._peek_next_path()
                 if next_path:
                     self.engine.start_gapless(next_path, remain * 1000.0)
@@ -5427,9 +5436,64 @@ class MainWindow(QMainWindow):
     def _on_engine_state(self, playing):
         self._set_playing_ui(bool(playing))
 
+    def _on_engine_error(self, text):
+        """VLC не смог играть дальше. Раньше это только печаталось в консоль — трек молча замирал, и помогало
+        только «назад» + «вперёд». Онлайн-трек: новая ссылка и продолжение с того же места (до 2 раз);
+        иначе — следующий трек."""
+        print("[audio]", text)
+        if self.current_index < 0:
+            return
+        t = self._current_track() or {}
+        path = str(t.get("path", ""))
+        if not path or path != str(self.engine.current_path):
+            return
+        if self._resume_stream(t, "Поток оборвался — переподключаю…"):
+            return
+        self._toast(f"Не удалось воспроизвести «{sanitize_title(t.get('title', '')) or Path(path).name}» — следующий трек")
+        QTimer.singleShot(300, lambda p=path: self._advance(1) if str(self.engine.current_path) == p else None)
+
+    def _resume_stream(self, t, note) -> bool:
+        """Онлайн-трек оборвался: свежая ссылка, продолжить с того места, где оборвалось. False — не поток
+        или уже пробовали дважды."""
+        path = str(t.get("path", ""))
+        if not path.startswith("stream:"):
+            return False
+        tries = self.__dict__.setdefault("_stream_retries", {})
+        if tries.get(path, 0) >= 2:
+            tries.pop(path, None)
+            return False
+        tries[path] = tries.get(path, 0) + 1
+        at_path, at = getattr(self, "_heard_at", ("", 0.0))
+        at = max(0.0, at - 1.0) if at_path == path else 0.0
+        self.streams.forget(path)
+        self._toast(note)
+        token = self._stream_token
+
+        def done(ok, _data):
+            if token != self._stream_token or str(self.engine.current_path) != path:
+                return                                   # пока ждали, включили другой трек
+            if ok:
+                self.engine.load(path, autoplay=True, start_sec=at)
+            else:
+                tries.pop(path, None)
+                self._advance(1)
+        self.streams.resolve(t, done, urgent=True)
+        return True
+
     def _on_engine_finished(self):
         if self.current_index < 0 or self._track_finished_guard:
             return
+        t = self._current_track() or {}
+        at_path, at = getattr(self, "_heard_at", ("", 0.0))
+        full = float(self.engine.duration or 0.0) or float(t.get("duration") or 0.0)   # длина потока у VLC точнее каталога
+        # мёртвая ссылка (403) у VLC — не ошибка, а мгновенный «конец»: тоже переподключаем
+        if (str(t.get("path", "")).startswith("stream:") and at_path == str(t.get("path")) and self.repeat_mode != 2
+                and ((full > 30 and at < full - 8) or at < 2.0)):
+            # поток кончился раньше трека (обрыв сети / истекла ссылка) — не прыгать на следующий
+            if self._resume_stream(t, "Поток прервался — продолжаю с того же места…"):
+                return
+        else:
+            self.__dict__.get("_stream_retries", {}).pop(str(t.get("path", "")), None)
         if getattr(self,'_duel_preview',None) == str((self._current_track() or {}).get('path','')):
             self.engine.stop();self._set_playing_ui(False)
             self._duel_preview=None

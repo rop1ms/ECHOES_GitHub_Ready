@@ -180,7 +180,7 @@ class SettingsHub(QWidget):
         # ── разделы ──
         nav = QWidget()
         nav.setObjectName("YaPage")
-        nav.setFixedWidth(230)
+        nav.setFixedWidth(252)                                # «Производительность» целиком, без обрезки
         nv = QVBoxLayout(nav)
         nv.setContentsMargins(28, 24, 10, 20)
         nv.setSpacing(4)

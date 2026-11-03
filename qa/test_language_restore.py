@@ -23,8 +23,9 @@ class LanguageRestore(unittest.TestCase):
     def test_default_and_existing_language(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 'settings.json'
-            self.assertEqual(i18n.read_language(path), 'en')
-            for data, expected in (({}, 'ru'), ({'language':'ru'}, 'ru'), ({'language':'en'}, 'en')):
+            # нет настроек — язык системы (на русской Windows это 'ru')
+            self.assertEqual(i18n.read_language(path), i18n.system_language())
+            for data, expected in (({}, i18n.system_language()), ({'language':'ru'}, 'ru'), ({'language':'en'}, 'en')):
                 path.write_text(json.dumps(data), 'utf-8')
                 self.assertEqual(i18n.read_language(path), expected)
 

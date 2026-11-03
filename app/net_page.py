@@ -1840,7 +1840,13 @@ class NetPage(QWidget):
             page.v.addWidget(hero)
         feed_key = (self._feed_sort, self.__dict__.get("_feed_type"))
         if feed_key != self.__dict__.get("_feed_window_key"):
-            self._feed_window_key, self._feed_limit = feed_key, 30
+            # 12, а не 30: у каждого поста десятки кнопок — вкладка «Лента» показывалась/перестраивалась
+            # заметно дольше; остальные подгружаются сами, когда прокрутили к низу (_feed_scrolled)
+            self._feed_window_key, self._feed_limit = feed_key, 12
+        more_hook = getattr(self, "_feed_scrolled", None)
+        if more_hook is not None and not self.__dict__.get("_feed_scroll_hooked"):
+            self._feed_scroll_hooked = True
+            sb.valueChanged.connect(more_hook)
         limit = self._feed_limit
         self._feed_cards = {}
         for p in posts[:limit]:
@@ -1881,8 +1887,23 @@ class NetPage(QWidget):
         self._fill_feed_side()
 
     def _more_feed(self):
-        self._feed_limit = self.__dict__.get("_feed_limit", 30) + 30
+        self._feed_limit = self.__dict__.get("_feed_limit", 12) + 12
         self._fill_feed()
+
+    def _feed_scrolled(self, value):
+        """Докрутили почти до конца ленты — подгрузить следующие посты (без кнопки «Показать ещё»)."""
+        sb = self.feed_page.verticalScrollBar()
+        if value < sb.maximum() - 500 or self.__dict__.get("_feed_more_pending") or self._feed_sort == "all":
+            return
+        posts = [p for p in self._sorted_posts() if self._type_ok(p) and p.get("kind") != "thread"]
+        if len(posts) <= self.__dict__.get("_feed_limit", 12):
+            return
+        self._feed_more_pending = True
+
+        def more():
+            self._feed_more_pending = False
+            self._more_feed()
+        QTimer.singleShot(60, more)
 
     KIND_LABEL = {"daily": "трек дня", "battle": "баттл", "playlist": "плейлист", "quiz": "угадай трек", "quote": "цитата",
                   "chal": "челлендж недели",

@@ -59,7 +59,9 @@ ALBUM_PL = "\u2063album"             # временная очередь, не �
 AUTO_PLAYLISTS = {WAVE_PL, ALBUM_PL}
 _NO_ALBUM = {"", "unknown", "unknown album", "неизвестный альбом", "<unknown>", "none", "null",
              "youtube", "soundcloud", "single"}
-FAMILIES = ["YS Text", "Inter", "Segoe UI Variable Display", "Segoe UI", "Helvetica Neue", "Arial"]
+# «ECHOES Symbols» — последним: значки интерфейса (U+F1000…) берутся из него, а не из системной подстановки
+# Windows, которая рисовала вместо трофея квадратик
+FAMILIES = ["YS Text", "Inter", "Segoe UI Variable Display", "Segoe UI", "Helvetica Neue", "Arial", "ECHOES Symbols"]
 TITLE_FAMILIES: list = []           # шрифт заголовков и логотипа (ya_skin «Шрифт заголовков»); пусто — как текст
 DENSITY = 1.0                       # размер карточек: просторно 1.15 / обычно 1 / компактно 0.86 (ya_skin)
 CARD_RADIUS = 10                    # скругление обложек альбомов, px при 150 px (0 — квадрат, 75 — круг)
@@ -139,7 +141,7 @@ def ya_qss(t: dict) -> str:
     A = _ui_assets()
     from echo_glass import glass_controls_qss
     return f"""
-    QWidget {{ color:{TEXT}; font-family:"YS Text","Inter","Segoe UI"; font-size:13px; }}
+    QWidget {{ color:{TEXT}; font-family:"YS Text","Inter","Segoe UI","ECHOES Symbols"; font-size:13px; }}
     QMainWindow, QWidget#Root {{ background:{BG}; }}
     QDialog, QMenu {{ background:{PANEL2}; color:{TEXT}; }}
     QMenu {{ border:1px solid #2c2c2c; border-radius:10px; padding:6px; }}
@@ -3628,7 +3630,9 @@ class YaShell(QWidget):
             self.b_vol.setIcon(ya_icon("mute" if w.vol.value() == 0 else "volume", 20, "#cfcfcf"))
         # библиотека / плейлисты поменялись — обновить страницы
         lib_sig = len(w.library)
-        pl_sig = tuple((n, len(p.get("tracks", []))) for n, p in w.playlists.items())
+        # служебные очереди (онлайн-треки «Моей волны», дуэли, «Для вас» — префикс ⁣) меняются при каждом
+        # включении онлайн-трека: из-за них «Для вас», коллекция и альбомы пересобирались на каждом входе
+        pl_sig = tuple((n, len(p.get("tracks", []))) for n, p in w.playlists.items() if not str(n).startswith("⁣"))
         if lib_sig != self._lib_sig or pl_sig != self._pl_sig:
             lib_changed = lib_sig != self._lib_sig
             self._lib_sig, self._pl_sig = lib_sig, pl_sig
@@ -5260,7 +5264,8 @@ class YaShell(QWidget):
 
     def _pp_update_nores(self):
         active = bool(self.pp_search.text().strip()) or getattr(self.pp_list, "pred", None) is not None
-        self.pp_nores.setVisible(active and self.pp_list.model_.rowCount() == 0 and bool(self.pp_list._all_rows))
+        self.pp_nores.setVisible(active and self.pp_list.model_.rowCount() == 0
+                                 and bool(getattr(self.pp_list, "_all_rows", None)))   # список ещё не заполняли
 
     # ── фильтры по жанру и настроению ── #
 

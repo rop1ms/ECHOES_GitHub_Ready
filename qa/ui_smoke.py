@@ -142,9 +142,9 @@ try:
         net._data_ver = net.__dict__.get("_data_ver", 0) + 1
         shell.show_page("net")
         net.show_tab("feed")
-        assert net._feed_limit == 30
+        assert net._feed_limit == 12                 # первая порция — 12 постов, дальше подгрузка при прокрутке
         net._more_feed()
-        assert net._feed_limit == 60
+        assert net._feed_limit == 24
         settle()
         win.grab().save(str(OUT / f"net_feed_{settings['language']}.png"))
         net.open_chat("offline-audit-peer")

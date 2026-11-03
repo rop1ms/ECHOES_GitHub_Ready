@@ -113,21 +113,66 @@ def darker(c: str, k=125) -> str:
 
 
 _ORIG = {}
+_RECOLOR: dict = {}            # константа → (значение по умолчанию, цвет скина) — для модулей, импортированных позже
+
+
+def _skin_module(name: str) -> bool:
+    return (name == "yamusic_theme" or name.startswith(("net_", "ya_", "echo", "music_"))
+            or name in ("emoji_pack", "profile_editor", "lyrics_view"))
+
+
+class _LateImport:
+    """apply() перекрашивает только уже загруженные модули. «Моя волна», дуэль и другие страницы грузятся
+    позже — у них оставался стандартный жёлтый при другом акценте. Этот поиск модулей перекрашивает их
+    константы сразу после загрузки."""
+
+    def find_spec(self, name, path=None, target=None):
+        if not _RECOLOR or not _skin_module(name):
+            return None
+        from importlib.machinery import PathFinder
+        spec = PathFinder.find_spec(name, path)
+        loader = getattr(spec, "loader", None)
+        if loader is None or not hasattr(loader, "exec_module"):
+            return spec
+        orig = loader.exec_module
+
+        def exec_module(module, _o=orig):
+            _o(module)
+            for k, (old, new) in list(_RECOLOR.items()):
+                try:
+                    if getattr(module, k, None) == old:
+                        setattr(module, k, new)
+                except Exception:                              # noqa: BLE001
+                    pass
+        loader.exec_module = exec_module
+        return spec
+
+
+_HOOK = []
 
 
 def apply(skin) -> dict:
     """Подменить цвета и шрифт темы Echoes Music (до сборки интерфейса)."""
     s = normalize(skin)
     import yamusic_theme as Y
+    try:
+        import custom_fonts                                    # свои шрифты из файлов — до сборки интерфейса
+        custom_fonts.load_all()
+    except Exception as e:                                     # noqa: BLE001
+        print("[skin] fonts:", e)
     if not _ORIG:
         _ORIG.update(YELLOW=Y.YELLOW, BG=Y.BG, PANEL=Y.PANEL, PANEL2=Y.PANEL2, CARD=Y.CARD, TEXT=Y.TEXT,
                      MUTED=Y.MUTED, FAMILIES=list(Y.FAMILIES))
     new = {"YELLOW": s["accent"], "BG": s["bg"], "PANEL": s["panel"], "PANEL2": s["panel2"], "CARD": s["card"],
            "TEXT": s["text"], "MUTED": s["muted"]}
     old = {k: getattr(Y, k) for k in new}
+    _RECOLOR.clear()
+    _RECOLOR.update({k: (_ORIG[k], v) for k, v in new.items() if _ORIG.get(k) != v})
+    if not _HOOK:
+        _HOOK.append(_LateImport())
+        sys.meta_path.insert(0, _HOOK[0])
     for name, mod in list(sys.modules.items()):              # и в модулях, что сделали «from yamusic_theme import YELLOW»
-        if mod is None or not (name == "yamusic_theme" or name.startswith(("net_", "ya_", "echo")) or
-                               name in ("emoji_pack", "profile_editor", "lyrics_view")):
+        if mod is None or not _skin_module(name):
             continue
         for k, v in new.items():
             try:
@@ -174,7 +219,7 @@ def overrides_qss(s=None) -> str:
     s = normalize(s or CURRENT)
     a, on, r = s["accent"], s["on_accent"], s["radius"]
     rs = min(r, 13)                                            # у низких кнопок радиус > половины высоты = квадрат
-    fam = f'font-family:"{s["font"]}","YS Text","Inter","Segoe UI";' if s["font"] else ""
+    fam = f'font-family:"{s["font"]}","YS Text","Inter","Segoe UI","ECHOES Symbols";' if s["font"] else ""
     weight = "" if s["bold"] else "font-weight:500;"
     out = [f"QWidget {{ {fam} font-size:{s['size']}px; }}",
            f"QLabel#YaBadge {{ background:{a}; color:{on}; }}",
@@ -364,6 +409,10 @@ class SkinEditor(QDialog):
                                       self.font.setCurrentFont(QFont("Segoe UI")), self.font.blockSignals(False)))
         fr.addWidget(dflt)
         v.addLayout(fr)
+        ffile = QPushButton("Свой шрифт из файла…")
+        ffile.setToolTip("TTF, OTF, TTC, WOFF — шрифт сохранится в ECHOES, устанавливать в Windows не нужно")
+        ffile.clicked.connect(self._font_file)
+        v.addWidget(ffile)
         self.size_lbl = QLabel()
         v.addWidget(self.size_lbl)
         self.size = QSlider(Qt.Orientation.Horizontal)
@@ -452,6 +501,22 @@ class SkinEditor(QDialog):
             decor.setWindowFlags(Qt.WindowType.Widget)
             self.tabs.addTab(decor, "Живое оформление")
         self._refresh()
+
+    def _font_file(self):
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        import custom_fonts
+        fn, _ = QFileDialog.getOpenFileName(self, "Шрифт", "", custom_fonts.FILTER)
+        if not fn:
+            return
+        try:
+            fam = custom_fonts.import_font(fn)
+        except (OSError, ValueError) as e:
+            QMessageBox.warning(self, "Шрифт", f"Не удалось подключить шрифт: {e}")
+            return
+        self.font.blockSignals(True)
+        self.font.setCurrentFont(QFont(fam))
+        self.font.blockSignals(False)
+        self._set("font", fam)
 
     def _sec(self, text):
         l = QLabel(text)

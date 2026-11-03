@@ -55,6 +55,22 @@ def _ease_out_quint(t: float) -> float:
     return 1 - (1 - t) ** 5
 
 
+def _paint_gl_frames(stack: QWidget, painter: QPainter):
+    """OpenGL-холсты (арена дуэли, туманность) render() в растр рисует неверно — поверх их места кладём
+    настоящий кадр с видеокарты (grabFramebuffer), иначе при уходе со страницы на секунду видны артефакты."""
+    from PyQt6.QtCore import QRectF
+    from PyQt6.QtOpenGLWidgets import QOpenGLWidget
+    for gl in stack.findChildren(QOpenGLWidget):
+        try:
+            if not gl.isVisible() or gl.width() <= 0 or gl.height() <= 0:
+                continue
+            img = gl.grabFramebuffer()
+            if not img.isNull():
+                painter.drawImage(QRectF(gl.mapTo(stack, QPoint()).toPointF(), gl.size().toSizeF()), img)
+        except Exception:                                   # noqa: BLE001
+            continue
+
+
 def _grab_area(stack: QWidget, backdrop=True) -> QPixmap | None:
     """Снимок области стека вместе со всем, что под ним (фон окна) — непрозрачная картинка,
     поэтому старая и новая страница не просвечивают друг через друга."""
@@ -80,6 +96,7 @@ def _grab_area(stack: QWidget, backdrop=True) -> QPixmap | None:
                     origin=stack.mapTo(parent,QPoint())
                     parent.render(painter,QPoint(),QRegion(QRect(origin,stack.size())),QWidget.RenderFlag(0))
             stack.render(painter,QPoint(),QRegion(),QWidget.RenderFlag.DrawChildren)
+            _paint_gl_frames(stack,painter)
         finally:painter.end()
         # A bounded raster is mapped explicitly to the logical page rectangle.
         # Point-based drawPixmap clamps DPR below one and would shrink it.
