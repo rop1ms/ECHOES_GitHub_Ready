@@ -27,9 +27,9 @@ import random
 import time
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QRectF, QPointF, QSize, QTimer
-from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QLinearGradient, QFontMetrics, QIcon
-from PyQt6.QtWidgets import QWidget, QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
+from PyQt6.QtCore import Qt, QRectF, QPointF, QPoint, QSize, QTimer, QEvent
+from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QLinearGradient, QFontMetrics, QIcon, QPixmap
+from PyQt6.QtWidgets import QWidget, QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QToolTip
 
 from yamusic_theme import YELLOW, MUTED, ya_font, ya_icon, icon_button, cover_pixmap, sanitize_title
 
@@ -101,13 +101,24 @@ def guess_ok(guess: str, meta) -> bool:
     return difflib.SequenceMatcher(None, g, title).ratio() >= 0.8
 
 
+_LIB_INDEX: dict = {"sig": None}
+
+
 def library_match(win, meta):
+    """Трек из сети → свой файл в коллекции. Индекс по ключу строится один раз на версию коллекции: раньше
+    на каждую карточку ленты перебиралась вся коллекция (тысячи нормализаций названий)."""
+    lib = win.library
+    sig = (id(lib), len(lib), str(lib[-1].get("path", "")) if lib else "")
+    if _LIB_INDEX["sig"] != sig:
+        full, by_title = {}, {}
+        for i, t in enumerate(lib):
+            tk = tkey(t)
+            full.setdefault(tk, (i, t))
+            by_title.setdefault(tk[1], (i, t))
+        _LIB_INDEX.update(sig=sig, full=full, title=by_title)
     key = tkey(meta)
-    for i, t in enumerate(win.library):
-        tk = tkey(t)
-        if tk == key or (not key[0] and tk[1] == key[1]):
-            return i, t
-    return None, None
+    hit = _LIB_INDEX["full"].get(key) or (None if key[0] else _LIB_INDEX["title"].get(key[1]))
+    return hit if hit else (None, None)
 
 
 def items_for(win, metas) -> list:
@@ -347,63 +358,173 @@ class TimelineMarks(QWidget):
 
 class ReactBar(QWidget):
     """Реакции под постом: эмодзи Noto (не смайлики Windows) со счётчиками и свои реакции-картинки.
-    Своя — подсвечена; клик — поставить / снять. «+» — сетка ваших реакций и «Добавить свою…»."""
+    Своя — подсвечена; клик — поставить / снять. «+» — сетка ваших реакций и «Добавить свою…».
+
+    Один виджет рисует все фишки сам: раньше это было 7–9 кнопок со своим стилем на КАЖДЫЙ пост
+    (~11 мс на карточку) — лента Echoes.NET строилась и прокручивалась тяжело."""
 
     LABELS = ("Круто", "Слушаю", "Трогает", "Убило", "Впечатляет", "Нравится")
+    H, GAP, R, ICON = 28, 4, 13, 18
 
     def __init__(self, counts: dict, mine: str, on_react, parent=None, on_manage=None):
         super().__init__(parent)
         from net_core import EMOJI
         import emoji_pack
         import net_reactions as NR
-        from echo_glass import glass_controls_qss
         self.on_react, self.on_manage, self.mine = on_react, on_manage, mine
-        qss = glass_controls_qss() + "QPushButton{border-radius:13px;padding:2px 9px;font-size:12px;font-weight:800;}"
-        h = QHBoxLayout(self)
-        h.setContentsMargins(0, 0, 0, 0)
-        h.setSpacing(4)
-        self._emoji_btns = {}
-
-        def chip(val, ic, tip):
-            n = counts.get(val, 0)
-            b = QPushButton(f" {n}" if n else "")
-            b.setIcon(ic)
-            b.setIconSize(QSize(18, 18))
-            b.setFixedHeight(28)
-            b.setMinimumWidth(36)
-            b.setCursor(Qt.CursorShape.PointingHandCursor)
-            b.setCheckable(True)
-            b.setChecked(val == mine)
-            b.setToolTip(tip)
-            b.setStyleSheet(qss)
-            b.clicked.connect(lambda _=False, v=val: on_react("" if v == mine else v))
-            h.addWidget(b)
-            return b
-        for e, label in zip(EMOJI, self.LABELS):
-            self._emoji_btns[e] = chip(e, emoji_pack.icon(e, 18), label)
+        self._chips = [[e, None, label, counts.get(e, 0)] for e, label in zip(EMOJI, self.LABELS)]
         for val, n in sorted(counts.items(), key=lambda kv: -kv[1]):       # свои реакции, которые уже стоят
             if NR.is_custom(val) and n:
-                pm = NR.pixmap(val, 18)
+                pm = NR.pixmap(val, self.ICON)
                 if not pm.isNull():
-                    chip(val, QIcon(pm), NR.name_of(val))
-        plus = QPushButton("+")
-        plus.setFixedSize(28, 28)
-        plus.setCursor(Qt.CursorShape.PointingHandCursor)
-        plus.setToolTip("Свои реакции")
-        plus.setStyleSheet(qss + "QPushButton{padding:0;font-size:15px;}")
-        plus.clicked.connect(lambda: self._picker(plus))
-        h.addWidget(plus)
-        h.addStretch(1)
+                    self._chips.append([val, pm, NR.name_of(val), n])
+        for c in self._chips:
+            if c[1] is None:
+                c[1] = emoji_pack.icon(c[0], self.ICON).pixmap(self.ICON, self.ICON)
+        self._font = QFont(self.font())
+        self._font.setPixelSize(12)
+        self._font.setWeight(QFont.Weight.ExtraBold)
+        fm = QFontMetrics(self._font)
+        self._rects, x = [], 0
+        for c in self._chips:
+            w = max(36, 9 + self.ICON + (fm.horizontalAdvance(f" {c[3]}") if c[3] else 0) + 9)
+            self._rects.append(QRectF(x, 0, w, self.H))
+            x += w + self.GAP
+        self._rects.append(QRectF(x, 0, self.H, self.H))                   # «+»
+        self._w = int(x + self.H)
+        self._hover = self._down = -1
+        self.setFixedHeight(self.H)
+        self.setMinimumWidth(self._w)
+        self.setMouseTracking(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         emoji_pack.bus.ready.connect(self._emoji_ready)
+
+    def sizeHint(self):
+        return QSize(self._w, self.H)
 
     def _emoji_ready(self, ch):
         import emoji_pack
-        b = self._emoji_btns.get(ch)
-        if b is not None:
-            try:
-                b.setIcon(emoji_pack.icon(ch, 18))
-            except RuntimeError:
-                pass
+        try:
+            for c in self._chips:
+                if c[0] == ch:
+                    c[1] = emoji_pack.icon(ch, self.ICON).pixmap(self.ICON, self.ICON)
+                    self.update()
+        except RuntimeError:
+            pass
+
+    def _at(self, pos) -> int:
+        return next((i for i, r in enumerate(self._rects) if r.contains(QPointF(pos))), -1)
+
+    _BG: dict = {}                    # (ширина, состояние, акцент, dpr) → готовый фон фишки
+
+    @classmethod
+    def _chip_bg(cls, w, state, acc, dpr):
+        """Стеклянный фон фишки: рисуется один раз на размер и состояние, дальше — drawPixmap."""
+        key = (int(w), state, acc.name(), dpr)
+        pm = cls._BG.get(key)
+        if pm is not None:
+            return pm
+        pm = QPixmap(int(w * dpr), int(cls.H * dpr))
+        pm.setDevicePixelRatio(dpr)
+        pm.fill(Qt.GlobalColor.transparent)
+        p = QPainter(pm)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        r = QRectF(0, 0, w, cls.H)
+        g = QLinearGradient(r.topLeft(), QPointF(r.width() * 0.75, r.bottom()))
+        if state == "down":
+            g.setColorAt(0, QColor("#050608")); g.setColorAt(1, QColor("#050608"))
+        elif state in ("hot", "hot_on"):
+            for t, c in ((0, "#353b43"), (0.1, "#1c2026"), (0.35, "#101318"), (0.8, "#151a21"), (1, "#272f3a")):
+                g.setColorAt(t, QColor(c))
+        else:
+            for t, c in ((0, "#25282d"), (0.07, "#15171b"), (0.18, "#0c0e11"), (0.48, "#070809"),
+                         (0.8, "#0b0d10"), (0.94, "#11151a"), (1, "#1b2027")):
+                g.setColorAt(t, QColor(c))
+        rr = r.adjusted(0.5, 0.5, -0.5, -0.5)
+        p.setBrush(g)
+        hot = state.startswith("hot")
+        if state.endswith("on"):
+            rim = QColor(acc); rim.setAlpha(140)
+        else:
+            rim = QColor(223, 237, 255, 75) if hot else QColor(216, 231, 250, 30)
+        p.setPen(QPen(rim, 1))
+        p.drawRoundedRect(rr, cls.R, cls.R)
+        p.setPen(QPen(QColor(235, 244, 255, 115 if hot else 65), 1))       # светлая верхняя кромка стекла
+        p.drawLine(QPointF(rr.left() + cls.R, rr.top()), QPointF(rr.right() - cls.R, rr.top()))
+        p.end()
+        if len(cls._BG) > 400:
+            cls._BG.clear()
+        cls._BG[key] = pm
+        return pm
+
+    def paintEvent(self, _):
+        from yamusic_theme import YELLOW
+        acc = QColor(YELLOW)
+        dpr = self.devicePixelRatioF()
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setFont(self._font)
+        for i, r in enumerate(self._rects):
+            plus = i == len(self._chips)
+            on = not plus and self._chips[i][0] == self.mine
+            hot = i == self._hover
+            state = "down" if (i == self._down and hot) else ("hot" if hot else "n") + ("_on" if on else "")
+            p.drawPixmap(r.topLeft(), self._chip_bg(r.width(), state, acc, dpr))
+            if plus:
+                p.setPen(QColor("#e8e8ea"))
+                f = QFont(self._font); f.setPixelSize(15); p.setFont(f)
+                p.drawText(r, Qt.AlignmentFlag.AlignCenter, "+")
+                p.setFont(self._font)
+                continue
+            val, pm, _tip, n = self._chips[i]
+            text = f" {n}" if n else ""
+            tw = QFontMetrics(self._font).horizontalAdvance(text) if text else 0
+            x0 = r.left() + (r.width() - self.ICON - tw) / 2
+            p.drawPixmap(QPointF(x0, r.top() + (self.H - self.ICON) / 2), pm)
+            if text:
+                p.setPen(acc.lighter(120) if on else QColor("#e8e8ea"))
+                p.drawText(QRectF(x0 + self.ICON, r.top(), tw + 2, self.H),
+                           Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, text)
+        p.end()
+
+    def mouseMoveEvent(self, e):
+        i = self._at(e.position())
+        if i != self._hover:
+            self._hover = i
+            self.update()
+
+    def leaveEvent(self, e):
+        self._hover = -1
+        self.update()
+        super().leaveEvent(e)
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.MouseButton.LeftButton:
+            self._down = self._at(e.position())
+            self.update()
+
+    def mouseReleaseEvent(self, e):
+        i, self._down = self._down, -1
+        self.update()
+        if e.button() != Qt.MouseButton.LeftButton or i < 0 or i != self._at(e.position()):
+            return
+        if i == len(self._chips):
+            r = self._rects[i]
+            self._picker(self.mapToGlobal(QPoint(int(r.left()), int(r.bottom()))))
+        else:
+            v = self._chips[i][0]
+            self.on_react("" if v == self.mine else v)
+
+    def event(self, e):
+        if e.type() == QEvent.Type.ToolTip:
+            i = self._at(e.position() if hasattr(e, "position") else QPointF(e.pos()))
+            if i >= 0:
+                tip = "Свои реакции" if i == len(self._chips) else self._chips[i][2]
+                QToolTip.showText(e.globalPos(), tip, self, self._rects[i].toRect())
+            else:
+                QToolTip.hideText()
+            return True
+        return super().event(e)
 
     def _picker(self, anchor):
         from PyQt6.QtWidgets import QGridLayout, QMenu, QWidgetAction
@@ -439,7 +560,7 @@ class ReactBar(QWidget):
             a.setEnabled(False)
         if self.on_manage:
             m.addAction("Добавить свою реакцию…", self.on_manage)
-        m.exec(anchor.mapToGlobal(anchor.rect().bottomLeft()))
+        m.exec(anchor if isinstance(anchor, QPoint) else anchor.mapToGlobal(anchor.rect().bottomLeft()))
 
 
 class BattleBar(QWidget):

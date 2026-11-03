@@ -108,6 +108,9 @@ def _setup(lib):
         "eui_intro_follow": (None, [ctypes.c_ssize_t]),
         "eui_intro_ready": (None, []),
         "eui_intro_alive": (I, []),
+        "eui_gate_install": (P, [P, ctypes.POINTER(I), I, ctypes.c_char_p]),
+        "eui_gate_remove": (None, [P]),
+        "eui_grab_window_area": (I, [P, P]),
         "eui_intro_frames": (I, []),
         "eui_nebula_new": (P, []),
         "eui_nebula_ok": (I, [P]),
@@ -131,6 +134,38 @@ def available() -> bool:
     if not _tried:
         _load()
     return _lib is not None
+
+
+def app_filter(target, types, cls: str = ""):
+    """Сделать target фильтром событий всего приложения, но звать его eventFilter только для types
+    (и, если задан cls, только у объектов ровно этого класса Qt) — проверка в C++ (event_gate.cpp).
+    Без DLL — обычный installEventFilter, как раньше."""
+    from PyQt6.QtWidgets import QApplication
+    app = QApplication.instance()
+    if app is None:
+        return
+    if available():
+        try:
+            vals = [int(getattr(t, "value", t)) for t in types]
+            arr = (ctypes.c_int * len(vals))(*vals)
+            h = _lib.eui_gate_install(_ptr(target), arr, len(vals), cls.encode() if cls else None)
+            if h:
+                target.__dict__["_echoes_gate"] = h
+                return
+        except Exception as e:                             # noqa: BLE001
+            print("[gate]", e)
+    app.installEventFilter(target)
+
+
+def app_filter_remove(target):
+    h = target.__dict__.pop("_echoes_gate", None)
+    if h:
+        _lib.eui_gate_remove(h)
+        return
+    from PyQt6.QtWidgets import QApplication
+    app = QApplication.instance()
+    if app is not None:
+        app.removeEventFilter(target)
 
 
 def error() -> str:
@@ -303,6 +338,16 @@ def liquid_surface_later(w: int, h: int, radius: float, done):
     ticket = _next_id[0]
     _GLASS[ticket] = done
     _lib.eui_liquid_surface_async(ticket, int(w), int(h), float(radius))
+
+
+def grab_window_area(widget):
+    """Область виджета из буфера окна с прозрачностью (дыры там, где рисует OpenGL), или None."""
+    from PyQt6.QtGui import QPixmap
+    pm = QPixmap()
+    try:
+        return pm if _lib.eui_grab_window_area(_ptr(widget), _ptr(pm)) else None
+    except AttributeError:
+        return None
 
 
 def grab_from_window(widget):

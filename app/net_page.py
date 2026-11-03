@@ -23,7 +23,7 @@ from collections import OrderedDict
 from pathlib import Path
 from net_perf import batch_updates
 
-from PyQt6.QtCore import Qt, QTimer, QRectF, QPointF, QObject, pyqtSignal, QSize
+from PyQt6.QtCore import Qt, QTimer, QRectF, QPointF, QObject, pyqtSignal, QSize, QEvent
 from PyQt6.QtGui import (QColor, QFont, QPainter, QPainterPath, QPixmap, QImage, QLinearGradient, QRadialGradient, QPen,
                          QFontMetrics, QCursor, QGuiApplication, QIcon)
 from PyQt6.QtWidgets import (QWidget, QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QStackedWidget,
@@ -396,6 +396,74 @@ class Hero(QFrame):
 # ══════════════════════════════════════════════════════════════════════════ #
 #  Вкладка
 # ══════════════════════════════════════════════════════════════════════════ #
+
+class _FeedSlot(QWidget):
+    """Место поста в ленте (виртуальная лента NetPage). Настоящая карточка — десятки кнопок — живёт, только пока
+    пост рядом с экраном; ушёл далеко — карточка удаляется, а место держит её высоту, чтобы ничего не прыгало.
+    Пока карточки нет, рисуется лёгкая заготовка в форме карточки (видна лишь при очень быстрой прокрутке)."""
+
+    def __init__(self, pid, height):
+        super().__init__()
+        self.pid = pid
+        self.card = None
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+        self.setFixedHeight(max(40, int(height)))
+
+    def put(self, card):
+        self.card = card
+        self.layout().addWidget(card)
+        card.show()
+        self.fit()
+
+    def fit(self):
+        """Высота места = высота карточки (всегда фиксированная: раскладка ленты не зависит от того, успел ли
+        Qt её пересчитать, — по ней считается, что рядом с экраном)."""
+        if self.card is None:
+            return
+        w = self.width()
+        if w < 100:
+            par = self.parentWidget()
+            w = (par.width() - 8) if par is not None and par.width() > 100 else 640
+        h = self.card.heightForWidth(w) if self.card.hasHeightForWidth() else -1
+        if h <= 0:
+            h = self.card.sizeHint().height()
+        h = max(40, h)
+        if h != self.height() or self.minimumHeight() != h:
+            self.setFixedHeight(h)
+
+    def take(self):
+        """Убрать карточку и вернуть её. Место остаётся той же высоты."""
+        card, self.card = self.card, None
+        if card is not None:
+            self.layout().removeWidget(card)
+        return card
+
+    def event(self, e):
+        if e.type() == QEvent.Type.LayoutRequest and self.card is not None:
+            self.fit()                                   # карточка выросла (гифка, файлы, раскрыли ответы)
+        return super().event(e)
+
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        if self.card is not None and e.oldSize().width() != e.size().width():
+            self.fit()
+
+    def paintEvent(self, e):
+        if self.card is not None:
+            return
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(255, 255, 255, 10))
+        p.drawRoundedRect(QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5), 16, 16)
+        p.setBrush(QColor(255, 255, 255, 16))
+        p.drawEllipse(QRectF(52, 14, 34, 34))
+        p.drawRoundedRect(QRectF(96, 18, 140, 10), 5, 5)
+        p.drawRoundedRect(QRectF(96, 34, 80, 8), 4, 4)
+        p.end()
+
 
 class NetPage(QWidget):
     TAB_TIPS = {"feed": "Посты друзей и всех пользователей ECHOES", "chats": "Личные сообщения и группы",
@@ -1838,72 +1906,179 @@ class NetPage(QWidget):
                         "обсуждения появятся здесь. Серверов нет: всё идёт напрямую через Tor.", height=150)
             page.v.addSpacing(8)
             page.v.addWidget(hero)
-        feed_key = (self._feed_sort, self.__dict__.get("_feed_type"))
-        if feed_key != self.__dict__.get("_feed_window_key"):
-            # 12, а не 30: у каждого поста десятки кнопок — вкладка «Лента» показывалась/перестраивалась
-            # заметно дольше; остальные подгружаются сами, когда прокрутили к низу (_feed_scrolled)
-            self._feed_window_key, self._feed_limit = feed_key, 12
-        more_hook = getattr(self, "_feed_scrolled", None)
-        if more_hook is not None and not self.__dict__.get("_feed_scroll_hooked"):
-            self._feed_scroll_hooked = True
-            sb.valueChanged.connect(more_hook)
-        limit = self._feed_limit
-        self._feed_cards = {}
-        for p in posts[:limit]:
+        # Виртуальная лента: у каждого поста — лёгкое место (_FeedSlot), карточки строятся только рядом с экраном
+        # (_feed_window). Раньше лента строила 30 (потом 12) карточек по десятку кнопок сразу, а «показать ещё»
+        # перестраивало всё — вкладка открывалась тяжело, прокрутка дёргалась на полсекунды.
+        self._feed_posts = {p["id"]: p for p in posts}
+        heights = self.__dict__.setdefault("_feed_heights", {})
+        self._feed_slots = OrderedDict()
+        for p in posts:
             page.v.addSpacing(6)
-            pid = p["id"]
-            st = self.node.store
-            signature = (json.dumps((p, st.votes(pid), st.reacts(pid), st.comments(pid)),
-                                    sort_keys=True, ensure_ascii=False),
-                         pid in self._open_threads, pid in self._revealed, self._reply_to.get(pid),
-                         pid in self.__dict__.get("_mod_shown", set()), self._mod_post(p),
-                         self.__dict__.get("_chat_render_epoch", 0), int(time.time() // 60),
-                         # Nested polls and expanded comments depend on other
-                         # posts/moderation events; comments also offer the live track.
-                         self.__dict__.get("_data_ver", 0) if p.get("orig") or pid in self._open_threads else None,
-                         tkey(self.shell.current_track() or {}) if pid in self._open_threads else None,
-                         (frozenset(self._revealed), frozenset(self.__dict__.get("_mod_shown", set())))
-                         if p.get("orig") else None)
-            old = previous_cards.pop(pid, None)
-            if old and old[0] == signature:
-                widget = old[1]
-            else:
-                if old:
-                    old[1].hide()
-                    old[1].deleteLater()
-                widget = self._post_card(p)
-            page.v.addWidget(widget)
-            self._feed_cards[pid] = (signature, widget)
+            slot = _FeedSlot(p["id"], heights.get(p["id"]) or self._feed_estimate(p))
+            page.v.addWidget(slot)
+            self._feed_slots[p["id"]] = slot
+        self._feed_cards = {}
+        first = list(self._feed_slots)[:self.FEED_FIRST]                 # первый экран — сразу, без ожидания тика
+        for pid in first + [x for x in self.__dict__.get("_feed_was_open", []) if x not in first]:
+            self._feed_put(pid, previous_cards)                          # и то, что было на экране до обновления
         for _signature, widget in previous_cards.values():
             widget.hide()
             widget.deleteLater()
         self.__dict__.pop("_feed_detached", None)
-        if len(posts) > limit:
-            more = ghost_btn(f"Показать ещё · {len(posts) - limit}")
-            more.clicked.connect(self._more_feed)
-            page.v.addWidget(more)
         page.v.addStretch(1)
-        QTimer.singleShot(0, lambda: sb.setValue(keep))
+        if not self.__dict__.get("_feed_hooked"):
+            self._feed_hooked = True
+            sb.valueChanged.connect(lambda _v: self._feed_window_soon())
+            self._feed_vp = page.viewport()
+            page.viewport().installEventFilter(self)
+        QTimer.singleShot(0, lambda: (sb.setValue(keep), self._feed_window()))
         self._fill_feed_side()
 
-    def _more_feed(self):
-        self._feed_limit = self.__dict__.get("_feed_limit", 12) + 12
-        self._fill_feed()
+    FEED_FIRST = 6                    # столько карточек строится сразу при заполнении ленты
 
-    def _feed_scrolled(self, value):
-        """Докрутили почти до конца ленты — подгрузить следующие посты (без кнопки «Показать ещё»)."""
-        sb = self.feed_page.verticalScrollBar()
-        if value < sb.maximum() - 500 or self.__dict__.get("_feed_more_pending") or self._feed_sort == "all":
-            return
-        posts = [p for p in self._sorted_posts() if self._type_ok(p) and p.get("kind") != "thread"]
-        if len(posts) <= self.__dict__.get("_feed_limit", 12):
-            return
-        self._feed_more_pending = True
+    def _feed_estimate(self, p) -> int:
+        """Высота ещё не построенной карточки — до первого показа (потом запоминается настоящая)."""
+        kind = p.get("kind", "post")
+        h = 150 + 22 * min(8, len(p.get("text") or "") // 70)
+        if kind == "battle":
+            h += 190
+        elif kind == "playlist":
+            h += 200
+        elif kind == "quiz":
+            h += 150
+        elif kind == "repost":
+            h += 190
+        elif p.get("track"):
+            h += 80
+        if p.get("files") or p.get("gif"):
+            h += 220
+        return h
 
-        def more():
-            self._feed_more_pending = False
-            self._more_feed()
-        QTimer.singleShot(60, more)
+    def _feed_signature(self, p):
+        pid = p["id"]
+        st = self.node.store
+        return (json.dumps((p, st.votes(pid), st.reacts(pid), st.comments(pid)), sort_keys=True, ensure_ascii=False),
+                pid in self._open_threads, pid in self._revealed, self._reply_to.get(pid),
+                pid in self.__dict__.get("_mod_shown", set()), self._mod_post(p),
+                self.__dict__.get("_chat_render_epoch", 0), int(time.time() // 60),
+                # Nested polls and expanded comments depend on other
+                # posts/moderation events; comments also offer the live track.
+                self.__dict__.get("_data_ver", 0) if p.get("orig") or pid in self._open_threads else None,
+                tkey(self.shell.current_track() or {}) if pid in self._open_threads else None,
+                (frozenset(self._revealed), frozenset(self.__dict__.get("_mod_shown", set())))
+                if p.get("orig") else None)
+
+    def _feed_put(self, pid, previous=None):
+        """Построить (или взять готовую неизменившуюся) карточку поста в его место. Возвращает изменение высоты."""
+        slot = self._feed_slots.get(pid)
+        p = self._feed_posts.get(pid)
+        if slot is None or p is None or slot.card is not None:
+            return 0
+        signature = self._feed_signature(p)
+        old = (previous or {}).pop(pid, None)
+        if old and old[0] == signature:
+            widget = old[1]
+        else:
+            if old:
+                old[1].hide()
+                old[1].deleteLater()
+            widget = self._post_card(p)
+        before = slot.height()
+        slot.put(widget)
+        self._feed_cards[pid] = (signature, widget)
+        self._feed_heights[pid] = slot.height()
+        return slot.height() - before
+
+    def _feed_drop(self, pid):
+        slot = self._feed_slots.get(pid)
+        if slot is None or slot.card is None:
+            return
+        self._feed_heights[pid] = slot.height()
+        card = slot.take()
+        self._feed_cards.pop(pid, None)
+        if card is not None:
+            card.hide()
+            card.deleteLater()
+
+    def _feed_window_soon(self):
+        if not self.__dict__.get("_feed_tick"):
+            self._feed_tick = True
+            QTimer.singleShot(0, self._feed_window)
+
+    def _feed_window(self):
+        """Карточки — только рядом с экраном: видимые сразу, соседние по 2 за тик, далёкие удаляются."""
+        self._feed_tick = False
+        slots = self.__dict__.get("_feed_slots")
+        if not slots or self._feed_sort == "all":
+            return
+        page = self.feed_page
+        sb = page.verticalScrollBar()
+        vh = page.viewport().height()
+        if vh < 50 or not page.isVisible():
+            return
+        try:
+            places = self._feed_places()
+        except RuntimeError:
+            return
+        top, bot = sb.value(), sb.value() + vh
+        # видимое — сразу; соседнее (полтора экрана вверх, два с половиной вниз) — заранее, в паузах между
+        # кадрами, не дольше 6 мс за тик: к моменту прокрутки карточки уже готовы
+        near_lo, near_hi = top - int(vh * 1.5), bot + int(vh * 2.5)
+        far_lo, far_hi = top - vh * 5, bot + vh * 5
+        deadline = time.perf_counter() + 0.006
+        more, shift = False, 0
+        for pid, slot, y, h in places:
+            if slot.card is None:
+                if y + h < near_lo or y > near_hi:
+                    continue
+                on_screen = y + h >= top and y <= bot
+                if not on_screen and time.perf_counter() > deadline:
+                    more = True
+                    continue
+                d = self._feed_put(pid)
+                if y + h <= top:
+                    shift += d                           # выросло то, что выше экрана, — экран не должен уехать
+            elif y + h < far_lo or y > far_hi:
+                self._feed_drop(pid)                     # место сохраняет высоту — сдвигать нечего
+        self._feed_was_open = [pid for pid, s in slots.items() if s.card is not None]
+        if shift:
+            self.feed_page.inner.layout().activate()
+            sb.setValue(sb.value() + shift)
+        if more:
+            QTimer.singleShot(8, self._feed_window_soon)          # следующая порция — после кадра
+
+    def _feed_places(self):
+        """[(id, место, y, высота)] — посчитано из фиксированных высот, а не из геометрии Qt: пока раскладка
+        ленты не пересчитана (только что заполнили, страница была скрыта), Qt отдаёт старые координаты."""
+        page = self.feed_page
+        lay = page.v
+        sp = lay.spacing()
+        width = max(100, page.viewport().width() - 8)
+        y = lay.contentsMargins().top()
+        out = []
+        for i in range(lay.count()):
+            it = lay.itemAt(i)
+            w = it.widget()
+            if isinstance(w, _FeedSlot):
+                h = w.minimumHeight()
+                out.append((w.pid, w, y, h))
+            elif w is not None:
+                if w.isHidden():
+                    continue
+                h = w.heightForWidth(width) if w.hasHeightForWidth() else -1
+                h = h if h > 0 else w.sizeHint().height()
+            elif it.layout() is not None:
+                lh = it.layout()
+                h = lh.totalHeightForWidth(width) if lh.hasHeightForWidth() else lh.sizeHint().height()
+            else:
+                h = it.sizeHint().height()                    # отступ; растяжка в конце — 0
+            y += h + sp
+        return out
+
+    def eventFilter(self, obj, ev):
+        if obj is self.__dict__.get("_feed_vp") and ev.type() in (QEvent.Type.Resize, QEvent.Type.Show):
+            self._feed_window_soon()
+        return QWidget.eventFilter(self, obj, ev)
 
     KIND_LABEL = {"daily": "трек дня", "battle": "баттл", "playlist": "плейлист", "quiz": "угадай трек", "quote": "цитата",
                   "chal": "челлендж недели",
@@ -2201,8 +2376,6 @@ class NetPage(QWidget):
         f = QFrame(); f.setObjectName("NetCard")
         aura = meta or (safe_track((p.get("tracks") or [None])[0]) if p.get("tracks") else None) or \
             (safe_track((p.get("orig") or {}).get("track")) if kind == "repost" else None)
-        if aura:
-            f.setStyleSheet(aura_qss(aura))
         h = QHBoxLayout(f)
         h.setContentsMargins(10 if not nested else 14, 12, 16, 12)
         h.setSpacing(10)
@@ -2322,6 +2495,8 @@ class NetPage(QWidget):
             if pid in self._open_threads:
                 body.addWidget(self._thread_box(p, coms))
         h.addLayout(body, 1)
+        if aura:                          # стиль — в конце: иначе каждый добавленный виджет перестилизовался заново
+            f.setStyleSheet(aura_qss(aura))
         return f
 
     def _local_cover(self, meta) -> str:
@@ -4267,6 +4442,9 @@ class NetPage(QWidget):
                     ("offer", "downloading", "checking", "ready", "error"))
         self.b_upd.setVisible(False)                           # обновление — только маленькая кнопка в шапке окна
         tb = getattr(self.win, "titlebar", None)
+        gh = getattr(self.win, "_gh_updater", None)
+        if not show and gh is not None and (gh.pending() or gh.busy):
+            tb = None                                          # кнопку держит обновление с GitHub (github_update)
         if tb is not None and hasattr(tb, "set_update"):
             if view and view.get("state") in ("downloading", "checking") and view.get("total"):
                 txt = f"{int(100 * (view.get('done_bytes') or 0) / max(1, view['total']))}%"

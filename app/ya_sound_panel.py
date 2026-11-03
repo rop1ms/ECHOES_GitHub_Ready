@@ -85,7 +85,7 @@ class MiniEq(QWidget):
         f = p.font()
         f.setPixelSize(9)
         p.setFont(f)
-        for i, lbl in enumerate(("60", "170", "310", "600", "1K", "3K", "6K", "12K", "14K", "16K")):
+        for i, lbl in enumerate(("31", "62", "125", "250", "500", "1K", "2K", "4K", "8K", "16K")):
             p.drawText(QRectF(i * bw, h + 2, bw, 12), Qt.AlignmentFlag.AlignCenter, lbl)
         p.end()
 
@@ -99,7 +99,12 @@ class SoundPanel(QFrame):
         from duel_settings import tr
         self.t=lambda ru,en:tr(self.win,ru,en)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setStyleSheet(QSS)
+        try:                                                   # акцент темы, а не всегда жёлтый
+            import ya_skin
+            acc, on_acc = ya_skin.CURRENT.get("accent", YELLOW), ya_skin.CURRENT.get("on_accent", "#111111")
+        except Exception:                                      # noqa: BLE001
+            acc, on_acc = YELLOW, "#111111"
+        self.setStyleSheet(QSS.replace("#ffdb1a", acc).replace("color:#111111", f"color:{on_acc}"))
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         from echo_glass import GlassFrame
@@ -200,6 +205,20 @@ class SoundPanel(QFrame):
         export.clicked.connect(lambda:self.win.export_effects([]));v.addWidget(export)
 
         if not embedded:self.setFixedWidth(360)
+        else:
+            # в настройках: ширина как у остальных карточек; множитель громкости там — отдельной карточкой
+            # «Экстремальная громкость», а ссылка «все настройки звука» ведёт на эту же страницу
+            self.setMaximumWidth(760)
+            for w in [self.loud_val, self.loud_hint, more] + list(self.loud_btns.values()):
+                w.hide()
+            for i in range(v.count()):
+                it = v.itemAt(i)
+                lay = it.layout() if it is not None else None
+                if lay is not None and any(lay.itemAt(j).widget() is self.loud_val for j in range(lay.count())):
+                    for j in range(lay.count()):
+                        w = lay.itemAt(j).widget()
+                        if w is not None:
+                            w.hide()
         self.timer = QTimer(self)
         self.timer.setInterval(200)
         self.timer.timeout.connect(self.sync)

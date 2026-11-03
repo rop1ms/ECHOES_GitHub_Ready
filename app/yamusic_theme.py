@@ -2633,6 +2633,13 @@ class YaShell(QWidget):
         self._pl_sig = tuple((n, len(p.get("tracks", []))) for n, p in win.playlists.items())
         import ya_decor                                        # живое оформление: акцент, аура, волна, пластинка
         self.decor = ya_decor.Decor(self)
+        # Изменившиеся страницы, на которых вас нет, — пересобрать заранее, в простое: иначе «Для вас»
+        # (рекомендации пришли во время загрузки) пересобиралась ~200 мс прямо в момент первого перехода
+        self._last_nav = 0.0
+        self._idle_rb = QTimer(self)
+        self._idle_rb.setInterval(1500)
+        self._idle_rb.timeout.connect(self._idle_rebuild)
+        self._idle_rb.start()
         QTimer.singleShot(2000, lambda: __import__("overlay_live").apply(win))   # игровой оверлей (если включён)
         QTimer.singleShot(3000, lambda: __import__("ya_weather").install(win))   # погода за окном (если включена)
         QTimer.singleShot(3000, lambda: __import__("ya_auto").get(win))          # автоматика (правила)
@@ -3246,6 +3253,18 @@ class YaShell(QWidget):
         if remember and self._cur_page != key:
             self._remember()
         self._cur_page = key
+        self._last_nav = __import__("time").monotonic()
+        try:                              # вкладки листают — фоновые расчёты на Python уступают процессор
+            import bgproc
+            bgproc.set_soft_busy("nav", True)
+            t = self.__dict__.get("_nav_soft")
+            if t is None:
+                t = self._nav_soft = QTimer(self)
+                t.setSingleShot(True)
+                t.timeout.connect(lambda: bgproc.set_soft_busy("nav", False))
+            t.start(1500)
+        except Exception:                                      # noqa: BLE001
+            pass
         if key in self._nav_btns:
             self._nav_btns[key].setChecked(True)
             if key in ("search", "wave", "foryou", "collection", "albums", "tierlist"):
@@ -3268,7 +3287,10 @@ class YaShell(QWidget):
             self.pages["net"].on_show()
         if key in ("foryou", "collection", "wave", "search", "albums") and (key in self._dirty or key == "foryou"
                                                                   and not self.pages["foryou"].v.count()):
-            self._rebuild(key)
+            # «Для вас» и «Моя волна» обновляются данными из фона (рекомендации, профили вкуса): уже собранную
+            # показываем сразу, а свежую версию соберёт простой (_idle_rebuild) — переход не ждёт пересборку
+            if not (key in self.STALE_OK and key in self.__dict__.get("_built", ())):
+                self._rebuild(key)
         # плавная смена страницы (ui_anim): вперёд/назад — по порядку вкладок слева
         order = ["wave", "search", "foryou", "collection", "albums", "follows", "tierlist", "duel", "net", "playlist",
                  "artist",
@@ -3285,8 +3307,42 @@ class YaShell(QWidget):
         self.btn_lyrics.setChecked(key == "lyrics")
         self.btn_queue.setStyleSheet(f"QPushButton{{background:{_rgba(YELLOW, 0.22)};border-radius:18px;}}" if key == "queue" else "")
 
+    IDLE_REBUILD = ("foryou", "collection", "albums", "wave")
+    STALE_OK = ("foryou", "wave")         # можно показать прежнюю версию и обновить в простое
+
+    def _idle_rebuild(self):
+        """Одна изменившаяся страница за раз, только в простое: вкладку не переключали 1.5 с, колесо не крутили,
+        кнопки мыши отпущены, окно на экране."""
+        import time as _t
+        from PyQt6.QtWidgets import QApplication
+        if not self._dirty or not self.isVisible() or self.win.isMinimized():
+            return
+        now = _t.monotonic()
+        if now - self._last_nav < 1.5 or now - self.decor.__dict__.get("_busy_t", 0) < 1.5 \
+                or QApplication.mouseButtons() != Qt.MouseButton.NoButton:
+            return
+        try:
+            import bgproc
+            if bgproc.fg_busy():
+                return
+        except Exception:                                      # noqa: BLE001
+            pass
+        key = next((k for k in self.IDLE_REBUILD if k in self._dirty
+                    and (k != self._cur_page or k in self.STALE_OK)), None)
+        if key is not None:
+            pg = self.pages.get(key)
+            sb = pg.verticalScrollBar() if hasattr(pg, "verticalScrollBar") else None
+            keep = sb.value() if sb is not None else 0
+            try:
+                self._rebuild(key)
+            except Exception as e:                             # noqa: BLE001
+                print("[idle rebuild]", key, e)
+            if sb is not None and key == self._cur_page:       # открытая страница — на том же месте
+                QTimer.singleShot(0, lambda sb=sb, keep=keep: sb.setValue(keep))
+
     def _rebuild(self, key):
         self._dirty.discard(key)
+        self.__dict__.setdefault("_built", set()).add(key)
         try:
             # A background data update must not leave an obsolete snapshot
             # covering the refreshed model until the animation ends.
@@ -3913,6 +3969,12 @@ class YaShell(QWidget):
 
     def _fill_foryou(self):
         page = self.pages["foryou"]
+        hero = self.__dict__.get("_fy_hero")
+        try:                                           # баннер «Моя волна» переживает пересборку: его туманность
+            if hero is not None:                       # на видеокарте создавалась заново (~150 мс на переходе);
+                page.v.removeWidget(hero)              # родитель тот же — без пересоздания контекста OpenGL
+        except RuntimeError:
+            hero = self._fy_hero = None
         page.clear()
         w = self.win
         lib = w.library
@@ -3926,10 +3988,12 @@ class YaShell(QWidget):
         sub.setStyleSheet("font-size:13px;margin-bottom:10px;")
         page.v.addWidget(sub)
         try:                                           # живой баннер «▶ Моя волна» (туманность на C++)
-            from ya_wave import WaveHero
-            hero = WaveHero(w.engine)
-            hero.clicked.connect(lambda: self.start_wave("my"))
+            if hero is None:
+                from ya_wave import WaveHero
+                hero = self._fy_hero = WaveHero(w.engine)
+                hero.clicked.connect(lambda: self.start_wave("my"))
             page.v.addWidget(hero)
+            hero.show()
         except Exception as e:                         # noqa: BLE001
             print("[ya] wave hero:", e)
 
@@ -6116,9 +6180,13 @@ class YaShell(QWidget):
         try:
             np_ = self.pages["net"]
             np_.show_tab("net")
-            w = getattr(np_, anchor, None) if anchor else None
-            if w is not None:
-                QTimer.singleShot(120, lambda: np_.net_page.ensureWidgetVisible(w, 0, 40))
+            if anchor:
+                def scroll():                                  # вкладку за это время могли пересобрать —
+                    from PyQt6 import sip                      # берём виджет заново, а не прежний (удалённый)
+                    w = getattr(np_, anchor, None)
+                    if w is not None and not sip.isdeleted(w):
+                        np_.net_page.ensureWidgetVisible(w, 0, 40)
+                QTimer.singleShot(120, scroll)
         except Exception:                                      # noqa: BLE001
             pass
 
@@ -6246,6 +6314,12 @@ class YaShell(QWidget):
                 hub.index_layout(content.layout(), container=content)
         hub = getattr(self, "settings_hub", None)
         if hub is not None:
+            # «Мощность звука» старой панели — тот же множитель, что карточка «Экстремальная громкость»
+            # раздела «Звук»: два одинаковых блока подряд выглядели как развалившаяся страница
+            for _sc, content, _line, _ss in self._unfolded:
+                for box in content.findChildren(QWidget, "BoostBlock"):
+                    if any(l.objectName() == "Section" for l in box.findChildren(QLabel)):
+                        box.hide()                    # спрятан не разделом — при переключении разделов не вернётся
             hub.refresh()
 
     def _restyle_pager(self, on: bool):

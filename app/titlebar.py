@@ -438,7 +438,8 @@ class EdgeResizer(QObject):
         super().__init__(win)
         self.win = win
         self._cursor_on = False
-        QApplication.instance().installEventFilter(self)
+        import native_ui
+        native_ui.app_filter(self, (QEvent.Type.MouseMove, QEvent.Type.MouseButtonPress, QEvent.Type.Leave))
 
     def _edges(self, gpos):
         w = self.win

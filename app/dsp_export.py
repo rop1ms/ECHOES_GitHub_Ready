@@ -37,7 +37,7 @@ def player_fx(win):
 def audio_filters(fx):
     filters=[];eq=fx.get('eq_gains')
     if eq is not None:
-        for hz,gain in zip((60,170,310,600,1000,3000,6000,12000,14000,16000),eq):
+        for hz,gain in zip((31,62,125,250,500,1000,2000,4000,8000,16000),eq):   # те же полосы, что в плеере (VLC)
             if abs(gain)>.01:filters.append(f'equalizer=f={hz}:t=o:w=1:g={gain:.3f}')
     elif fx.get('bass'):
         gain=max(1.,min(18.,float(fx.get('bass_db',6.))));filters.append(f'bass=g={gain:.1f}:f=95:w=0.7')

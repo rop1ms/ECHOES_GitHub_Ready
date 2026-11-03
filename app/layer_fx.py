@@ -1685,10 +1685,15 @@ class LayerInput(QObject):
         if app is None:
             return
         if on and not self.on:
-            app.installEventFilter(self)
+            import native_ui
+            from PyQt6.QtCore import QEvent as _E
+            native_ui.app_filter(self, (_E.Type.KeyPress, _E.Type.KeyRelease, _E.Type.MouseButtonDblClick,
+                                        _E.Type.MouseButtonPress, _E.Type.MouseButtonRelease, _E.Type.MouseMove,
+                                        _E.Type.ShortcutOverride, _E.Type.Wheel, _E.Type.WindowDeactivate))
             self.on = True
         elif not on and self.on:
-            app.removeEventFilter(self)
+            import native_ui
+            native_ui.app_filter_remove(self)
             self.on = False
             self._leave()
             self.press = None

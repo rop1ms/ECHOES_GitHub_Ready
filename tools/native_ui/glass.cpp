@@ -222,3 +222,27 @@ EUI_API int eui_grab_from_window(QWidget *w, QPixmap *out) {
     *out = pm;
     return 1;
 }
+
+// eui_grab_window_area — то же, что eui_grab_from_window, но и для областей с OpenGL: прозрачность буфера окна
+// сохраняется (там, где рисует видеокарта, — дыры), а кадры OpenGL кладёт под этот снимок сам Python
+// (ui_anim._on_screen_gl). Раньше страница с OpenGL (дуэль, «Моя волна») для анимации перехода
+// перерисовывалась целиком — ~110 мс на каждое переключение вкладки.
+EUI_API int eui_grab_window_area(QWidget *w, QPixmap *out) {
+    if (!w || !out || !w->isVisible()) return 0;
+    QWidget *top = w->window();
+    QBackingStore *bs = top ? top->backingStore() : nullptr;
+    QPaintDevice *dev = bs ? bs->paintDevice() : nullptr;
+    if (!dev || dev->devType() != QInternal::Image) return 0;
+    if (!qFuzzyCompare(top->devicePixelRatioF(), 1.0)) return 0;
+    const QImage &img = *static_cast<QImage *>(dev);
+    QRect r(w->mapTo(top, QPoint(0, 0)), w->size());
+    if (img.isNull() || !QRect(QPoint(0, 0), img.size()).contains(r)) return 0;
+    QPixmap pm(r.size());
+    pm.fill(Qt::transparent);
+    QPainter p(&pm);
+    p.setCompositionMode(QPainter::CompositionMode_Source);
+    p.drawImage(QPoint(0, 0), img, r);
+    p.end();
+    *out = pm;
+    return 1;
+}

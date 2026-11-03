@@ -1266,7 +1266,9 @@ class Decor(QObject):
         self._slow.timeout.connect(self._slow_tick)
         self._slow.start()
         self._last_t = time.monotonic()
-        QApplication.instance().installEventFilter(self)
+        import native_ui                                  # в Python — только колесо и движение мыши
+        from PyQt6.QtCore import QEvent
+        native_ui.app_filter(self, (QEvent.Type.Wheel, QEvent.Type.MouseMove))
         self.taskbar = None
         QTimer.singleShot(1500, self._taskbar_init)
         try:
@@ -1321,7 +1323,8 @@ class Decor(QObject):
         self._timer.stop()
         self._slow.stop()
         try:
-            QApplication.instance().removeEventFilter(self)
+            import native_ui
+            native_ui.app_filter_remove(self)
         except RuntimeError:
             pass
         if self.taskbar is not None:                         # сам объект живёт с окном (win_taskbar.get)

@@ -228,7 +228,10 @@ class Layer(QWidget):
             if t == QEvent.Type.MouseButtonRelease:
                 self._drag = None
         elif obj is self.content and t == QEvent.Type.Hide and not self._closing:
-            self._finish()                          # диалог сам закрылся (кнопка «Закрыть», accept, reject…)
+            # диалог сам закрылся (кнопка «Закрыть», accept, reject…). Не прямо здесь: Qt ещё внутри скрытия
+            # окна, а _finish переподвешивает его к другому родителю — так «Конструктор стримера» ронял
+            # ECHOES при закрытии (access violation)
+            QTimer.singleShot(0, self._finish)
         return False
 
     # ── ввод/рисование ── #
@@ -271,9 +274,11 @@ class Layer(QWidget):
         except RuntimeError:
             pass
         try:
-            self.scroll.takeWidget()
-            self.content.hide()
-            self.content.setParent(self._orig_parent, self._orig_flags)   # вернуть как было (для повторного показа)
+            from PyQt6 import sip
+            if not sip.isdeleted(self.content):                # диалог мог уже удалить себя (finished → deleteLater)
+                self.scroll.takeWidget()
+                self.content.hide()
+                self.content.setParent(self._orig_parent, self._orig_flags)   # вернуть как было (для повторного показа)
         except RuntimeError:
             pass
         if self in _layers:

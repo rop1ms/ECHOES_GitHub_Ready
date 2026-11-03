@@ -440,12 +440,15 @@ class WaveTunePopup(QFrame):
         self.move(int(x), int(y))
         self.show()
         self.raise_()
-        QApplication.instance().installEventFilter(self)
+        import native_ui
+        from PyQt6.QtCore import QEvent as _E
+        native_ui.app_filter(self, (_E.Type.KeyPress, _E.Type.MouseButtonPress))
 
     def hideEvent(self, e):
         super().hideEvent(e)
         try:
-            QApplication.instance().removeEventFilter(self)
+            import native_ui
+            native_ui.app_filter_remove(self)
         except Exception:                              # noqa: BLE001
             pass
 

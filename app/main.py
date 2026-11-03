@@ -312,7 +312,7 @@ class WindowsMediaKeyFilter(QAbstractNativeEventFilter):
             print("[media keys]", e)
             return False, 0
 
-# Классические пресеты эквалайзера: 10 полос (60, 170, 310, 600, 1K, 3K, 6K, 12K, 14K, 16K), дБ
+# Классические пресеты эквалайзера: 10 полос (31, 62, 125, 250, 500 Гц, 1, 2, 4, 8, 16 кГц — полосы VLC), дБ
 EQ_PRESETS = (
     ("Плоский",            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
     ("Рок",                [5, 4, 3, 1, -1, -1, 2, 4, 5, 6]),
@@ -1517,7 +1517,7 @@ class MainWindow(QMainWindow):
         self.eq_auto_lbl = QLabel(""); self.eq_auto_lbl.setObjectName("Sub"); self.eq_auto_lbl.setWordWrap(True)
         self.eq_auto_lbl.hide()
         rv1.addWidget(self.eq_auto_lbl)
-        eq_labels = ["60", "170", "310", "600", "1K", "3K", "6K", "12K", "14K", "16K"]
+        eq_labels = ["31", "62", "125", "250", "500", "1K", "2K", "4K", "8K", "16K"]   # реальные полосы VLC
         self._eq_sliders = []
         self._eq_labels = []
         eq_row = QHBoxLayout(); eq_row.setSpacing(3)
@@ -8165,7 +8165,7 @@ class MainWindow(QMainWindow):
     # ── Басс буст (панель «Звук» в плеере): прибавка к низким полосам эквалайзера в движке.
     #    Ползунки EQ, пресеты и автопресет по жанру остаются как есть: звучит «ползунок + буст». ── #
 
-    BASS_CURVE = (12, 10, 6, 2, 0, 0, 0, 0, 0, 0)            # дБ при 100 %: 60, 170, 310, 600 Гц
+    BASS_CURVE = (12, 10, 6, 2, 0, 0, 0, 0, 0, 0)            # дБ при 100 %: 31, 62, 125, 250 Гц
 
     def _bass_add(self):
         """Прибавка к полосам эквалайзера: басс буст + поправка под модель наушников (hp_eq)."""
@@ -8678,6 +8678,11 @@ if __name__=="__main__":
         warmup.start(win)
     except Exception as _e:                            # noqa: BLE001
         print("[warmup]", _e)
+    try:                  # новая версия на GitHub — кнопка «Обновить» в шапке (github_update.py)
+        import github_update
+        github_update.install(win)
+    except Exception as _e:                            # noqa: BLE001
+        print("[github update]", _e)
     try:
         single_instance.serve(_single, lambda: (win._tray.show_window() if getattr(win, "_tray", None)
                                                else __import__("ui_anim").bring_front(win)))

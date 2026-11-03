@@ -74,7 +74,10 @@ class AutoScroll(QObject):
         self.timer = QTimer(self)
         self.timer.setInterval(16)
         self.timer.timeout.connect(self._tick)
-        app.installEventFilter(self)
+        import native_ui
+        native_ui.app_filter(self, (QEvent.Type.MouseMove, QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonDblClick,
+                                    QEvent.Type.MouseButtonRelease, QEvent.Type.Wheel, QEvent.Type.KeyPress,
+                                    QEvent.Type.ApplicationDeactivate, QEvent.Type.WindowDeactivate))
 
     # ── что прокручивать ──
     @staticmethod

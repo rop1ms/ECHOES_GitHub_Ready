@@ -42,6 +42,17 @@ def memory_usage():
     return (0,0)
 
 
+_CFG=[0.0,None]
+
+
+def _config_cached():
+    """config() раз в секунду, а не на каждое событие показа/скрытия."""
+    import time
+    now=time.monotonic()
+    if _CFG[1] is None or now-_CFG[0]>1.0:_CFG[:]=[now,config()]
+    return _CFG[1]
+
+
 def configure_caches(win):
     values=config(win.settings)
     QPixmapCache.setCacheLimit(values['qt_mb']*1024)
@@ -55,14 +66,17 @@ def configure_caches(win):
 
 
 def movie_for(widget):
+    # Зовётся на каждом показе/скрытии КАЖДОГО виджета: только словарь объекта и класс, без перебора
+    # атрибутов через sip (это было ~15 мс на переключение вкладки)
+    d=getattr(widget,'__dict__',None) or {}
     for name in ('_av_movie','_movie','movie'):
-        item=getattr(widget,name,None)
+        item=d.get(name)
         if isinstance(item,QMovie):return item
-        if name=='movie' and callable(item):
-            try:
-                item=item()
-                if isinstance(item,QMovie):return item
-            except TypeError:pass
+    if 'movie' not in d and getattr(type(widget),'movie',None) is not None:
+        try:
+            item=widget.movie()
+            if isinstance(item,QMovie):return item
+        except (TypeError,RuntimeError):pass
     return None
 
 
@@ -105,7 +119,9 @@ class Governor(QObject):
     def __init__(self,win):
         super().__init__(win);self.win=win
         self.timer=QTimer(self);self.timer.setSingleShot(True);self.timer.timeout.connect(self.frame_policy)
-        QApplication.instance().installEventFilter(self)
+        import native_ui
+        native_ui.app_filter(self, (QEvent.Type.ApplicationStateChange, QEvent.Type.WindowStateChange,
+                                    QEvent.Type.Hide, QEvent.Type.Show))
     def frame_policy(self):
         import frameclock
         settings=dict(self.win.settings);values=config(settings)
@@ -121,7 +137,7 @@ class Governor(QObject):
         kind=event.type()
         if kind==QEvent.Type.ApplicationStateChange or (obj is self.win and kind==QEvent.Type.WindowStateChange):self.timer.start(120)
         elif kind in (QEvent.Type.Hide,QEvent.Type.Show) and isinstance(obj,QWidget):
-            values=config()
+            values=_config_cached()
             if values['release_hidden'] and kind==QEvent.Type.Hide:
                 try:release_widget(obj)
                 except (RuntimeError,AttributeError):pass

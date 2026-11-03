@@ -644,7 +644,8 @@ def install(lang: str):
                 return False
 
         guard = _NewWidgetTranslator(app)
-        app.installEventFilter(guard)
+        import native_ui                              # в Python — только Polish/Show
+        native_ui.app_filter(guard, (QEvent.Type.Polish, QEvent.Type.Show))
         app._i18n_guard = guard
         QTimer.singleShot(0, lambda: sweep())
     _late_holder.append(_late)

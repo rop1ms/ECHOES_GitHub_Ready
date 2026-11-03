@@ -120,7 +120,9 @@ class AudioEngine(QObject):
     crossfade_started = pyqtSignal(str)  # next_path — трек уже реально играет, пора обновить UI
     _gl_wake          = pyqtSignal()     # фоновый поток стыка → GUI: новая дека запущена
 
-    EQ_FREQUENCIES = [60, 170, 310, 600, 1000, 3000, 6000, 12000, 14000, 16000]
+    # Полосы — те, что реально двигает VLC (libvlc 3 всегда берёт стандартные ISO-частоты). Раньше подписи были
+    # 60/170/310/600/1K/3K/6K/12K/14K/16K: ползунок «3K» на деле крутил 1 кГц, «14K» — 8 кГц.
+    EQ_FREQUENCIES = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
 
     def __init__(self, parent=None):
         super().__init__(parent)

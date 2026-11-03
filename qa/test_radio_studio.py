@@ -184,7 +184,7 @@ class PlayerAndLevels(unittest.TestCase):
         eq_effective=lambda:[6.,3.,0.,0.,0.,0.,0.,0.,0.,0.],bass_boost=lambda:50,_boost_percent=lambda:200)
     def test_export_uses_active_player_speed_eq_bass_and_gain(self):
         fx=player_fx(self.win());self.assertEqual(speed_factor(fx),.8);self.assertEqual(fx['gain'],2)
-        filters=audio_filters(fx);self.assertTrue(any('equalizer=f=60' in f for f in filters))
+        filters=audio_filters(fx);self.assertTrue(any('equalizer=f=31' in f for f in filters))   # полосы плеера (VLC): 31 Гц…16 кГц
         self.assertFalse(any(f.startswith('bass=') for f in filters),'Bass is already included in the shared effective EQ')
         self.assertIn('volume=2.0000',filters)
     def test_normal_player_does_not_force_slowed_export(self):

@@ -144,6 +144,15 @@ class NetUiPerformance(unittest.TestCase):
             _fill_feed = NetPage._fill_feed
             _mod_post = NetPage._mod_post
             _discard_feed_cards = NetPage._discard_feed_cards
+            # виртуальная лента: места постов и карточки рядом с экраном
+            FEED_FIRST = NetPage.FEED_FIRST
+            _feed_estimate = NetPage._feed_estimate
+            _feed_signature = NetPage._feed_signature
+            _feed_put = NetPage._feed_put
+            _feed_drop = NetPage._feed_drop
+            _feed_window_soon = NetPage._feed_window_soon
+            _feed_window = NetPage._feed_window
+            eventFilter = NetPage.eventFilter
             def __init__(self, store):
                 super().__init__()
                 self.node = NS(store=store, me=NS(onion="me"))

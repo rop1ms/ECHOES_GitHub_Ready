@@ -167,7 +167,9 @@ class _Transition(QWidget):
         if self._live:
             self.new = old_pm                              # снимок новой не нужен
             self.hide()
-        QApplication.instance().installEventFilter(self)
+        import native_ui
+        native_ui.app_filter(self, (QEvent.Type.Resize, QEvent.Type.Hide, QEvent.Type.Close, QEvent.Type.Wheel,
+                                    QEvent.Type.MouseButtonPress, QEvent.Type.KeyPress, QEvent.Type.MouseMove))
 
     def eventFilter(self, obj, event):
         # A snapshot must never conceal live feedback from a new gesture.
@@ -274,7 +276,8 @@ class _Transition(QWidget):
         # A closure capturing the stack/overlay could outlive Qt's parent teardown.
         if self._finished:return
         self._finished=True
-        QApplication.instance().removeEventFilter(self)
+        import native_ui
+        native_ui.app_filter_remove(self)
         if _OVERLAYS.get(self.stack_key) is self:
             _OVERLAYS.pop(self.stack_key,None)
         if self.animation is not None and not sip.isdeleted(self.animation):
@@ -374,7 +377,42 @@ def _on_screen(target):
     if target.width()*target.height()>budget:return None
     import native_ui
     if not native_ui.available():return None
-    return native_ui.grab_from_window(target)
+    return native_ui.grab_from_window(target) or _on_screen_gl(target)
+
+
+def _on_screen_gl(target):
+    """Страница с OpenGL (арена дуэли, туманность «Моей волны», GPU-прокрутка): снизу — кадры видеокарты,
+    сверху — уже нарисованное окно (там, где рисует OpenGL, в нём прозрачные дыры). Раньше такую страницу
+    для анимации перерисовывали целиком — ~110 мс на каждое переключение вкладки."""
+    import native_ui
+    from PyQt6.QtCore import QRect, QRectF
+    from PyQt6.QtOpenGLWidgets import QOpenGLWidget
+    raw = native_ui.grab_window_area(target)
+    if raw is None:
+        return None
+    win = target.window()
+    origin = target.mapTo(win, QPoint())
+    area = QRect(origin, target.size())
+    out = QPixmap(raw.size())
+    out.fill(QColor('#0b0d10'))
+    p = QPainter(out)
+    try:
+        for gl in win.findChildren(QOpenGLWidget):
+            try:
+                if not gl.isVisible():
+                    continue
+                r = QRect(gl.mapTo(win, QPoint()), gl.size())
+                if not r.intersects(area):
+                    continue
+                img = gl.grabFramebuffer()
+                if not img.isNull():
+                    p.drawImage(QRectF(r.translated(-origin)), img)
+            except RuntimeError:
+                continue
+        p.drawPixmap(0, 0, raw)
+    finally:
+        p.end()
+    return out
 
 
 def _outgoing_snapshot(target):

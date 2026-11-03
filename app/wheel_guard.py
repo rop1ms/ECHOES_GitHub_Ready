@@ -225,4 +225,6 @@ def install():
     global _GUARD
     if _GUARD is None:
         _GUARD = WheelGuard()
-        QApplication.instance().installEventFilter(_GUARD)
+        import native_ui
+        from PyQt6.QtCore import QEvent
+        native_ui.app_filter(_GUARD, (QEvent.Type.Wheel,))

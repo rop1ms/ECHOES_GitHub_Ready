@@ -4,7 +4,10 @@
     Находит, куда ECHOES был установлен (даже если в другую папку),
     закрывает его, заменяет файлы программы на новые и обновляет
     загрузчик yt-dlp. Плейлисты, библиотека и настройки не трогаются.
+    -Auto — запуск из самого ECHOES (кнопка «Обновить», версия с GitHub): без вопросов,
+    в конце ECHOES открывается сам.
 #>
+param([switch]$Auto)
 $ErrorActionPreference = 'Stop'
 $ProgressPreference    = 'SilentlyContinue'
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
@@ -20,6 +23,7 @@ function Warn([string]$t) { Write-Host "      ! $t" -ForegroundColor Yellow }
 function Step([string]$t) { Write-Host ''; Write-Host "  » $t" -ForegroundColor White }
 function Done([int]$code) {
     Write-Host ''
+    if ($Auto) { Start-Sleep -Seconds 6; exit $code }
     Read-Host '  Нажмите Enter, чтобы закрыть' | Out-Null
     exit $code
 }
@@ -80,6 +84,7 @@ Info "версия: $oldVer  →  $newVer"
 
 # ── 2. закрыть плеер ─────────────────────────────────────────────────────
 Step 'Закрываю ECHOES, если он открыт'
+if ($Auto) { Start-Sleep -Seconds 3 }                    # ECHOES сам закрывается и сохраняет всё
 $killed = 0
 try {
     Get-CimInstance Win32_Process -Filter "Name='pythonw.exe' OR Name='python.exe'" -ErrorAction Stop |
@@ -165,7 +170,7 @@ Write-Host '  ╔═════════════════════
 Write-Host "  ║   ECHOES ОБНОВЛЁН  ·  версия $($newVer.PadRight(16))║" -ForegroundColor Green
 Write-Host '  ╚══════════════════════════════════════════════╝' -ForegroundColor Green
 Write-Host ''
-$go = Read-Host '   Запустить ECHOES? [Enter — да / n — нет]'
+$go = if ($Auto) { '' } else { Read-Host '   Запустить ECHOES? [Enter — да / n — нет]' }
 if ($go -notmatch '^(n|н|no|нет)$') {
     Start-Process -FilePath (Join-Path $InstallDir 'python\pythonw.exe') -ArgumentList "`"$(Join-Path $APP 'main.py')`"" -WorkingDirectory $APP
 }

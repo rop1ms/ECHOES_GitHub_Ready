@@ -184,4 +184,6 @@ def install():
     global _FILTER
     if _FILTER is None:
         _FILTER = _ButtonCache()
-        QApplication.instance().installEventFilter(_FILTER)
+        import native_ui                                  # только обычные QPushButton и только эти события
+        native_ui.app_filter(_FILTER, (QEvent.Type.Hide, QEvent.Type.MouseButtonPress,
+                                       QEvent.Type.MouseButtonRelease, QEvent.Type.Paint), "QPushButton")
