@@ -3204,6 +3204,7 @@ class YaShell(QWidget):
         busy = [r for r in remote if (r.get("dl") or ("",))[0] in ("queued", "progress", "retry", "done")]
         if not remote:
             self.pp_dlalb.hide()
+            self.pp_sort.hide()
             return
         self.pp_dlalb.show()
         if busy:
@@ -3230,7 +3231,19 @@ class YaShell(QWidget):
             except Exception:                              # noqa: BLE001
                 pass
 
+    def _remember_order(self, row):
+        """Трек запустили из списка — дальше треки играют в порядке этого списка (сортировка, фильтр, поиск)."""
+        ctx = row.get("ctx")
+        for lst in (getattr(self, "c_list", None), getattr(self, "pp_list", None)):
+            rows = getattr(getattr(lst, "model_", None), "rows", None) or []
+            if any(r is row for r in rows):
+                order = [r["i"] for r in rows if r.get("ctx") == ctx and isinstance(r.get("i"), int)]
+                self.win.__dict__.setdefault("_view_order", {})[ctx] = order
+                return
+        (self.win.__dict__.get("_view_order") or {}).pop(ctx, None)
+
     def play_row(self, row):
+        self._remember_order(row)
         if row.get("remote"):
             self.download_remote(row, self.pp_list, play=True)
             return
@@ -4881,6 +4894,9 @@ class YaShell(QWidget):
         self.c_shuffle.setCursor(Qt.CursorShape.PointingHandCursor)
         self.c_shuffle.clicked.connect(self._coll_shuffle)
         top.addWidget(self.c_shuffle)
+        self.c_sort = self._sort_button(lambda b: __import__("track_sort").menu(
+            b, self.win.settings.get("sort_coll") or "default", self._set_coll_sort, collection=True))
+        top.addWidget(self.c_sort)
         top.addStretch(1)
         self.c_search = QLineEdit()
         self.c_search.setPlaceholderText("Поиск в коллекции")
@@ -5035,6 +5051,14 @@ class YaShell(QWidget):
             else:
                 rows = [{"t": t, "ctx": "library", "i": i} for i, t in enumerate(lib)]
                 rows.reverse()                       # новые сверху
+        key = (getattr(self.win, "settings", None) or {}).get("sort_coll") or "default"
+        if key != "default":                          # своя сортировка (track_sort)
+            import track_sort
+            own = kind in ("liked", "mood", "genre")   # у фильтров свой порядок, у «Всё» — «новые сверху»
+            base = rows if own else list(reversed(rows))
+            rows = list(base) if key == "reverse" and not own else track_sort.apply(base, key, self.win)
+        if getattr(self, "c_sort", None) is not None:
+            self._sort_btn_text(self.c_sort, key, True)
         q = self.c_search.text().strip().lower()
         if q:
             from search_util import track_matches
@@ -5179,6 +5203,7 @@ class YaShell(QWidget):
         tracks.sort(key=lambda t: order[id(t)])
         self._pl_name, self._pl_kind = key, "album"
         self.pp_dlalb.hide()
+        self.pp_sort.hide()
         self.pp_cover.size_ = 180
         self.pp_cover.setFixedSize(180, 180)
         self.pp_cover._path = None
@@ -5347,7 +5372,12 @@ class YaShell(QWidget):
         self.pp_dlalb.hide()
         self.pp_more = icon_button("dots", "Ещё: обложка, переименовать, удалить плейлист", 40, 20)
         self.pp_more.clicked.connect(self._pp_menu)
-        for b in (self.pp_play, self.pp_shuffle, self.pp_wave, self.pp_add, self.pp_dlalb, self.pp_more):
+        self.pp_sort = self._sort_button(lambda b: __import__("track_sort").menu(
+            b, (self.win.settings.get("sort_pl") or {}).get(getattr(self, "_pl_name", "")) or "default",
+            self._set_pl_sort))
+        self.pp_sort.hide()                             # только у плейлистов (у альбома — порядок альбома)
+        for b in (self.pp_play, self.pp_shuffle, self.pp_wave, self.pp_add, self.pp_dlalb, self.pp_sort,
+                  self.pp_more):
             btns.addWidget(b)
         btns.addStretch(1)
         col.addLayout(btns)
@@ -5411,6 +5441,7 @@ class YaShell(QWidget):
         self._pl_name = None
         self._pl_kind = "playlist"
         self.pp_dlalb.hide()
+        self.pp_sort.hide()
         from ya_decor import _HeaderTint
         self.pp_name.setObjectName("YaHero")
         self._pp_tint = _HeaderTint(page, self.pp_cover, self.pp_list)   # шапка в цвет обложки
@@ -5507,6 +5538,7 @@ class YaShell(QWidget):
             return
         self._pl_name, self._pl_kind = name, "playlist"
         self.pp_dlalb.hide()
+        self.pp_sort.hide()
         pl = self.win.playlists[name]
         tr = pl.get("tracks", [])
         cov = pl.get("cover") or (tr[0].get("cover", "") if tr else "")
@@ -5531,7 +5563,12 @@ class YaShell(QWidget):
         self.pp_list.setVisible(bool(tr))
         self._pp_search_reset(bool(tr), name)
         self._pp_filters_reset(tr, name)
-        self.pp_list.set_rows([{"t": t, "ctx": name, "i": i} for i, t in enumerate(tr)])
+        import track_sort
+        key = (self.win.settings.get("sort_pl") or {}).get(name) or "default"
+        self.pp_list.set_rows(track_sort.apply([{"t": t, "ctx": name, "i": i} for i, t in enumerate(tr)], key,
+                                               self.win))
+        self.pp_sort.setVisible(bool(tr))
+        self._sort_btn_text(self.pp_sort, key)
         import ya_decor
         ya_decor.fly_to(self, self.pp_cover)
         self.show_page("playlist", remember=False)
@@ -5552,6 +5589,38 @@ class YaShell(QWidget):
             self._remember()                                   # с артиста на артиста — тоже шаг истории
         self.pages["artist"].load(artist, tracks)
         self.show_page("artist", remember=False)
+
+    def _sort_button(self, on_click) -> QPushButton:
+        b = QPushButton("  Сортировка")
+        b.setObjectName("YaChip")
+        b.setIcon(ya_icon("queue", 16, "#d0d0d0"))
+        b.setIconSize(QSize(16, 16))
+        b.setMinimumHeight(38)
+        b.setCursor(Qt.CursorShape.PointingHandCursor)
+        b.setToolTip("Порядок треков — в нём же они и играют дальше")
+        b.clicked.connect(lambda: on_click(b))
+        return b
+
+    def _sort_btn_text(self, b, key, collection=False):
+        import track_sort
+        names = track_sort.COLL_NAMES if collection else track_sort.NAMES
+        try:
+            b.setText("  " + names.get(key or "default", "Сортировка"))
+        except RuntimeError:
+            pass
+
+    def _set_coll_sort(self, key):
+        self.win.settings["sort_coll"] = key
+        self.win._schedule_settings_save()
+        self._coll_apply()
+
+    def _set_pl_sort(self, key):
+        name = getattr(self, "_pl_name", None)
+        if not name or getattr(self, "_pl_kind", "") != "playlist":
+            return
+        self.win.settings.setdefault("sort_pl", {})[name] = key
+        self.win._schedule_settings_save()
+        self.open_playlist(name, keep_history=True)
 
     def _coll_shuffle(self):
         rows = getattr(self.c_list.model_, "rows", None) or []

@@ -106,7 +106,12 @@ class QueuePage(Page):
         if self.shell.win.shuffle and sq and len(sq) == len(tracks):
             order = (sq[k] for k in range(sp + 1, len(sq)))
         else:
-            order = range(cur_i + 1, len(tracks)) if cur_i >= 0 else ()
+            w = self.shell.win                             # порядок, в котором список показан (сортировка)
+            view = (w.__dict__.get("_view_order") or {}).get(self._context_view()[0])
+            if view and cur_i in view and max(view) < len(tracks):
+                order = view[view.index(cur_i) + 1:]
+            else:
+                order = range(cur_i + 1, len(tracks)) if cur_i >= 0 else ()
         return list(islice((i for i in order if 0 <= i < len(tracks)), UPCOMING_MAX))
 
     def refresh(self, force=False):

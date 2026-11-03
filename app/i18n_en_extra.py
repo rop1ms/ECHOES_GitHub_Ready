@@ -3566,3 +3566,15 @@ EXACT.update({                                   # v32: альбомы/плей�
     'Корейский': 'Korean', 'Китайский': 'Chinese', 'Турецкий': 'Turkish', 'Польский': 'Polish',
     'Португальский': 'Portuguese', 'Казахский': 'Kazakh', 'Белорусский': 'Belarusian',
 })
+
+EXACT.update({                                   # v35: сортировка, экстремальная скорость
+    '  Сортировка': '  Sort', 'Как добавлены': 'Date added', 'В обратном порядке': 'Reversed',
+    'Сначала новые': 'Newest first', 'Сначала старые': 'Oldest first', 'По названию': 'Title',
+    'По исполнителю': 'Artist', 'По альбому': 'Album', 'По длительности': 'Duration', 'Часто слушаю': 'Most played',
+    '  Сначала новые': '  Newest first', '  Сначала старые': '  Oldest first', '  По названию': '  Title',
+    '  По исполнителю': '  Artist', '  По альбому': '  Album', '  По длительности': '  Duration',
+    '  Часто слушаю': '  Most played', '  Как добавлены': '  Date added', '  В обратном порядке': '  Reversed',
+    'Экстремальная скорость': 'Extreme speed', 'Обычная скорость': 'Normal speed',
+    'Жёстко медленно — низко и тягуче': 'Ultra slow — low and heavy', 'Медленнее и ниже': 'Slower and lower',
+    'Быстрее и выше': 'Faster and higher', 'Жёстко быстро — как бурундук': 'Ultra fast — chipmunk mode',
+})

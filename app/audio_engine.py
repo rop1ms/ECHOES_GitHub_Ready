@@ -1085,7 +1085,7 @@ class AudioEngine(QObject):
         """Устанавливает скорость воспроизведения.
         VLC set_rate() без scaletempo меняет темп И питч вместе —
         именно так звучат slowed reverb и speed up."""
-        self.speed = max(0.5, min(2.0, float(speed)))
+        self.speed = max(0.25, min(4.0, float(speed)))      # «Экстремальная скорость»: от 0.25× до 4×
         self.player.set_rate(self.speed)
         self._vis_player.set_rate(self.speed)
 

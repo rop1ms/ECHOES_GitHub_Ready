@@ -978,7 +978,7 @@ class MainWindow(QMainWindow):
         vol_lbl=QLabel("Vol"); vol_lbl.setObjectName("Sub"); bottom.addWidget(vol_lbl)
         self.vol=QSlider(Qt.Orientation.Horizontal); self.vol.setRange(0,100); self.vol.valueChanged.connect(self._volume_changed); bottom.addWidget(self.vol,3)
         spd_lbl=QLabel("Speed"); spd_lbl.setObjectName("Sub"); bottom.addWidget(spd_lbl)
-        self.speed=QSlider(Qt.Orientation.Horizontal); self.speed.setRange(50,200); self.speed.valueChanged.connect(self._on_speed_changed); bottom.addWidget(self.speed,2)
+        self.speed=QSlider(Qt.Orientation.Horizontal); self.speed.setRange(25,400); self.speed.valueChanged.connect(self._on_speed_changed); bottom.addWidget(self.speed,2)
         self.speed_lbl=QLabel("1.00×"); self.speed_lbl.setObjectName("Sub"); bottom.addWidget(self.speed_lbl)
         btn_spd_reset=QPushButton("1×"); btn_spd_reset.setObjectName("GhostBtn")
         btn_spd_reset.setFixedWidth(32); btn_spd_reset.setToolTip("Сбросить скорость")
@@ -2920,14 +2920,13 @@ class MainWindow(QMainWindow):
                 if pos < len(self._shuffle_queue):
                     idx.append(self._shuffle_queue[pos])
         else:
+            cur = self.current_index
             for k in range(1, n + 1):
-                i = self.current_index + k
-                if i >= len(tracks):
-                    if self.repeat_mode == 1 and len(tracks) > 1:
-                        i %= len(tracks)
-                    else:
-                        break
+                i = self._step_index(self.queue_context, cur, 1, len(tracks))
+                if i < 0 or (k > 1 and i == self.current_index):
+                    break
                 idx.append(i)
+                cur = i
         idx = [i for i in idx if 0 <= i < len(tracks)]
         return [tracks[i] for i in idx], idx
 
@@ -5206,12 +5205,9 @@ class MainWindow(QMainWindow):
             self._shuffle_pos = new_pos
             idx = self._shuffle_queue[new_pos]
         else:
-            idx=self.current_index+step
-            if idx>=len(tracks):
-                if self.repeat_mode==1: idx=0
-                else:
-                    self._set_playing_ui(False); return
-            if idx<0: idx=len(tracks)-1
+            idx=self._step_index(self.queue_context, self.current_index, step, len(tracks), wrap_back=True)
+            if idx<0:
+                self._set_playing_ui(False); return
         # rebuild_shuffle=False: это автоматический переход внутри уже
         # построенной очереди — она не должна пересобираться на каждый next/prev.
         self._advancing = True
@@ -5255,17 +5251,13 @@ class MainWindow(QMainWindow):
 
         self._next_shuffle_idx = None
 
-        nxt = self.current_index + 1
-        if nxt >= len(tracks) and self.repeat_mode == 1:
-            nxt = 0
+        nxt = self._step_index(self.queue_context, self.current_index, 1, len(tracks))
         if 0 <= nxt < len(tracks):
             p = tracks[nxt].get("path", "")
             if p and Path(p).exists():
                 self.engine.preload(p)
 
-        prv = self.current_index - 1
-        if prv < 0 and self.repeat_mode == 1:
-            prv = len(tracks) - 1
+        prv = self._step_index(self.queue_context, self.current_index, -1, len(tracks))
         if 0 <= prv < len(tracks):
             p = tracks[prv].get("path", "")
             if p and Path(p).exists():
@@ -5468,9 +5460,25 @@ class MainWindow(QMainWindow):
                     self._next_shuffle_idx = _rnd.choice(choices)
                     return self._next_shuffle_idx
             return -1
-        idx = cur + 1
-        if idx >= len(tracks):
-            idx = 0 if self.repeat_mode == 1 else -1
+        ctx = self._saved_ctx[0] if self._queued_now and self._saved_ctx else self.queue_context
+        return self._step_index(ctx, cur, 1, len(tracks))
+
+    def _step_index(self, ctx, cur, step, n, wrap_back=False):
+        """Сосед текущего трека в порядке, в котором список показан на экране (сортировка коллекции/плейлиста,
+        фильтр, поиск — yamusic_theme._remember_order); без такого порядка — по номеру. -1 — дальше нечего."""
+        order = (self.__dict__.get("_view_order") or {}).get(ctx)
+        if order and cur in order and all(0 <= i < n for i in order[:1]) and max(order) < n:
+            pos = order.index(cur) + step
+            if 0 <= pos < len(order):
+                return order[pos]
+            if self.repeat_mode == 1 or (wrap_back and pos < 0):
+                return order[pos % len(order)]
+            return -1
+        idx = cur + step
+        if idx >= n:
+            return 0 if self.repeat_mode == 1 else -1
+        if idx < 0:
+            return (n - 1) if (self.repeat_mode == 1 or wrap_back) else -1
         return idx
 
     def _on_crossfade_started(self, next_path):
@@ -5915,6 +5923,17 @@ class MainWindow(QMainWindow):
             except RuntimeError:                         # виджет удалён вместе с темой
                 pass
         self._boost_blocks = alive
+
+    def set_play_speed(self, rate: float):
+        """Скорость трека 0.25×…4× (панель «Звук» → «Экстремальная скорость»): темп и тон вместе."""
+        v = int(round(max(0.25, min(4.0, float(rate))) * 100))
+        if self.speed.value() == v:
+            self._on_speed_changed(v)
+        else:
+            self.speed.setValue(v)                      # → _on_speed_changed (снимает пресеты, сохраняет)
+
+    def play_speed(self) -> float:
+        return float(getattr(self.engine, "speed", 1.0) or 1.0)
 
     def _on_speed_changed(self, v):
         self.engine.set_speed(v / 100)

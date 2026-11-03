@@ -247,6 +247,30 @@ class SoundPanel(QFrame):
         self.hp.activated.connect(lambda i: (self.win.set_hp_profile(self.hp.itemData(i) or ""), self.sync()))
         v.addWidget(self.hp)
 
+        # экстремальная скорость: жёстко медленно ↔ жёстко быстро (0.25×…4×, ползунок по логарифму)
+        v.addSpacing(4)
+        v.addLayout(self._sec_row("Экстремальная скорость", "speed_val"))
+        self.speed = QSlider(Qt.Orientation.Horizontal)
+        self.speed.setRange(-100, 100)                     # 4^(x/100): −100 → 0.25×, 0 → 1×, 100 → 4×
+        self.speed.setPageStep(10)
+        self.speed.setToolTip("Темп и тон меняются вместе: влево — медленно и низко, вправо — быстро и высоко. "
+                              "Двойной щелчок — обычная скорость")
+        self.speed.valueChanged.connect(self._speed_moved)
+        self.speed.mouseDoubleClickEvent = lambda e: self._set_speed(1.0)
+        v.addWidget(self.speed)
+        srow = QHBoxLayout()
+        srow.setSpacing(6)
+        self.speed_btns = {}
+        for rate, text in ((0.25, "0.25×"), (0.5, "0.5×"), (1.0, "Обычная"), (2.0, "2×"), (4.0, "4×")):
+            b = self._chip(text)
+            b.clicked.connect(lambda _=False, r=rate: self._set_speed(r))
+            srow.addWidget(b)
+            self.speed_btns[rate] = b
+        v.addLayout(srow)
+        self.speed_hint = QLabel("")
+        self.speed_hint.setObjectName("SndSub")
+        v.addWidget(self.speed_hint)
+
         # супер громкость
         v.addSpacing(4)
         v.addLayout(self._sec_row("Супер громкость", "loud_val"))
@@ -370,6 +394,39 @@ class SoundPanel(QFrame):
         src.setChecked(not src.isChecked())                # тот же переключатель, что в настройках
         self.sync()
 
+    @staticmethod
+    def _rate_of(x: int) -> float:
+        rate = 4.0 ** (x / 100.0)
+        return 1.0 if abs(rate - 1.0) < 0.035 else round(rate, 2)          # у середины — ровно 1×
+
+    def _speed_moved(self, x):
+        if getattr(self, "_speed_sync", False):
+            return
+        self._set_speed(self._rate_of(x), from_slider=True)
+
+    def _set_speed(self, rate, from_slider=False):
+        fn = getattr(self.win, "set_play_speed", None)
+        if fn is None:
+            return
+        fn(rate)
+        if not from_slider:
+            self.sync()
+        else:
+            self._speed_ui(rate)
+
+    def _speed_ui(self, rate):
+        import math
+        self.speed_val.setText(f"{rate:.2f}×")
+        self._speed_sync = True
+        self.speed.setValue(int(round(math.log(max(0.25, min(4.0, rate)), 4) * 100)))
+        self._speed_sync = False
+        for r, b in self.speed_btns.items():
+            b.setChecked(abs(r - rate) < 0.01)
+        self.speed_hint.setText("Обычная скорость" if abs(rate - 1) < 0.01 else
+                                "Жёстко медленно — низко и тягуче" if rate <= 0.4 else
+                                "Медленнее и ниже" if rate < 1 else
+                                "Жёстко быстро — как бурундук" if rate >= 2.8 else "Быстрее и выше")
+
     def _open_settings(self):
         if not self.embedded:self.hide()
         try:
@@ -402,6 +459,7 @@ class SoundPanel(QFrame):
                                "Аномальная громкость — перегруз гарантирован" if pct >= 5000 else
                                "Очень громко: возможен перегруз" if pct >= 1000 else
                                f"Громче обычного в {pct / 100:g} раз")
+        self._speed_ui(w.play_speed() if hasattr(w, "play_speed") else 1.0)
         for mine, attr in ((self.b_night, "_btn_speedup"), (self.b_slow, "_btn_slowed"), (self.b_8d, "_btn_8d")):
             src = getattr(w, attr, None)
             on = bool(src is not None and src.isChecked())
