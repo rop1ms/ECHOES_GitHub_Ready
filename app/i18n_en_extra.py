@@ -3557,3 +3557,12 @@ EXACT.update({                                   # v31: настройки бе�
     'Выберите слой на холсте или в списке': 'Pick a layer on the canvas or in the list',
     'Выбрать картинку / GIF…': 'Choose picture / GIF…', 'Файл не выбран': 'No file chosen',
 })
+
+EXACT.update({                                   # v32: альбомы/плейлисты в поиске, перенос с площадок, язык перевода
+    'Альбомы': 'Albums', 'Публичные плейлисты': 'Public playlists', 'Язык перевода': 'Translation language',
+    '  Сохранить как плейлист': '  Save as playlist', 'Перенести плейлист с площадки': 'Transfer a playlist',
+    'Русский': 'Russian', 'Английский': 'English', 'Украинский': 'Ukrainian', 'Немецкий': 'German',
+    'Французский': 'French', 'Испанский': 'Spanish', 'Итальянский': 'Italian', 'Японский': 'Japanese',
+    'Корейский': 'Korean', 'Китайский': 'Chinese', 'Турецкий': 'Turkish', 'Польский': 'Polish',
+    'Португальский': 'Portuguese', 'Казахский': 'Kazakh', 'Белорусский': 'Belarusian',
+})

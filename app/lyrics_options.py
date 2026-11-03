@@ -9,6 +9,16 @@ from PyQt6.QtWidgets import (QDialog, QFormLayout, QComboBox, QDoubleSpinBox,
 from lyrics_view import parse_lrc, split_plain
 
 
+LANGUAGES = [('ru', 'Русский'), ('en', 'Английский'), ('uk', 'Украинский'), ('be', 'Белорусский'),
+             ('kk', 'Казахский'), ('uz', 'Узбекский'), ('hy', 'Армянский'), ('ka', 'Грузинский'),
+             ('az', 'Азербайджанский'), ('de', 'Немецкий'), ('fr', 'Французский'), ('es', 'Испанский'),
+             ('it', 'Итальянский'), ('pt', 'Португальский'), ('pl', 'Польский'), ('cs', 'Чешский'),
+             ('tr', 'Турецкий'), ('ja', 'Японский'), ('ko', 'Корейский'), ('zh-CN', 'Китайский'),
+             ('ar', 'Арабский'), ('hi', 'Хинди'), ('id', 'Индонезийский'), ('vi', 'Вьетнамский'),
+             ('th', 'Тайский'), ('nl', 'Нидерландский'), ('sv', 'Шведский'), ('fi', 'Финский'),
+             ('el', 'Греческий'), ('he', 'Иврит')]
+
+
 def translate_lines(lines, target, cancelled=None):
     result, cache = [], {}
     # Keep the original line boundaries and timestamps, including instrumental gaps.
@@ -157,9 +167,15 @@ class LyricsOptions(QObject):
         for title, value in [('Под оригиналом', 'below'), ('Вместо оригинала', 'replace'), ('Оригинал', 'off')]:
             mode.addItem(title, value)
         mode.setCurrentIndex(max(0, mode.findData(self.win.settings.get('lyrics_translation_mode', 'below'))))
-        target = QLineEdit(self.win.settings.get('lyrics_translation_language', 'ru'))
+        target = QComboBox()                                    # язык перевода — списком, без кодов
+        current = self.win.settings.get('lyrics_translation_language', 'ru')
+        for code, title in LANGUAGES:
+            target.addItem(title, code)
+        if target.findData(current) < 0:
+            target.addItem(current, current)
+        target.setCurrentIndex(target.findData(current))
         form.addRow('Перевод', mode)
-        form.addRow('Код языка (ru, en, uk…)', target)
+        form.addRow('Язык перевода', target)
         note = QLabel('«Перевести» отправляет текст песни в Google Translate. Требуется интернет.')
         note.setWordWrap(True)
         form.addRow(note)
@@ -205,7 +221,7 @@ class LyricsOptions(QObject):
                     panel.update()
             self.win.settings['lyrics_sync_fast'] = fast.isChecked()
             self.win.settings['lyrics_translation_mode'] = mode.currentData()
-            language = target.text().strip() or 'ru'
+            language = target.currentData() or 'ru'
             if language != self.win.settings.get('lyrics_translation_language', 'ru'):
                 self.generation += 1
                 self.translated = None

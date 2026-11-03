@@ -6013,13 +6013,11 @@ class YaShell(QWidget):
             [("Открыть для трека", w._open_lyrics_editor)], "редактор текста таймкоды lrc")
         # ── Медиатека ──
         from spotify_import import SpotifyImportDialog
-        sec("library", "Импорт из Spotify", "Вставьте ссылку на плейлист — ECHOES найдёт и скачает треки", "download",
-            lambda: SpotifyImportDialog(w), "spotify спотифай импорт плейлист")
-        sec("library", _tr(w, "Импорт из Яндекс Музыки", "Import from Yandex Music"),
-            "Плейлист или «Мне нравится» по ссылке", "download",
-            lambda: SpotifyImportDialog(w, provider="yandex"), "яндекс музыка импорт")
-        sec("library", _tr(w, "Импорт из VK Музыки", "Import from VK Music"), "Плейлист VK по ссылке", "download",
-            lambda: SpotifyImportDialog(w, provider="vk"), "вк vk музыка импорт")
+        sec("library", "Перенести плейлист с площадки",
+            "SoundCloud, YouTube Music, YouTube, Deezer, Apple Music, Spotify, Яндекс Музыка, VK — вставьте ссылку, "
+            "площадка определится сама", "download", lambda: SpotifyImportDialog(w, provider="auto"),
+            "перенести импорт плейлист soundcloud саундклауд youtube ютуб deezer дизер apple эпл spotify спотифай "
+            "яндекс vk вк площадка")
         row("library", "Плейлист из файла", "Файл ECHOES, M3U или список треков", "download",
             [("Выбрать файл…", lambda: getattr(w, "import_playlist_file", lambda *_: None)())],
             "плейлист файл m3u импорт")

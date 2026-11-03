@@ -423,7 +423,10 @@ class OnlineResults(QWidget):
     def _show(self, query, res):
         Y._clear_layout(self.bv)
         tracks, artists = res.get("tracks", []), res.get("artists", [])
+        albums, playlists = res.get("albums", []), res.get("playlists", [])
         msg = f"Найдено в интернете: {len(tracks)} треков, {len(artists)} исполнителей"
+        if albums or playlists:
+            msg += f", {len(albums)} альбомов, {len(playlists)} плейлистов"
         if res.get("errors"):
             msg += "  ·  " + ", ".join(res["errors"])
         self.status.setText(msg)
@@ -441,6 +444,8 @@ class OnlineResults(QWidget):
                            lambda path, c=c: (setattr(c, "cover", path), c.update()))
                 row.add(c)
             self.bv.addWidget(row)
+        self._releases("Альбомы", albums, False)
+        self._releases("Публичные плейлисты", playlists, True)
         if tracks:
             self.bv.addWidget(Y.section_title("Треки"))
             for t in tracks:
@@ -450,10 +455,32 @@ class OnlineResults(QWidget):
                 for t in tracks[:3]:
                     if t.get("url") and not t.get("snip"):
                         self.shell.win.streams.prefetch(stream_core.make_track(t))
-        if not tracks and not artists:
+        if not tracks and not artists and not albums and not playlists:
             lb = QLabel("Ничего не нашлось. Попробуйте иначе написать название или выберите другой источник.")
             lb.setObjectName("YaSub")
             self.bv.addWidget(lb)
+
+    def _releases(self, title, rels, playlists):
+        """Строка карточек: альбомы или публичные плейлисты с площадок; щелчок — треклист (ReleasePage)."""
+        if not rels:
+            return
+        self.bv.addWidget(Y.section_title(title))
+        row = Y.HRow()
+        for r in rels:
+            if playlists:
+                bits = [SRC_NAME.get(r.get("src", ""), ""), r.get("artist", "")]
+                if r.get("count"):
+                    bits.append(f"{r['count']} треков")
+            else:
+                bits = [r.get("artist", ""), r.get("year", ""), _type_ru(r.get("type"))]
+            c = Y.Card(r.get("title", ""), " · ".join(b for b in bits if b), "", 150, seed=r.get("title", ""))
+            c.setToolTip(("Плейлист" if playlists else "Альбом") + f" на {SRC_NAME.get(r.get('src', ''), 'площадке')}"
+                         " — открыть треклист")
+            c.clicked.connect(lambda r=r: self.shell.open_release("album", r.get("artist", ""), rel=r))
+            if r.get("thumb_url"):
+                load_thumb(self.shell.win, r["thumb_url"], lambda path, c=c: (setattr(c, "cover", path), c.update()))
+            row.add(c)
+        self.bv.addWidget(row)
 
 
 # ══════════════════════════════════════════════════════════════════════════ #
@@ -846,6 +873,8 @@ class ReleasePage(Y.Page):
                 elif rel.get("sc_track"):              # отдельный трек SoundCloud
                     d = {"title": rel.get("title", ""), "year": rel.get("year", ""), "type": "Трек",
                          "tracks": [dict(rel["sc_track"], num=1)]}
+                elif rel.get("ytm_pl"):                # публичный плейлист YouTube Music (из поиска)
+                    d = online_search.ytm_playlist(rel["ytm_pl"])
                 elif rel.get("browseId"):
                     d = online_search.ytm_album(rel["browseId"])
                 else:                                  # альбом с Deezer — ищем его на YouTube Music
@@ -977,6 +1006,7 @@ class ReleasePage(Y.Page):
         self.tracks = tr
         dur = sum(int(t.get("duration") or 0) for t in tr)
         plays = sum(int(t.get("plays") or 0) for t in tr)
+        is_pl = (d.get("type") or self.rel.get("type")) == "Плейлист"
         parts = [x for x in (d.get("year", ""), _type_ru(d.get("type"))) if x]
         stats = [f"{len(tr)} треков"] if tr else []
         if dur:
@@ -986,7 +1016,7 @@ class ReleasePage(Y.Page):
         if d.get("error"):
             stats = ["Не удалось загрузить: " + str(d["error"])[:80]]
         elif not loading and not tr:
-            stats = ["Альбом не нашёлся на YouTube Music"]
+            stats = ["Плейлист пуст или недоступен" if is_pl else "Альбом не нашёлся на YouTube Music"]
         hdr = self._header(d.get("title") or self.rel.get("title", ""),
                            " · ".join([self.artist] + parts), "  ·  ".join(stats), cover, d.get("thumb_url", ""))
         hdr.set_loading(loading)
@@ -997,11 +1027,12 @@ class ReleasePage(Y.Page):
             b.setMinimumHeight(40)
             b.clicked.connect(self._play_first)
             hdr.btn_row.addWidget(b)
-            b = QPushButton("  Скачать альбом")
+            b = QPushButton("  Сохранить как плейлист" if is_pl else "  Скачать альбом")
             b.setIcon(Y.ya_icon("download", 18))
             b.setMinimumHeight(40)
-            b.setToolTip("Скачать треки в коллекцию без создания плейлиста")
-            b.clicked.connect(lambda: self._download_all(d.get("title") or "Альбом", d))
+            b.setToolTip("Скачать треки и собрать из них плейлист в ECHOES" if is_pl else
+                         "Скачать треки в коллекцию без создания плейлиста")
+            b.clicked.connect(lambda: self._download_all(d.get("title") or "Альбом", d, keep=is_pl))
             hdr.btn_row.addWidget(b)
         hdr.btn_row.addStretch(1)
         bv = self._body()
@@ -1014,7 +1045,7 @@ class ReleasePage(Y.Page):
         idx = _local_index(self.shell, self.artist)
         for t in tr:
             r = OnlineTrackRow(self.shell, t, num=t.get("num"), local_path=_local_path(idx, t.get("title", "")))
-            r.album = d.get("title") or ""
+            r.album = "" if is_pl else (d.get("title") or "")
             if not t.get("thumb_url") and d.get("thumb_url"):
                 t["thumb_url"] = d["thumb_url"]
             self.rows.append(r)
@@ -1111,9 +1142,21 @@ class ReleasePage(Y.Page):
         if self.rows:
             self.rows[0].listen()
 
-    def _download_all(self, playlist, d):
-        playlist = None
+    def _download_all(self, playlist, d, keep=False):
+        playlist = playlist if keep else None              # публичный плейлист — своим плейлистом в ECHOES
         n = 0
+        win = self.shell.win
+        if playlist:                                       # что уже есть в коллекции — сразу в плейлист
+            pl = win.playlists.setdefault(playlist, {"tracks": [], "desc": "Публичный плейлист из поиска", "cover": ""})
+            have = {x.get("path") for x in pl["tracks"]}
+            for r in self.rows:
+                loc = getattr(r, "_local", None)
+                if loc and loc not in have:
+                    t = next((x for x in win.library if x.get("path") == loc), None)
+                    if t is not None:
+                        pl["tracks"].append(dict(t))
+                        have.add(loc)
+            win._ya_save_playlists()
         for r in self.rows:
             if r.state in ("", "error") and r.isVisible():
                 r.state = "queued"
@@ -1123,4 +1166,5 @@ class ReleasePage(Y.Page):
                     meta["thumb_url"] = d["thumb_url"]
                 self.shell.win._quick_download(r.t["url"], playlist=playlist, cb=r._on_state, meta=meta)
                 n += 1
-        self.shell.win._toast(f"Скачиваю {n} треков в коллекцию" if n else "Все треки уже в коллекции")
+        self.shell.win._toast((f"Скачиваю {n} треков в плейлист «{playlist}»" if playlist else
+                               f"Скачиваю {n} треков в коллекцию") if n else "Все треки уже в коллекции")

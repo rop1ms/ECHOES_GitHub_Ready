@@ -420,7 +420,20 @@ def search_all(q: str, sources=("ytm", "sc")) -> dict:
         if "sc" in sources:
             jobs["sc_t"] = ex.submit(sc_search, q, 20)
             jobs["sc_a"] = ex.submit(sc_search_users, q, 8)
-        res = {k: (f.result() or []) for k, f in jobs.items()}
+        if "ytm" in sources:                       # альбомы и публичные плейлисты — отдельными строками
+            jobs["ytm_al"] = ex.submit(ytm_search_albums, q, 12)
+            jobs["ytm_pl"] = ex.submit(ytm_search_playlists, q, 10)
+        if "sc" in sources:
+            jobs["sc_al"] = ex.submit(sc_search_albums, q, 8)
+            jobs["sc_pl"] = ex.submit(sc_search_playlists, q, 8)
+
+        def got(f):
+            try:
+                return f.result() or []
+            except Exception as e:                 # noqa: BLE001
+                _log("search part:", e)
+                return []
+        res = {k: got(f) for k, f in jobs.items()}
     # треки: чередуем источники, чтобы сверху были лучшие с каждого
     yt_t, sc_t = res.get("ytm_t", []), res.get("sc_t", [])
     # YouTube Music в приоритете: сначала его треки, SoundCloud — ниже
@@ -437,7 +450,100 @@ def search_all(q: str, sources=("ytm", "sc")) -> dict:
         ok.append(SRC_NAMES["yt"] if (yt_t and yt_t[0]["src"] == "yt") else SRC_NAMES["ytm"])
     if sc_t or sc_a:
         ok.append(SRC_NAMES["sc"])
-    return {"tracks": tracks, "artists": artists, "sources": ok}
+    albums = list(res.get("ytm_al", [])) + list(res.get("sc_al", []))
+    playlists = []
+    yp, sp = res.get("ytm_pl", []), res.get("sc_pl", [])
+    for i in range(max(len(yp), len(sp))):                 # плейлисты двух площадок вперемешку
+        playlists += ([yp[i]] if i < len(yp) else []) + ([sp[i]] if i < len(sp) else [])
+    return {"tracks": tracks, "artists": artists, "albums": albums, "playlists": playlists, "sources": ok}
+
+
+def ytm_search_albums(q, limit=12):
+    """Альбомы и EP на YouTube Music: {title, artist, year, type, browseId, thumb_url, src}."""
+    try:
+        res = _ytm_query("albums", q, limit)
+    except Exception as e:                         # noqa: BLE001
+        _log("ytm albums:", e)
+        return []
+    out = []
+    for r in res:
+        if not r.get("browseId"):
+            continue
+        out.append({"title": r.get("title", ""), "src": "ytm", "browseId": r["browseId"],
+                    "artist": ", ".join(a.get("name", "") for a in (r.get("artists") or []) if a.get("name")),
+                    "year": str(r.get("year") or ""), "type": r.get("type") or "Альбом",
+                    "thumb_url": _thumb(r.get("thumbnails"))})
+    return out[:limit]
+
+
+def ytm_search_playlists(q, limit=12):
+    """Публичные плейлисты YouTube Music (сообщества и официальные подборки)."""
+    out, seen = [], set()
+    for kind in ("community_playlists", "featured_playlists"):
+        try:
+            res = _ytm_query(kind, q, limit)
+        except Exception as e:                     # noqa: BLE001
+            _log("ytm playlists:", kind, e)
+            continue
+        for r in res:
+            pid = r.get("playlistId") or (r.get("browseId") or "")[2:]
+            if not pid or pid in seen:
+                continue
+            seen.add(pid)
+            out.append({"title": r.get("title", ""), "src": "ytm", "ytm_pl": pid, "type": "Плейлист",
+                        "artist": r.get("author") if isinstance(r.get("author"), str) else
+                        ", ".join(a.get("name", "") for a in (r.get("author") or []) if isinstance(a, dict)),
+                        "count": str(r.get("itemCount") or ""), "thumb_url": _thumb(r.get("thumbnails"))})
+    return out[:limit]
+
+
+def _sc_set(p) -> dict:
+    r = _sc_release(p)
+    r["artist"] = (p.get("user") or {}).get("username", "")
+    r["count"] = str(p.get("track_count") or "")
+    return r
+
+
+def sc_search_albums(q, limit=10):
+    j = _sc_get("/search/albums", {"q": q, "limit": limit})
+    return [_sc_set(p) for p in (j or {}).get("collection", []) if p.get("id")]
+
+
+def sc_search_playlists(q, limit=10):
+    j = _sc_get("/search/playlists_without_albums", {"q": q, "limit": limit}) or         _sc_get("/search/playlists", {"q": q, "limit": limit})
+    out = []
+    for p in (j or {}).get("collection", []):
+        if p.get("id") and int(p.get("track_count") or 0) > 0:
+            r = _sc_set(p)
+            r["type"] = "Плейлист"
+            out.append(r)
+    return out
+
+
+def ytm_playlist(playlist_id: str, force=False) -> dict:
+    """Публичный плейлист YouTube Music с треками (как альбом — для страницы релиза)."""
+    def load():
+        yt = ytm_client()
+        if yt is None:
+            return None
+        pl = yt.get_playlist(playlist_id, limit=300)
+        cover = _thumb(pl.get("thumbnails"))
+        tracks = []
+        for s in pl.get("tracks") or []:
+            if not s.get("videoId") or s.get("isAvailable") is False:
+                continue
+            u = _ui_track(_ytm_song(s))
+            u["num"] = len(tracks) + 1
+            tracks.append(u)
+        author = pl.get("author")
+        author = author.get("name", "") if isinstance(author, dict) else str(author or "")
+        return {"title": pl.get("title", ""), "artist": author, "year": str(pl.get("year") or ""),
+                "type": "Плейлист", "thumb_url": cover, "tracks": tracks, "ytm_pl": playlist_id}
+    try:
+        return _disco_cache(f"ytmpl_{playlist_id}", load, force) or {}
+    except Exception as e:                         # noqa: BLE001
+        _log("ytm playlist:", e)
+        return {}
 
 
 def profile_raw(artist: dict) -> dict:
@@ -476,6 +582,7 @@ def search(query: str, source: str = "all") -> dict:
         errors.append("SoundCloud не ответил")
     return {"tracks": [_ui_track(t) for t in res["tracks"]],
             "artists": [_ui_artist(a) for a in res["artists"]],
+            "albums": res.get("albums", []), "playlists": res.get("playlists", []),
             "errors": errors}
 
 

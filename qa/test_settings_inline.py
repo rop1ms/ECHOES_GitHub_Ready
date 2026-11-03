@@ -35,7 +35,7 @@ import settings_inline as si
 import stream_designer
 secs = hub.findChildren(si.Section)
 rows = hub.findChildren(si.Row)
-check(len(secs) >= 12, f'строк-разделов: {len(secs)}')
+check(len(secs) >= 10, f'строк-разделов: {len(secs)}')
 check(len(rows) >= 6, f'строк-действий: {len(rows)}')
 titles = [s.findChild(QLabel, 'InlineTitle').text() for s in secs]
 before = {id(w) for w in QApplication.topLevelWidgets() if w.isVisible()}
@@ -50,7 +50,7 @@ for s, t in zip(secs, titles):
     new = [w for w in QApplication.topLevelWidgets() if w.isVisible() and id(w) not in before
            and isinstance(w, QDialog)]
     check(not new, f'«{t}» не открыл отдельного окна')
-    if OUT and t in ('Конструктор окна стримера', 'Очистка медиатеки и кэша', 'Масштаб и окно', 'Импорт из Spotify',
+    if OUT and t in ('Конструктор окна стримера', 'Очистка медиатеки и кэша', 'Масштаб и окно', 'Перенести плейлист с площадки',
                      'Темы оформления', 'Найти пропавшие треки'):
         OUT.mkdir(parents=True, exist_ok=True)
         page = shell.pages['settings']

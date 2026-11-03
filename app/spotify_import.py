@@ -51,7 +51,10 @@ class SpotifyImportDialog(QDialog):
         from duel_settings import tr
         self.t=lambda ru,en:tr(win,ru,en)
         self.provider=provider
-        self.brand={'spotify':'Spotify','yandex':self.t('Яндекс Музыка','Yandex Music'),'vk':'VK Music'}[provider]
+        import platform_import
+        names={k:v[0] for k,v in platform_import.PROVIDERS.items()}
+        names.update({'yandex':self.t('Яндекс Музыка','Yandex Music'),'vk':'VK Music','auto':self.t('любой площадки','any service')})
+        self.brand=names[provider]
         self.setWindowTitle(self.t('Импорт плейлиста: ','Import playlist: ')+self.brand)
         self.setMinimumSize(620, 560)
         self.tracks = []
@@ -74,13 +77,24 @@ class SpotifyImportDialog(QDialog):
         lay.addWidget(hint)
         row = QHBoxLayout()
         self.url = QLineEdit()
-        self.url.setPlaceholderText({'spotify':'https://open.spotify.com/playlist/…','yandex':'https://music.yandex.ru/playlists/…','vk':'https://vk.com/music/playlist/…'}[provider])
+        self.url.setPlaceholderText(platform_import.PROVIDERS[provider][1] if provider in platform_import.PROVIDERS else
+                                    self.t('Ссылка на плейлист: SoundCloud, YouTube Music, Deezer, Apple Music, Spotify…',
+                                           'Playlist link: SoundCloud, YouTube Music, Deezer, Apple Music, Spotify…'))
         self.url.returnPressed.connect(self._fetch)
         row.addWidget(self.url, 1)
         self.btn_fetch = QPushButton(self.t('Получить треки','Get tracks'))
         self.btn_fetch.clicked.connect(self._fetch)
         row.addWidget(self.btn_fetch)
         lay.addLayout(row)
+        if provider=='auto':                          # какие площадки понимает: щелчок — пример ссылки
+            from PyQt6.QtWidgets import QWidget
+            chips=QWidget();cl=QHBoxLayout(chips);cl.setContentsMargins(0,0,0,0);cl.setSpacing(6)
+            for key,(title,example) in platform_import.PROVIDERS.items():
+                chip=QPushButton(names.get(key,title));chip.setObjectName('YaChip')
+                chip.setCursor(Qt.CursorShape.PointingHandCursor);chip.setToolTip(example)
+                chip.clicked.connect(lambda _=False,e=example:(self.url.setPlaceholderText(e),self.url.setFocus()))
+                cl.addWidget(chip)
+            cl.addStretch(1);lay.addWidget(chips)
         if provider!='spotify':
             note=QLabel(self.t('Без токенов и входа в аккаунт. Если сервис скрывает список, загрузите TXT/M3U со строками «Исполнитель — Название». Неполный список будет отмечен.',
                 'No tokens or account login. If the service hides the list, load a TXT/M3U file with Artist — Title entries. Partial lists are marked.'))
@@ -133,10 +147,19 @@ class SpotifyImportDialog(QDialog):
         def work():
             try:
                 import online_search
-                if self.provider=='spotify':name, tracks = online_search.spotify_tracks(url, cid, sec)
-                else:
+                import platform_import
+                provider=self.provider if self.provider!='auto' else platform_import.detect(url)
+                if not provider:
+                    raise ValueError(self.t('Не узнал площадку по ссылке. Поддерживаются: ','Unknown service. Supported: ')+
+                                     ', '.join(v[0] for v in platform_import.PROVIDERS.values()))
+                if self.provider=='auto':
+                    self.brand=platform_import.PROVIDERS[provider][0]
+                if provider=='spotify':name, tracks = online_search.spotify_tracks(url, cid, sec)
+                elif provider in ('yandex','vk'):
                     from service_playlist_import import fetch
-                    name,tracks=fetch(self.provider,url,self.win.settings.get('language','en'))
+                    name,tracks=fetch(provider,url,self.win.settings.get('language','en'))
+                else:
+                    name,tracks=platform_import.fetch(provider,url)
                 self._fetched.emit(name, tracks)
             except Exception as e:                   # noqa: BLE001
                 self._fetched.emit(None, str(e))
@@ -256,6 +279,10 @@ class SpotifyImportDialog(QDialog):
             local = have(t)
             if local is not None:
                 self._matched.emit(i, local, "have",generation)
+                return
+            if t.get("url"):                         # трек сам лежит на SoundCloud / YouTube — качаем его же
+                self._matched.emit(i, {"url": t["url"], "source": t.get("source") or "yt", "alts": []},
+                                   t.get("source") or "yt", generation)
                 return
             self._matched.emit(i, None, "search",generation)
             artist = (t.get("artist") or "").split(",")[0].strip()
