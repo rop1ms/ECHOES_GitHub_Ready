@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import ctypes
 import struct
 import sys
@@ -68,7 +69,7 @@ def _icon_png(kind: str, size=32) -> bytes:
 
 def _hicon(kind: str) -> int:
     """PNG внутри .ico (Vista+) → HICON через LoadImage."""
-    d = Path.home() / ".neon_player" / "ui_cache"
+    d = data_home.root() / "ui_cache"
     f = d / f"tb_{kind}.ico"
     if not f.exists():
         png = _icon_png(kind)

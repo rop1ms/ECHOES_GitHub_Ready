@@ -6,10 +6,11 @@
 
 Восстановление: файл кладётся рядом с настройками как restore_pending.zip и применяется при следующем
 запуске ECHOES — до того, как что-либо прочитано (main.py → apply_pending). Старые файлы не удаляются:
-они переезжают в ~/.neon_player_before_restore_<дата>.
+они переезжают в ~/Echoes_before_restore_<дата>.
 """
 from __future__ import annotations
 
+import data_home
 import json
 import shutil
 import threading
@@ -17,7 +18,7 @@ import time
 import zipfile
 from pathlib import Path
 
-DATA = Path.home() / ".neon_player"
+DATA = data_home.root()
 PENDING = "restore_pending.zip"
 MANIFEST = "echoes_backup.json"
 SKIP_DIRS = {"covers", "net_cache", "wave_cache", "noise_cache", "ui_cache", "dj_cache", "clips", "import",
@@ -112,7 +113,7 @@ def apply_pending(root: Path = DATA) -> str:
     if check(z) is None:
         z.rename(root / (PENDING + ".bad"))
         return ""
-    old = root.parent / time.strftime(".neon_player_before_restore_%Y%m%d_%H%M%S")
+    old = root.parent / time.strftime("Echoes_before_restore_%Y%m%d_%H%M%S")
     old.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(z) as zf:
         tops = {Path(n).parts[0] for n in zf.namelist() if n != MANIFEST}

@@ -9,10 +9,11 @@ Echoes.NET: GIF в чатах и постах — поиск (Tenor / Giphy), а
 GIF-файл как обычный файл.
 
 В сообщение уходит только ссылка на GIF с CDN Tenor/Giphy (другие адреса не принимаются),
-получатель скачивает её сам и кэширует в ~/.neon_player/net/gif_cache.
+получатель скачивает её сам и кэширует в ~/Echoes/net/gif_cache.
 """
 from __future__ import annotations
 
+import data_home
 import hashlib
 import re
 import threading
@@ -24,8 +25,8 @@ from PyQt6.QtGui import QMovie, QColor, QPainter, QFont
 from PyQt6.QtWidgets import (QLabel, QDialog, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QScrollArea,
                              QWidget, QComboBox)
 
-CACHE = Path.home() / ".neon_player" / "net" / "gif_cache"
-SAVED = Path.home() / ".neon_player" / "net" / "gif_saved.json"         # «Мои GIF»
+CACHE = data_home.root() / "net" / "gif_cache"
+SAVED = data_home.root() / "net" / "gif_saved.json"         # «Мои GIF»
 SAVED_MAX = 500
 MAX_GIF = 8 * 2 ** 20
 HOSTS = re.compile(r"^(?:media\d?\.tenor\.com|c\.tenor\.com|media\d?\.giphy\.com|i\.giphy\.com)$")

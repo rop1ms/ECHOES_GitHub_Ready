@@ -13,6 +13,7 @@ Echoes.NET — вкладка соцсети в Echoes Music (сама сеть 
 """
 from __future__ import annotations
 
+import data_home
 import base64
 import hashlib
 import json
@@ -37,7 +38,7 @@ from net_music import (TrackChip, TimelineMarks, ReactBar, BattleBar, QuoteBlock
 from yamusic_theme import (YELLOW, MUTED, ya_font, ya_icon, icon_button, cover_pixmap, seg_group, Switch, Page,
                            section_title, HRow, _clear_layout, sanitize_title)
 
-DATA_DIR = Path.home() / ".neon_player" / "net"
+DATA_DIR = data_home.root() / "net"
 _AVATARS = OrderedDict()
 
 NET_QSS = f"""
@@ -153,7 +154,7 @@ def avatar_pm(onion: str, name: str, size: int, online=None, photo: str = "") ->
 
 
 def _net_log(*a):
-    """Журнал сети: в консоль и в ~/.neon_player/net/net.log (до 1 МБ, потом начинается заново) —
+    """Журнал сети: в консоль и в ~/Echoes/net/net.log (до 1 МБ, потом начинается заново) —
     по нему видно, почему не доходит заявка или друг «не в сети»."""
     line = time.strftime("%Y-%m-%d %H:%M:%S ") + " ".join(str(x) for x in a)
     print(line)
@@ -2386,7 +2387,9 @@ class NetPage(QWidget):
         head.addWidget(self._clickable(av, p["author"]))
         nm = QVBoxLayout(); nm.setSpacing(0)
         nrow = QHBoxLayout(); nrow.setSpacing(8)
-        nrow.addWidget(lbl(name + ("  · вы" if p["author"] == me else ""), "NetName"))
+        nrow.addWidget(self.name_widget(p["author"], name))
+        if p["author"] == me:
+            nrow.addWidget(lbl("· вы", "YaSub"))
         bd = self._badge(p["author"])
         if bd is not None:
             nrow.addWidget(bd)
@@ -5176,6 +5179,58 @@ class NetPage(QWidget):
                 pass
             self._deco_changed()
 
+    def edit_nick(self):
+        """Стиль ника (шрифт с кириллической парой, эффект, цвета) — как в Discord."""
+        import net_nick
+        if self.node is None:
+            return
+        d = dict(self.win.settings.get("ya_profile_deco") or {})
+        dlg = net_nick.NickStyleDialog(self.node._name(), d.get("nick"), self)
+        if dlg.exec():
+            d = dict(self.win.settings.get("ya_profile_deco") or {})
+            res = dlg.result()
+            if res:
+                d["nick"] = res
+            else:
+                d.pop("nick", None)
+            self.win.settings["ya_profile_deco"] = d
+            try:
+                self.win.save_settings()
+            except Exception:                                  # noqa: BLE001
+                pass
+            self.__dict__.pop("_nick_cache", None)
+            self._deco_changed()
+
+    def edit_mini(self):
+        """Мини-профиль — карточка при наведении на аватарку в ленте."""
+        import net_miniprof
+        if self.node is None:
+            return
+        if net_miniprof.MiniEditor(self).exec():
+            self._deco_changed()
+
+    def nick_of(self, onion) -> dict:
+        """Стиль ника человека (кэш на 5 с — ников в ленте много)."""
+        import time as _t
+        cache = self.__dict__.setdefault("_nick_cache", {})
+        hit = cache.get(onion)
+        if hit and _t.monotonic() - hit[0] < 5:
+            return hit[1]
+        try:
+            spec = (self.deco_of(onion) or {}).get("nick") or {}
+        except Exception:                                      # noqa: BLE001
+            spec = {}
+        cache[onion] = (_t.monotonic(), spec)
+        return spec
+
+    def name_widget(self, onion, text, px=13) -> QWidget:
+        """Ник в ленте: со стилем, если человек его выбрал; иначе — обычная подпись."""
+        spec = self.nick_of(onion) if onion else {}
+        if spec:
+            import net_nick
+            return net_nick.NickLabel(text, spec, px + 2)
+        return lbl(text, "NetName")
+
     def edit_showcase(self):
         import net_showcase
         if self.node is None:
@@ -5308,6 +5363,9 @@ class NetPage(QWidget):
         import net_frames
         deco = self.deco_of(onion)
         hdr.deco = deco
+        if deco.get("nick"):
+            import net_nick
+            hdr.nick = net_nick.swap(hdr.nick, hdr.nick.text(), deco["nick"], 54)
         r = self._frame_of(onion)
         eff = net_frames.effective(*r) if r else {}
         if eff:
@@ -5321,11 +5379,13 @@ class NetPage(QWidget):
             b = QPushButton("Оформить профиль")
             b.setObjectName("YaChip")
             b.setCursor(Qt.CursorShape.PointingHandCursor)
-            b.setToolTip("Рамка аватарки, фон шапки и витрина профиля")
+            b.setToolTip("Рамка аватарки, стиль ника, мини-профиль, фон шапки и витрина")
 
             def menu(_checked=False, b=b):                     # clicked передаёт checked — не путать с кнопкой
                 m = QMenu(b)
                 m.addAction("Рамка аватарки…", self.edit_frame)
+                m.addAction("Стиль ника…", self.edit_nick)
+                m.addAction("Мини-профиль (баннер, местоимения, ачивки)…", self.edit_mini)
                 has = bool((self.win.settings.get("ya_profile_deco") or {}).get("sc"))
                 m.addAction("Изменить витрину и фон шапки" if has else "Создать витрину / фон шапки",
                             self.edit_showcase)
@@ -5376,20 +5436,22 @@ class NetPage(QWidget):
     def _clickable(self, w, onion):
         """Аватар/имя → профиль человека."""
         w.setCursor(Qt.CursorShape.PointingHandCursor)
-        w.setToolTip("Открыть профиль")
         w.mousePressEvent = lambda e, o=onion: self.open_profile(o)
+        if isinstance(w, QLabel) and w.width() <= 64:          # аватарка: наведи — мини-профиль (net_miniprof)
+            return __import__("net_miniprof").hover(self, w, onion)
+        w.setToolTip("Открыть профиль")
         return w
 
     def _stats_data(self) -> dict:
         try:
-            return json.loads((Path.home() / ".neon_player" / "stats.json").read_text(encoding="utf-8"))
+            return json.loads((data_home.root() / "stats.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return {}
 
     def _my_tierlist(self) -> dict:
         """Свой тирлист из music_tierlist.json → уровни с треками (без путей к файлам)."""
         try:
-            d = json.loads(Path(getattr(self.win, "tierlist_path", Path.home() / ".neon_player" / "music_tierlist.json")).read_text(encoding="utf-8"))
+            d = json.loads(Path(getattr(self.win, "tierlist_path", data_home.root() / "music_tierlist.json")).read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return {"tiers": []}
         from music_tierlist import track_key
@@ -6924,13 +6986,15 @@ class NetPage(QWidget):
         import net_ach
         for k, (title, how) in self.ACH.items():
             on = k in ach
-            b = lbl(("★  " if on else "☆  ") + title)
+            b = QPushButton("  " + title)                      # свой значок у каждой ачивки (ach_icons)
+            b.setIcon(QIcon(__import__("ach_icons").pixmap(k, 18, YELLOW if on else "#5a5a5f")))
+            b.setIconSize(QSize(18, 18))
             b.setToolTip(how + "\nНажмите — подробнее")
             b.setCursor(Qt.CursorShape.PointingHandCursor)
-            b.setStyleSheet("QLabel{padding:8px 14px;border-radius:16px;font-weight:800;" +
+            b.setStyleSheet("QPushButton{padding:7px 14px 7px 10px;border-radius:16px;font-weight:800;border:none;" +
                             (f"background:rgba(255,219,26,0.18);color:{YELLOW};}}" if on else
                              "background:rgba(255,255,255,0.04);color:#666;}") +
-                            "QLabel:hover{background:rgba(255,255,255,0.12);}")
+                            "QPushButton:hover{background:rgba(255,255,255,0.12);}")
             b.mousePressEvent = (lambda e, k=k, on=on: net_ach.popup(self, k, on, name, me,
                                                                       e.globalPosition().toPoint()))
             al.addWidget(b)

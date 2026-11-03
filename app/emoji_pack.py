@@ -3,19 +3,20 @@
 Эмодзи для реакций — Noto Color Emoji (Google, лицензия Apache 2.0), а не системные смайлики Windows 11.
 
 Картинки маленькие (72×72 PNG, ~3–6 КБ): при первом показе скачиваются с CDN jsDelivr (GitHub
-googlefonts/noto-emoji; запасной — Twemoji) и лежат в ~/.neon_player/emoji. Пока картинки нет или
+googlefonts/noto-emoji; запасной — Twemoji) и лежат в ~/Echoes/emoji. Пока картинки нет или
 сети нет — рисуется символ системным шрифтом, а когда картинка докачается, виджеты, подписанные
 на ready, перерисовываются.
 """
 from __future__ import annotations
 
+import data_home
 import threading
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QIcon, QPainter, QPixmap
 
-DIR = Path.home() / ".neon_player" / "emoji"
+DIR = data_home.root() / "emoji"
 SOURCES = (
     "https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@main/png/72/emoji_u{code}.png",
     "https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/assets/72x72/{tw}.png",

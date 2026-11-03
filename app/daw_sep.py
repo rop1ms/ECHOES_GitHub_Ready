@@ -3,7 +3,7 @@
 Разделение трека на вокал и бит (минус) — для мэшап-бота студии.
 
 Основной способ — нейросети MDX-Net из открытого набора Ultimate Vocal Remover (по ~67 МБ,
-качаются один раз в ~/.neon_player/studio/models). Запускаются через onnxruntime на процессоре:
+качаются один раз в ~/Echoes/studio/models). Запускаются через onnxruntime на процессоре:
 спектр 7680/1024, куски по ~6 с с обрезкой краёв, как в UVR.
 «Лучшее» качество — две сети (Kim Vocal 2 и Voc FT) и ансамбль «максимум по спектру»: в каждой
 клетке спектра берётся тот вариант, где голоса больше. Одна сеть часто теряет вокал под тяжёлыми
@@ -14,10 +14,11 @@
 Без onnxruntime или без интернета — запасной способ: голос обычно в центре стерео и тональный,
 маска «центр × гармоника» по спектру (заметно хуже, но мэшап собрать можно).
 
-Вокал кэшируется (FLAC) в ~/.neon_player/studio/stems — второй раз трек не делится.
+Вокал кэшируется (FLAC) в ~/Echoes/studio/stems — второй раз трек не делится.
 """
 from __future__ import annotations
 
+import data_home
 import hashlib
 import os
 import threading
@@ -28,7 +29,7 @@ import numpy as np
 
 import daw_dsp as D
 
-STUDIO = Path.home() / ".neon_player" / "studio"
+STUDIO = data_home.root() / "studio"
 MODELS = STUDIO / "models"
 STEMS = STUDIO / "stems"
 STEMS_KEEP = 90                       # столько файлов вокала хранить (у трека их может быть два)

@@ -3,7 +3,7 @@
 «Изменить профиль» — одно окно, как в Spotify, вместо трёх вопросов подряд.
 
 Слева — большая круглая аватарка: клик — выбрать фото (обрезается в квадрат и копируется
-в ~/.neon_player/avatar, так что исходный файл можно удалить), «Удалить фото».
+в ~/Echoes/avatar, так что исходный файл можно удалить), «Удалить фото».
 Справа — ник, статус, «о себе» (видят друзья в Echoes.NET), любимые треки профиля
 (поиск по коллекции, «играющий сейчас», порядок, удаление), что показывать друзьям.
 Сохраняет profile.json плеера и настройки Echoes.NET (net/net.json или живой узел сети).
@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import json
 import time
 from pathlib import Path
@@ -21,7 +22,7 @@ from PyQt6.QtWidgets import (QDialog, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                              QPlainTextEdit, QListWidget, QListWidgetItem, QFileDialog, QFrame, QCheckBox,
                              QScrollArea)
 
-DATA_DIR = Path.home() / ".neon_player"
+DATA_DIR = data_home.root()
 YELLOW = "#ffdb1a"
 MAX_FAV = 8
 
@@ -302,7 +303,7 @@ class ProfileEditor(QDialog):
         self.rm.setEnabled(False)
 
     def _store_avatar(self) -> str:
-        """Выбранное фото → квадрат 512 px в ~/.neon_player/avatar (старые копии удаляются)."""
+        """Выбранное фото → квадрат 512 px в ~/Echoes/avatar (старые копии удаляются)."""
         img = getattr(self, "_new_img", None)
         if img is None:
             return self.avatar

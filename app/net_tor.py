@@ -4,7 +4,7 @@ Tor для Echoes.NET: свой tor.exe, onion-адрес вместо серв�
 
 Откуда берётся tor.exe (по порядку):
   1. путь из настроек сети (можно указать tor.exe из Tor Browser);
-  2. ~/.neon_player/net/tor_bin — Tor Expert Bundle, который плеер скачивает сам
+  2. ~/Echoes/net/tor_bin — Tor Expert Bundle, который плеер скачивает сам
      с dist.torproject.org по кнопке «Скачать Tor» (~20 МБ, один раз);
   3. установленный Tor Browser (Рабочий стол / Program Files / AppData).
 

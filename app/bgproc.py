@@ -19,6 +19,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import json
 import os
 import subprocess
@@ -29,7 +30,7 @@ import traceback
 from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parent
-_LOG = Path.home() / ".neon_player" / "bgproc.log"
+_LOG = data_home.root() / "bgproc.log"
 _NO_WINDOW = 0x08000000
 _BELOW_NORMAL = 0x00004000
 _IDLE_CLASS = 0x00000040

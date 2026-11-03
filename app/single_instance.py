@@ -19,9 +19,43 @@ def _name() -> str:
     return "ECHOES-player-" + hashlib.sha1(home.lower().encode("utf-8", "replace")).hexdigest()[:16]
 
 
+_MUTEX = []
+
+
+def _first_by_mutex(name) -> bool:
+    """Системный мьютекс Windows — проверка «я первый» атомарна. Раньше два почти одновременных запуска
+    (двойной щелчок, автозапуск + ярлык, перезапуск после обновления) оба не видели канала друг друга,
+    и работали два ECHOES: каждый со своей коллекцией в памяти, последний сохранивший затирал треки."""
+    if os.name != "nt":
+        return True
+    import ctypes
+    k32 = ctypes.windll.kernel32
+    k32.CreateMutexW.restype = ctypes.c_void_p
+    k32.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_wchar_p]
+    h = k32.CreateMutexW(None, False, "Local\\" + name)
+    already = k32.GetLastError() == 183                  # ERROR_ALREADY_EXISTS
+    if h:
+        _MUTEX.append(h)                                 # держим до конца процесса
+    return not already
+
+
 def claim():
     """Сервер, если мы первые, или None — плеер уже запущен (его окно попросили показаться)."""
     name = _name()
+    if not _first_by_mutex(name):
+        import time
+        end = time.monotonic() + 15                      # первый ещё стартует — дождаться его канала
+        while time.monotonic() < end:
+            sock = QLocalSocket()
+            sock.connectToServer(name)
+            if sock.waitForConnected(400):
+                sock.write(b"show\n")
+                sock.flush()
+                sock.waitForBytesWritten(400)
+                sock.disconnectFromServer()
+                break
+            time.sleep(0.3)
+        return None
     sock = QLocalSocket()
     sock.connectToServer(name)
     if sock.waitForConnected(400):

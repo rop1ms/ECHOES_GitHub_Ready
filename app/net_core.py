@@ -2,7 +2,7 @@
 """
 Echoes.NET — соцсеть внутри ECHOES без серверов: только компьютеры друзей и сеть Tor.
 
-Личность = ключ ed25519 (~/.neon_player/net/identity.key). Из него же сделан onion-адрес
+Личность = ключ ed25519 (~/Echoes/net/identity.key). Из него же сделан onion-адрес
 (как у Tor: base32(ключ + контрольная сумма + версия)), поэтому «код друга» — это и адрес,
 по которому до него достучаться, и открытый ключ, которым проверяются его подписи.
 Подделать чужой адрес нельзя, сервер регистрации не нужен.
@@ -1016,6 +1016,9 @@ class NetNode:
             if p is not None and p.via == "nostr" and not self.udp_alive(o) and \
                     now - getattr(p, "udp_offer_t", 0) > 25:
                 asyncio.ensure_future(self._udp_offer(p))
+        if now - self.__dict__.get("_upd_bridge_t", 0) > 600:   # автор: тихо раздать свою сборку старым версиям
+            self._upd_bridge_t = now
+            asyncio.ensure_future(self._upd_auto_bridge())
         u = self.upd
         if u and u.get("state") == "downloading" and self.__dict__.get("_upd_dl") is None and \
                 now - u.get("t_rx", now) > UPD_STALL:
@@ -3507,7 +3510,29 @@ class NetNode:
             self.upd = None
             self.emit("update", None)
 
-    async def upd_publish(self, note="", public=False):
+    async def _upd_auto_bridge(self):
+        """Мост для старых версий (до 2026.11.02-28), которые умеют обновляться только через Echoes.NET: у автора
+        ECHOES узел сам, без кнопок и уведомлений, раздаёт текущую сборку — раз на каждую новую версию. Получив её,
+        старые версии дальше обновляются с GitHub. Раздачи вручную больше нет."""
+        import net_update
+        if self.me.onion != net_update.DEV_ONION or self.__dict__.get("_upd_bridging"):
+            return
+        ver = net_update.app_version(self.app_dir)
+        if not ver or self.settings.get("upd_auto_ver") == ver:
+            return
+        self._upd_bridging = True
+        try:
+            await self.upd_publish("Новая версия ECHOES. Дальше обновления приходят с GitHub — кнопка «Обновить» "
+                                   "в шапке окна.", public=True, silent=True)
+            self.settings["upd_auto_ver"] = ver
+            self.save_settings()
+            self.log(f"[net] сборка {ver} тихо разослана старым версиям")
+        except Exception as e:                                 # noqa: BLE001
+            self.log(f"[net] автораздача: {e}")
+        finally:
+            self._upd_bridging = False
+
+    async def upd_publish(self, note="", public=False, silent=False):
         """«Разослать обновление»: подписать список файлов своей сборки и сообщить друзьям в сети.
         public — ещё и всем пользователям ECHOES (через релеи Nostr; доверяют по умолчанию только автору ECHOES)."""
         import net_update
@@ -3517,6 +3542,8 @@ class NetNode:
                                              bool(public))
             await loop.run_in_executor(None, self._upd_mark_installed, man)
         except Exception as e:                                 # noqa: BLE001
+            if silent:
+                raise
             self.emit("toast", f"Не получилось подготовить обновление: {e}")
             return
         have = await self._upd_have()
@@ -3529,9 +3556,10 @@ class NetNode:
         if public:
             pub_n = await self._upd_announce(man)
             await self._upd_seed_send(force=True)
-            asyncio.ensure_future(self._upd_mirror(man))
-        self.emit("update_pub", {"id": net_update.man_id(man), "files": len(man["files"]), "sent": n,
-                                 "ver": man.get("ver"), "public": bool(public), "relays": pub_n})
+            asyncio.ensure_future(self._upd_mirror(man, quiet=silent))
+        if not silent:
+            self.emit("update_pub", {"id": net_update.man_id(man), "files": len(man["files"]), "sent": n,
+                                     "ver": man.get("ver"), "public": bool(public), "relays": pub_n})
 
     async def _upd_mirror(self, man, quiet=False):
         """Своё публичное обновление — на зеркала Blossom: его скачают, даже когда вы не в сети.

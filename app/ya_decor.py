@@ -32,6 +32,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import math
 import random
 import time
@@ -389,7 +390,7 @@ def paint_frame(frame, p: QPainter, surface: QPixmap, area=None):
 # ══════════════════════════ волна трека для прогресса ══════════════════════════ #
 
 _PEAKS: dict = {}
-_PEAK_DIR = Path.home() / ".neon_player" / "wave_cache"
+_PEAK_DIR = data_home.root() / "wave_cache"
 
 
 def _peak_file(path: str) -> Path:
@@ -1136,7 +1137,7 @@ def ui_click():
         if _CLICK is None:
             import struct
             import wave
-            f = Path.home() / ".neon_player" / "ui_cache" / "click.wav"
+            f = data_home.root() / "ui_cache" / "click.wav"
             if not f.exists():
                 f.parent.mkdir(parents=True, exist_ok=True)
                 sr = 44100

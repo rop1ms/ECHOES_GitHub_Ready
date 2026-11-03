@@ -23,6 +23,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import base64
 import html
 import json
@@ -48,7 +49,7 @@ ACCEPT = 0.72          # минимальная уверенность, что �
 STRONG = 1.02          # «точно она» (название+артист+длительность) — можно не ждать остальных
 INSTRUMENTAL_TEXT = "[Инструментал]\nВ этом треке нет слов."
 
-_DATA_DIR = Path.home() / ".neon_player"
+_DATA_DIR = data_home.root()
 
 
 def _log(msg):

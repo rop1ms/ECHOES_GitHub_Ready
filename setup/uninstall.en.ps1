@@ -7,7 +7,8 @@ try { $Host.UI.RawUI.BackgroundColor = 'Black' } catch {}
 Clear-Host
 
 $InstallDir = $PSScriptRoot
-$DataDir    = Join-Path $env:USERPROFILE '.neon_player'
+$DataDir    = Join-Path $env:USERPROFILE 'Echoes'
+if (-not (Test-Path $DataDir)) { $DataDir = Join-Path $env:USERPROFILE '.neon_player' }   # ещё не перенесены
 
 Write-Host ''
 Write-Host '   ECHOES — destroy' -ForegroundColor Yellow

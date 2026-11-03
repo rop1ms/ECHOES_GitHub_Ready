@@ -12,6 +12,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import sys
 
 from PyQt6.QtCore import Qt, QTimer
@@ -188,7 +189,7 @@ def apply(skin) -> dict:
     Y._ICON_CACHE.clear()
     try:                                                       # тумблеры (картинки) — перерисовать в новом акценте
         from pathlib import Path
-        d = Path.home() / ".neon_player" / "ui_cache"
+        d = data_home.root() / "ui_cache"
         stamp = d / "accent.txt"
         if not stamp.exists() or stamp.read_text(encoding="utf-8") != s["accent"]:
             for f in ("sw_on.png", "sw_off.png", "v2"):

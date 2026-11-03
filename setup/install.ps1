@@ -8,7 +8,11 @@
       * ярлыки на рабочем столе и в меню «Пуск», пункт в «Установленных приложениях»
     Повторный запуск = обновление (уже скачанное заново не качается).
 #>
-param([string]$InstallDir = "")
+# Параметры для ECHOES Launcher (установка из окна, без вопросов в консоли):
+#   -Auto  без вопросов;  -NoDesktop / -NoStartMenu — без ярлыков;  -NoSpotify — без spotdl;
+#   -Autostart — запускать ECHOES вместе с Windows;  -NoLaunch — не открывать плеер в конце
+param([string]$InstallDir = "", [switch]$Auto, [switch]$NoDesktop, [switch]$NoStartMenu, [switch]$NoSpotify,
+      [switch]$Autostart, [switch]$NoLaunch)
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference    = 'SilentlyContinue'
@@ -117,7 +121,7 @@ function Fail([string]$msg) {
     if ($script:LogFile) { Write-Host "   3. Подробный журнал: $script:LogFile" -ForegroundColor Gray }
     Write-Host ''
     try { Stop-Transcript | Out-Null } catch {}
-    Read-Host '  Нажмите Enter, чтобы закрыть'
+    if (-not $Auto) { Read-Host '  Нажмите Enter, чтобы закрыть' }
     exit 1
 }
 
@@ -246,7 +250,7 @@ Write-Host '   Куда установить:  ' -NoNewline -ForegroundColor Gra
 Write-Host $InstallDir -ForegroundColor White
 Write-Host '   Нужно ~1 ГБ места и интернет. Права администратора не нужны.' -ForegroundColor DarkGray
 Write-Host ''
-$ans = Read-Host '   Enter — установить сюда,  или вставьте другой путь'
+$ans = if ($Auto) { '' } else { Read-Host '   Enter — установить сюда,  или вставьте другой путь' }
 if ($ans -and $ans.Trim()) {
     $InstallDir = $ans.Trim().Trim('"')
     if (-not ($InstallDir -match 'ECHOES\\?$')) { $InstallDir = Join-Path $InstallDir 'ECHOES' }
@@ -340,8 +344,10 @@ for ($i = 1; $i -le 3 -and -not $ok; $i++) {
 if (-not $ok) { Fail 'Не удалось установить основные библиотеки (PyQt6, numpy, …).' }
 Ok 'основные библиотеки готовы'
 
-Info 'Spotify-загрузчик (необязательно)…'
-if ((Invoke-Native $PY ($pipBase + $PKG_SPOT) -ShowPip) -ne 0) { Warn 'spotdl не встал — импорт из Spotify всё равно работает через встроенную утилиту' }
+if (-not $NoSpotify) {
+    Info 'Spotify-загрузчик (необязательно)…'
+    if ((Invoke-Native $PY ($pipBase + $PKG_SPOT) -ShowPip) -ne 0) { Warn 'spotdl не встал — импорт из Spotify всё равно работает через встроенную утилиту' }
+}
 
 $failed = @()
 if ((Invoke-Native $PY ($pipBase + $PKG_EXTRA) -ShowPip) -ne 0) {
@@ -421,24 +427,28 @@ $launcherTarget = Join-Path $InstallDir 'ECHOES Launcher.exe'
 if (Test-Path -LiteralPath $launcherSource) {
     try {
         Copy-Item -LiteralPath $launcherSource -Destination $launcherTarget -Force
-        New-Shortcut (Join-Path ([Environment]::GetFolderPath('Desktop')) 'ECHOES Launcher.lnk') $launcherTarget '' $InstallDir $ico 'ECHOES — запуск и обновления'
+        if (-not $NoDesktop) { New-Shortcut (Join-Path ([Environment]::GetFolderPath('Desktop')) 'ECHOES Launcher.lnk') $launcherTarget '' $InstallDir $ico 'ECHOES — запуск и обновления' }
         $launcherMenu = Join-Path ([Environment]::GetFolderPath('Programs')) 'ECHOES'
         New-Item -ItemType Directory -Path $launcherMenu -Force | Out-Null
         New-Shortcut (Join-Path $launcherMenu 'ECHOES Launcher.lnk') $launcherTarget '' $InstallDir $ico 'ECHOES — запуск и обновления'
     } catch { Warn "лаунчер не скопирован: $($_.Exception.Message)" }
 }
-try {
+if (-not $NoDesktop) { try {
     $desk = [Environment]::GetFolderPath('Desktop')
     New-Shortcut (Join-Path $desk 'ECHOES.lnk') $PYW "`"$main`"" $APP_DIR $ico 'ECHOES — музыкальный плеер'
     Ok 'ярлык на рабочем столе'
-} catch { Warn "ярлык на рабочем столе не создан: $($_.Exception.Message)" }
-try {
+} catch { Warn "ярлык на рабочем столе не создан: $($_.Exception.Message)" } }
+if ($Autostart) { try {
+    New-Shortcut (Join-Path ([Environment]::GetFolderPath('Startup')) 'ECHOES.lnk') $PYW "`"$main`"" $APP_DIR $ico 'ECHOES — музыкальный плеер'
+    Ok 'запуск вместе с Windows'
+} catch { Warn "автозапуск не настроен: $($_.Exception.Message)" } }
+if (-not $NoStartMenu) { try {
     $menu = Join-Path ([Environment]::GetFolderPath('Programs')) 'ECHOES'
     New-Item -ItemType Directory -Path $menu -Force | Out-Null
     New-Shortcut (Join-Path $menu 'ECHOES.lnk') $PYW "`"$main`"" $APP_DIR $ico 'ECHOES — музыкальный плеер'
     New-Shortcut (Join-Path $menu 'Удалить ECHOES.lnk') $psExe $uninstArgs $InstallDir $ico 'Удалить ECHOES'
     Ok 'меню «Пуск»'
-} catch { Warn "ярлык в меню «Пуск» не создан: $($_.Exception.Message)" }
+} catch { Warn "ярлык в меню «Пуск» не создан: $($_.Exception.Message)" } }
 try {
     $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\ECHOES'
     New-Item -Path $key -Force | Out-Null
@@ -472,7 +482,7 @@ Write-Host 'ECHOES' -NoNewline -ForegroundColor Yellow
 Write-Host ' на рабочем столе или в меню «Пуск».' -ForegroundColor Gray
 Write-Host '   Папку ECHOES_Setup теперь можно удалить.' -ForegroundColor DarkGray
 Write-Host ''
-$go = Read-Host '   Запустить ECHOES сейчас? [Enter — да / n — нет]'
+$go = if ($NoLaunch) { 'n' } elseif ($Auto) { '' } else { Read-Host '   Запустить ECHOES сейчас? [Enter — да / n — нет]' }
 if ($go -notmatch '^(n|н|no|нет)$') {
     Start-Process -FilePath $PYW -ArgumentList "`"$main`"" -WorkingDirectory $APP_DIR
 }

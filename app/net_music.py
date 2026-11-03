@@ -19,6 +19,7 @@ Echoes.NET: всё музыкальное в постах и чатах (вид�
 """
 from __future__ import annotations
 
+import data_home
 import difflib
 import hashlib
 import json
@@ -33,7 +34,7 @@ from PyQt6.QtWidgets import QWidget, QFrame, QVBoxLayout, QHBoxLayout, QLabel, Q
 
 from yamusic_theme import YELLOW, MUTED, ya_font, ya_icon, icon_button, cover_pixmap, sanitize_title
 
-STATS_FILE = Path.home() / ".neon_player" / "stats.json"
+STATS_FILE = data_home.root() / "stats.json"
 
 
 # ══════════════════════════════════════════════════════════════════════════ #

@@ -12,6 +12,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import hashlib
 import json
 import threading
@@ -22,7 +23,7 @@ import numpy as np
 SR = 11025
 HOP = 128
 WIN = 60.0                    # анализируем первую и последнюю минуту
-CACHE = Path.home() / ".neon_player" / "dj_cache"
+CACHE = data_home.root() / "dj_cache"
 _MEM: dict = {}
 _LOCK = threading.Lock()
 

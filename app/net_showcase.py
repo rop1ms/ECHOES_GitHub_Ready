@@ -148,6 +148,13 @@ def clean_deco(d) -> dict | None:
     aura = [c for c in aura if c]
     if aura:
         out["aura"] = aura
+    import net_nick, net_miniprof                             # стиль ника и мини-профиль (баннер, местоимения)
+    nk = net_nick.clean(d.get("nick"))
+    if nk:
+        out["nick"] = nk
+    mp = net_miniprof.clean(d.get("mp"))
+    if mp:
+        out["mp"] = mp
     s = json.dumps(out, ensure_ascii=False)
     while len(s) > LIMIT * 1.1 and out.get("sc", {}).get("items"):  # великоватое — без картинок по одной
         its = out["sc"]["items"]
@@ -177,6 +184,9 @@ def for_public(deco, limit=None) -> dict:
         if (d.get("hdr") or {}).get("img"):
             out.append((d["hdr"], "img"))
         return out
+    if (d.get("mp") or {}).get("banner"):                     # баннер мини-профиля — ужатым (GIF → кадр)
+        import net_miniprof
+        d["mp"] = net_miniprof.shrink_for_public(d["mp"], PUBLIC_LIMIT // 3)
     for _ in range(8):
         if size_of(d) <= PUBLIC_LIMIT:
             return d
@@ -523,8 +533,9 @@ def paint_item(p: QPainter, it: dict, R: QRectF, ctx: Ctx):
         p.setPen(QPen(QColor(255, 219, 26, 160) if have else QColor(255, 255, 255, 40), 1.2))
         p.drawPath(path)
         s = r.height() * 0.62
-        paint_sticker(p, "star", QRectF(r.x() + r.height() * 0.2, r.center().y() - s / 2, s, s),
-                      QColor("#ffdb1a") if have else QColor("#555"))
+        from ach_icons import paint_ach
+        paint_ach(p, it.get("k", ""), QRectF(r.x() + r.height() * 0.2, r.center().y() - s / 2, s, s),
+                  QColor("#ffdb1a") if have else QColor("#555"))
         f = QFont()
         f.setPixelSize(max(7, int(r.height() * 0.34)))
         f.setWeight(QFont.Weight.Black)

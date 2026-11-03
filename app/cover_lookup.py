@@ -5,6 +5,7 @@ want(meta, cb) — cb(path) позовётся в потоке интерфей�
 """
 from __future__ import annotations
 
+import data_home
 import json
 import re
 import threading
@@ -13,7 +14,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
-_CACHE_F = Path.home() / ".neon_player" / "net_cache" / "track_covers.json"
+_CACHE_F = data_home.root() / "net_cache" / "track_covers.json"
 _LOCK = threading.Lock()
 _MEM: dict | None = None
 _WAIT: dict = {}                                               # ключ → [cb]

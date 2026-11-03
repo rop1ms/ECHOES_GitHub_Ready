@@ -1823,7 +1823,7 @@ EXACT = {'отменено': 'cancelled',
  'Ошибка обложки': 'Cover error',
  'Не удалось записать обложку в тег файла.': "Couldn't write the cover into the file tag.",
  'Не удалось записать тег. Попробуйте «Сохранить в .lrc».': "Couldn't write the tag. Try “Save to .lrc”.",
- 'Для каждого играющего трека плеер в фоне найдёт и скачает официальный клип\n(YouTube), чтобы режим «Клип» открывался сразу. Выключено — клип скачивается\nкнопкой «Скачать клип» в самом режиме. Клипы лежат в ~/.neon_player/clips.': 'For '
+ 'Для каждого играющего трека плеер в фоне найдёт и скачает официальный клип\n(YouTube), чтобы режим «Клип» открывался сразу. Выключено — клип скачивается\nкнопкой «Скачать клип» в самом режиме. Клипы лежат в ~/Echoes/clips.': 'For '
                                                                                                                                                                                                                                          'every '
                                                                                                                                                                                                                                          'playing '
                                                                                                                                                                                                                                          'track '
@@ -1864,7 +1864,7 @@ EXACT = {'отменено': 'cancelled',
                                                                                                                                                                                                                                          'are '
                                                                                                                                                                                                                                          'stored '
                                                                                                                                                                                                                                          'in '
-                                                                                                                                                                                                                                         '~/.neon_player/clips.',
+                                                                                                                                                                                                                                         '~/Echoes/clips.',
  'Пустой плейлист, из файла друга или из Spotify': "Empty playlist, from a friend's file or from Spotify",
  'Клип': 'Video',
  'Официальный клип песни: смотреть, скачать, эффекты (Ctrl+Shift+K)': "The song's official video: watch, download, effects "
@@ -3427,7 +3427,7 @@ TEMPLATES.update({
 })
 
 # клипы онлайн
-EXACT.update({'Клипы онлайн, без скачивания': 'Clips online, without downloading', 'Находить официальные клипы сами': 'Find official clips automatically', 'Найти клип': 'Find clip', 'Клип ещё не найден': 'Clip not found yet', 'Сохранить клип на компьютер': 'Save clip to this computer', 'Подключаю клип…': 'Connecting clip…', 'Клип сейчас недоступен — попробуйте «Другой клип»': 'The clip is unavailable now — try “Other clip”', 'Клип играет прямо из YouTube — видео на компьютер не скачивается. Скачать\nконкретный клип: в режиме «Клип» → «Другой клип» → «Сохранить клип на компьютер».': 'The clip plays straight from YouTube — the video is not downloaded. To download\na clip: Clip mode → “Other clip” → “Save clip to this computer”.', 'Для каждого играющего трека плеер в фоне найдёт официальный клип (YouTube) и\nподгонит его по звуку, чтобы режим «Клип» открывался сразу. С «клипами онлайн»\nничего не скачивается; без них клип скачивается в ~/.neon_player/clips.': 'For every playing track the player finds the official clip (YouTube) in the background and\nsyncs it by sound so Clip mode opens instantly. With “clips online” nothing is downloaded;\nwithout it the clip is downloaded to ~/.neon_player/clips.', 'Скачиваю клип…': 'Downloading clip…'})
+EXACT.update({'Клипы онлайн, без скачивания': 'Clips online, without downloading', 'Находить официальные клипы сами': 'Find official clips automatically', 'Найти клип': 'Find clip', 'Клип ещё не найден': 'Clip not found yet', 'Сохранить клип на компьютер': 'Save clip to this computer', 'Подключаю клип…': 'Connecting clip…', 'Клип сейчас недоступен — попробуйте «Другой клип»': 'The clip is unavailable now — try “Other clip”', 'Клип играет прямо из YouTube — видео на компьютер не скачивается. Скачать\nконкретный клип: в режиме «Клип» → «Другой клип» → «Сохранить клип на компьютер».': 'The clip plays straight from YouTube — the video is not downloaded. To download\na clip: Clip mode → “Other clip” → “Save clip to this computer”.', 'Для каждого играющего трека плеер в фоне найдёт официальный клип (YouTube) и\nподгонит его по звуку, чтобы режим «Клип» открывался сразу. С «клипами онлайн»\nничего не скачивается; без них клип скачивается в ~/Echoes/clips.': 'For every playing track the player finds the official clip (YouTube) in the background and\nsyncs it by sound so Clip mode opens instantly. With “clips online” nothing is downloaded;\nwithout it the clip is downloaded to ~/Echoes/clips.', 'Скачиваю клип…': 'Downloading clip…'})
 TEMPLATES.update({'{0}  ·  онлайн': '{0}  ·  online', 'Клип: {0}': 'Clip: {0}'})
 
 # Скачать альбом, теги трека из интернета
@@ -3516,3 +3516,24 @@ EXACT.update({
 })
 TEMPLATES.update({'Панели и карточки: {0} px': 'Panels and cards: {0} px',
                   'Скругление кнопок: {0} px': 'Button corners: {0} px'})
+
+EXACT.update({                                   # v30: ник, мини-профиль, коллекция, режим геймера
+    '  Перемешать': '  Shuffle',
+    'Найти пропавшие треки': 'Find missing tracks',
+    'Сменить тему': 'Change theme',
+    'Стиль ника…': 'Name style…',
+    'Мини-профиль (баннер, местоимения, ачивки)…': 'Mini profile (banner, pronouns, achievements)…',
+    'Стиль ника': 'Name style',
+    'Выбор шрифта': 'Font',
+    'Выбор эффекта': 'Effect',
+    'Выбор цвета': 'Color',
+    'Минималистичный': 'Minimal', 'Градиент': 'Gradient', 'Неон': 'Neon', 'Мультфильм': 'Toon',
+    'Выделение': 'Pop', 'Гамми': 'Gummy', 'Призма': 'Prism',
+    'Основной': 'Main', 'Второй': 'Second', 'Сбросить': 'Reset', 'Сохранить': 'Save', 'Отмена': 'Cancel',
+    'Мини-профиль': 'Mini profile', 'Баннер': 'Banner', 'Местоимения': 'Pronouns', 'О себе': 'About me',
+    'Ачивки на карточке': 'Achievements on the card', 'Как увидят другие': 'How others see it',
+    'Выбрать файл…': 'Choose file…', 'Убрать картинку': 'Remove picture', 'Цвет 1': 'Color 1', 'Цвет 2': 'Color 2',
+    'Изменить стиль ника…': 'Change name style…', 'Открыть профиль': 'Open profile', 'АЧИВКИ': 'ACHIEVEMENTS',
+    '  Включить режим геймера': '  Turn gamer mode on',
+    '  Режим геймера включён — выключить': '  Gamer mode is on — turn off',
+})

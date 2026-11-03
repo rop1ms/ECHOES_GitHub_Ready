@@ -12,12 +12,13 @@
   • Last.fm         — слушатели, прослушивания, био, теги (если в настройках
                       указан ключ — тот же, что для «Настроения дня»).
 
-Всё кэшируется в ~/.neon_player/net_cache (данные — на 3 дня, картинки —
+Всё кэшируется в ~/Echoes/net_cache (данные — на 3 дня, картинки —
 навсегда), так что повторное открытие мгновенное и работает офлайн.
 Модуль без Qt: fetch_artist() вызывается из фонового потока.
 """
 from __future__ import annotations
 
+import data_home
 import hashlib
 import html
 import json
@@ -41,7 +42,7 @@ except Exception:                                  # noqa: BLE001
     def similarity(a, b):
         return SequenceMatcher(None, norm(a), norm(b)).ratio()
 
-CACHE = Path.home() / ".neon_player" / "net_cache"
+CACHE = data_home.root() / "net_cache"
 IMG_DIR = CACHE / "img"
 ART_DIR = CACHE / "artists"
 TTL = 3 * 86400

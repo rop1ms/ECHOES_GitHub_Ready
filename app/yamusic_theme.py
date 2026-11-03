@@ -22,6 +22,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import math
 import random
 import time
@@ -92,7 +93,7 @@ def ya_theme_dict() -> dict:
 
 def _ui_assets() -> dict:
     """PNG для QSS: тумблер (выкл/вкл) вместо квадратной галочки и стрелка выпадающего списка."""
-    d = Path.home() / ".neon_player" / "ui_cache"
+    d = data_home.root() / "ui_cache"
     out = {k: d / f"{k}.png" for k in ("sw_off", "sw_on", "arrow")}
     if all(p.exists() for p in out.values()) and (d / "v2").exists():
         return {k: p.as_posix() for k, p in out.items()}
@@ -307,13 +308,40 @@ def _draw_icon(p: QPainter, name: str, col: QColor):
         for y in (9,13,17):
             p.drawLine(QPointF(3,y-1),QPointF(7,y))
             p.drawLine(QPointF(17,y),QPointF(21,y-1))
-    elif name == "wave":
-        c = QPointF(12, 12)
-        for i in range(12):
-            a = i * math.pi / 6
-            r1, r2 = (3.0, 9.5) if i % 2 == 0 else (3.0, 6.5)
-            p.drawLine(QPointF(c.x() + math.cos(a) * r1, c.y() + math.sin(a) * r1),
-                       QPointF(c.x() + math.cos(a) * r2, c.y() + math.sin(a) * r2))
+    elif name == "wave":                     # «Моя волна»: светящееся ядро и волна, что расходится от него
+        path = QPainterPath()
+        for i in range(41):
+            x = 2 + i * 0.5
+            d = (x - 12) / 6.5
+            y = 12 - math.sin((x - 12) * 0.95) * 5.2 * math.exp(-d * d)
+            path.moveTo(x, y) if i == 0 else path.lineTo(x, y)
+        p.drawPath(path)
+        p.setPen(QPen(col, 1.4, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        p.drawArc(QRectF(3.5, 3.5, 17, 17), 30 * 16, 60 * 16)
+        p.drawArc(QRectF(3.5, 3.5, 17, 17), 210 * 16, 60 * 16)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(col)
+        p.drawEllipse(QPointF(12, 12), 2.3, 2.3)
+    elif name == "ai_sync":                  # ИИ-синхронизация: строки текста с отметками времени и искра
+        pen = p.pen()
+        for y, w in ((7.0, 9.0), (12.0, 12.0), (17.0, 7.0)):
+            p.drawLine(QPointF(8, y), QPointF(8 + w, y))
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(col)
+            p.drawEllipse(QPointF(4, y), 1.5, 1.5)
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.setPen(pen)
+        star = QPainterPath()
+        cx, cy, r = 19.5, 5.0, 4.2
+        for i in range(8):
+            a = math.radians(-90 + i * 45)
+            rr = r if i % 2 == 0 else r * 0.3
+            pt = QPointF(cx + math.cos(a) * rr, cy + math.sin(a) * rr)
+            star.moveTo(pt) if i == 0 else star.lineTo(pt)
+        star.closeSubpath()
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(col)
+        p.drawPath(star)
     elif name == "note":
         p.drawLine(QPointF(9, 17), QPointF(9, 5))
         p.drawLine(QPointF(9, 5), QPointF(19, 3.5))
@@ -2385,6 +2413,61 @@ class CardGrid(QScrollArea):
         self._relayout()
 
 
+_LIKED_PM: dict = {}
+
+
+def liked_cover(size: int, radius: float = 9) -> QPixmap:
+    """Обложка «Мне нравится»: глянцевое заполненное сердце с бликом на тёплом градиенте — сразу видно, что это
+    любимое, и не похоже на контурное сердце коллекции."""
+    key = (size, radius, YELLOW)
+    pm = _LIKED_PM.get(key)
+    if pm is not None:
+        return pm
+    dpr = 2.0
+    pm = QPixmap(int(size * dpr), int(size * dpr))
+    pm.setDevicePixelRatio(dpr)
+    pm.fill(Qt.GlobalColor.transparent)
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    r = QRectF(0, 0, size, size)
+    clip = QPainterPath()
+    clip.addRoundedRect(r, radius, radius)
+    p.setClipPath(clip)
+    g = QLinearGradient(0, 0, size, size)
+    g.setColorAt(0, QColor("#ff5fa2"))
+    g.setColorAt(0.55, QColor("#c13cff"))
+    g.setColorAt(1, QColor("#5b3cff"))
+    p.fillRect(r, g)
+    glow = QRadialGradient(QPointF(size * 0.3, size * 0.22), size * 0.7)
+    glow.setColorAt(0, QColor(255, 255, 255, 90))
+    glow.setColorAt(1, QColor(255, 255, 255, 0))
+    p.fillRect(r, glow)
+    s = size * 0.56
+    x0, y0 = (size - s) / 2, size * 0.25
+    heart = QPainterPath()
+    heart.moveTo(x0 + s / 2, y0 + s * 0.95)
+    heart.cubicTo(x0 - s * 0.15, y0 + s * 0.45, x0 + s * 0.05, y0 - s * 0.12, x0 + s / 2, y0 + s * 0.22)
+    heart.cubicTo(x0 + s * 0.95, y0 - s * 0.12, x0 + s * 1.15, y0 + s * 0.45, x0 + s / 2, y0 + s * 0.95)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QColor(0, 0, 0, 60))
+    p.drawPath(heart.translated(0, size * 0.03))
+    p.setBrush(QColor("#ffffff"))
+    p.drawPath(heart)
+    p.setBrush(QColor(255, 255, 255, 110))                    # искорка
+    c = QPointF(size * 0.8, size * 0.24)
+    star = QPainterPath()
+    for i, k in enumerate((1, 0.3, 1, 0.3, 1, 0.3, 1, 0.3)):
+        import math as _m
+        a = _m.pi / 4 * i
+        pt = QPointF(c.x() + _m.cos(a) * size * 0.09 * k, c.y() + _m.sin(a) * size * 0.09 * k)
+        star.moveTo(pt) if i == 0 else star.lineTo(pt)
+    star.closeSubpath()
+    p.drawPath(star)
+    p.end()
+    _LIKED_PM[key] = pm
+    return pm
+
+
 class PlaylistStrip(QWidget):
     """Плитки плейлистов в верхней панели: частые — первыми; сколько влезает по ширине, остальное — «⋯»."""
 
@@ -2430,7 +2513,8 @@ class PlaylistStrip(QWidget):
             b = QPushButton(self)
             b.setObjectName("YaPlTile")
             b.setFixedSize(self.TILE, self.TILE)
-            b.setIcon(QIcon(cover_pixmap(cov, self.TILE - 2, 9, seed=n)))
+            b.setIcon(QIcon(liked_cover(self.TILE - 2, 9) if n == LIKED and not pl.get("cover")
+                            else cover_pixmap(cov, self.TILE - 2, 9, seed=n)))
             b.setIconSize(QSize(self.TILE - 2, self.TILE - 2))
             b.setToolTip(f"{n} · {len(tr)} {_plural(len(tr), 'трек', 'трека', 'треков')}")
             b.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -2502,7 +2586,8 @@ class PlaylistPopup(QFrame):
             cov = pl.get("cover") or (tr[0].get("cover", "") if tr else "")
             sub = f"{len(tr)} {_plural(len(tr), 'трек', 'трека', 'треков')}" + \
                 (" · часто слушаете" if int(usage.get(n, 0)) >= 5 else "")
-            it = QListWidgetItem(QIcon(cover_pixmap(cov, 40, 7, seed=n)), f"{n}\n{sub}")
+            it = QListWidgetItem(QIcon(liked_cover(40, 7) if n == LIKED and not pl.get("cover")
+                                       else cover_pixmap(cov, 40, 7, seed=n)), f"{n}\n{sub}")
             it.setData(Qt.ItemDataRole.UserRole, n)
             self.lst.addItem(it)
         self.q.textChanged.connect(self._filter)
@@ -2761,6 +2846,11 @@ class YaShell(QWidget):
     def _badge_on(self, btn):
         """Счётчик непрочитанного Echoes.NET — в правый край кнопки."""
         bl = QHBoxLayout(btn)
+        if btn.width() <= 60:                                  # круглая кнопка в шапке — значок в правый верхний угол
+            bl.setContentsMargins(0, 0, 0, 0)
+            bl.addStretch(1)
+            bl.addWidget(self.net_badge, 0, Qt.AlignmentFlag.AlignTop)
+            return
         bl.setContentsMargins(0, 0, 8, 0)
         bl.addStretch(1)
         bl.addWidget(self.net_badge)
@@ -2795,7 +2885,8 @@ class YaShell(QWidget):
         srch.setIconSize(QSize(20, 20))
         th.addWidget(srch)
         from duel_settings import tr as _duel_tr
-        # режим геймера — на виду: кнопкой или сам, когда запущена игра (game_mode.py)
+        # режим геймера — кнопкой в Настройках → Производительность (performance_ui) или сам, когда запущена игра;
+        # здесь кнопка остаётся вне окна, чтобы подсказки и состояние режима работали как раньше
         self.gamer_btn = QPushButton()
         self.gamer_btn.setObjectName("YaTopRound")
         self.gamer_btn.setCheckable(True)
@@ -2806,11 +2897,17 @@ class YaShell(QWidget):
         self.gamer_btn.setToolTip(_duel_tr(win, "Режим геймера: ECHOES только играет музыку и не мешает игре",
                                            "Gamer mode: ECHOES only plays music and stays out of the game's way"))
         self.gamer_btn.clicked.connect(self._gamer_clicked)
-        th.addWidget(self.gamer_btn)
         QTimer.singleShot(1200, self._gamer_setup)
-        bug=icon_button('bug',_duel_tr(win,'Сообщить об ошибке','Report a bug'),38,18)
-        bug.clicked.connect(lambda:self.pages['net'].open_bug_report())
-        th.addWidget(bug)
+        # Echoes.NET — круглой кнопкой там, где был геймпад; жучок «сообщить об ошибке» — только внутри Echoes.NET
+        net = self._nav_btns["net"]
+        net.setObjectName("YaTopRound")
+        net.setText("")
+        net.setFixedSize(44, 44)
+        net.setIcon(ya_icon("net", 22))
+        net.setIconSize(QSize(22, 22))
+        net.setToolTip("Echoes.NET — друзья, сообщения, звонки, лента")
+        self._badge_on(net)
+        th.addWidget(net)
         th.addSpacing(10)
         prof = QWidget(); prof.setObjectName("YaSide")
         prof.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -2864,37 +2961,8 @@ class YaShell(QWidget):
             mid.addWidget(self.content, 1)
             mid.addWidget(side)
         root.addLayout(mid, 1)
-        # ── низ: тема · плеер · Echoes.NET ──
-        bottom = QHBoxLayout()
-        bottom.setSpacing(10)
-        tb_box = AmbientFrame(); tb_box.setObjectName("YaCornerBox")
-        tb_box.setFixedSize(84, 84)
-        tbl = QVBoxLayout(tb_box); tbl.setContentsMargins(0, 0, 0, 0)
-        tb = QPushButton(tb_box)
-        tb.setObjectName("YaCornerBtn")
-        tb.setFixedSize(84, 84)
-        tbl.addWidget(tb)
-        tb.setIcon(ya_icon("palette", 26, "#e6e6e6"))
-        tb.setIconSize(QSize(26, 26))
-        tb.setToolTip("Сменить тему")
-        tb.setCursor(Qt.CursorShape.PointingHandCursor)
-        tb.clicked.connect(lambda: win._winamp_theme_menu(tb.mapToGlobal(tb.rect().topLeft())))
-        bottom.addWidget(tb_box)
-        bottom.addWidget(self._build_player(), 1)
-        net = self._nav_btns["net"]
-        net_box = AmbientFrame(); net_box.setObjectName("YaCornerBox")
-        net_box.setFixedSize(108, 84)
-        nbl = QVBoxLayout(net_box); nbl.setContentsMargins(0, 0, 0, 0)
-        nbl.addWidget(net)
-        net.setObjectName("YaNetCorner")
-        net.setText("")
-        net.setFixedSize(108, 84)
-        net.setIcon(QIcon())
-        net.setToolTip("Echoes.NET — друзья, сообщения, звонки, лента")
-        NetCornerArt(net)
-        self._badge_on(net)
-        bottom.addWidget(net_box)
-        root.addLayout(bottom)
+        # ── низ: одна панель плеера (смена темы — её первой кнопкой) ──
+        root.addWidget(self._build_player())
 
     def _pl_usage_bump(self, name, k=1):
         """Сколько слушали плейлист — по нему порядок плиток сверху."""
@@ -2907,7 +2975,8 @@ class YaShell(QWidget):
         u = w.settings.get("pl_usage") or {}
         names = [n for n in w.playlists.keys() if n not in (WAVE_PL, ALBUM_PL)]
         order = {n: i for i, n in enumerate(names)}
-        return sorted(names, key=lambda n: (-int(u.get(n, 0)) - (1 if n == LIKED else 0), order[n]))
+        # «Мне нравится» — всегда первой, сразу после коллекции; остальные — по тому, как часто их слушают
+        return sorted(names, key=lambda n: (n != LIKED, -int(u.get(n, 0)), order[n]))
 
     # ── данные / помощники ─────────────────────────────────────────────── #
 
@@ -3473,6 +3542,10 @@ class YaShell(QWidget):
         h = QHBoxLayout()
         h.setContentsMargins(12, 0, 14, 0)
         h.setSpacing(6)
+        tb = icon_button("palette", "Сменить тему", 40, 20, "#e6e6e6")   # бывший отдельный уголок слева
+        tb.clicked.connect(lambda: w._winamp_theme_menu(tb.mapToGlobal(tb.rect().topLeft())))
+        h.addWidget(tb)
+        h.addSpacing(4)
         # слева: обложка + название
         from ya_decor import VinylCover, PlayButton, MiniLyric
         self.p_cover = VinylCover(52, 6)                       # из-за обложки выглядывает пластинка
@@ -4384,20 +4457,20 @@ class YaShell(QWidget):
 
         def genre_item(f):
             core, halo, ray = palette_for("genre", f)
-            icon = "m" if f in ("metal", "metalcore", "rock", "punk") else "bolt"
+            icon = f"genre:{f}" if f in __import__("ya_wave")._GENRE_SHAPE else "bolt"   # свой значок у жанра
             return {"kind": "genre", "arg": f, "label": GENRE_RU.get(f, f).capitalize(),
                     "icon": icon, "c1": ray, "c2": halo}
 
         def mood_item(key, name):
             core, halo, ray = palette_for("mood", key)
-            return {"kind": "mood", "arg": key, "label": name, "icon": "blob", "c1": ray, "c2": halo}
+            return {"kind": "mood", "arg": key, "label": name, "icon": f"mood:{key}", "c1": ray, "c2": halo}
 
         for f in genres[:3]:
             items.append(genre_item(f))
         names = {m[0]: m[1] for m in MOODS}
         items.append(mood_item("energy", names["energy"]))
         core, halo, ray = palette_for("mood_day")
-        items.append({"kind": "mood_day", "arg": None, "label": "Настроение дня", "icon": "blob",
+        items.append({"kind": "mood_day", "arg": None, "label": "Настроение дня", "icon": "mood:mood_day",
                       "c1": ray, "c2": halo})
         back_index = len(items)
         items.append({"kind": "my", "arg": None, "label": "Назад к привычному", "icon": "back",
@@ -4423,11 +4496,11 @@ class YaShell(QWidget):
         items.append(mood_item("happy", names["happy"]))
         items.append(mood_item("sad", names["sad"]))
         core, halo, ray = palette_for("fresh")
-        items.append({"kind": "fresh", "arg": None, "label": "Незнакомое", "icon": "blob", "c1": ray, "c2": halo})
+        items.append({"kind": "fresh", "arg": None, "label": "Незнакомое", "icon": "mood:fresh", "c1": ray, "c2": halo})
         for a in top_arts[2:]:
             items.append(artist_item(a))
         core, halo, ray = palette_for("fav")
-        items.append({"kind": "fav", "arg": None, "label": "Любимое", "icon": "blob", "c1": ray, "c2": halo})
+        items.append({"kind": "fav", "arg": None, "label": "Любимое", "icon": "mood:fav", "c1": ray, "c2": halo})
         for f in genres[5:]:
             items.append(genre_item(f))
         self.wave.wheel.set_items(items)
@@ -4787,6 +4860,14 @@ class YaShell(QWidget):
         top = QHBoxLayout()
         self.c_title = QLabel("Коллекция"); self.c_title.setObjectName("YaH1")
         top.addWidget(self.c_title)
+        top.addSpacing(10)
+        self.c_shuffle = QPushButton("  Перемешать")              # слушать всю коллекцию (с фильтром) вперемешку
+        self.c_shuffle.setObjectName("AccentBtn")
+        self.c_shuffle.setIcon(ya_icon("shuffle", 18, "#000000"))
+        self.c_shuffle.setMinimumHeight(38)
+        self.c_shuffle.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.c_shuffle.clicked.connect(self._coll_shuffle)
+        top.addWidget(self.c_shuffle)
         top.addStretch(1)
         self.c_search = QLineEdit()
         self.c_search.setPlaceholderText("Поиск в коллекции")
@@ -5459,6 +5540,15 @@ class YaShell(QWidget):
         self.pages["artist"].load(artist, tracks)
         self.show_page("artist", remember=False)
 
+    def _coll_shuffle(self):
+        rows = getattr(self.c_list.model_, "rows", None) or []
+        if not rows:
+            self.win._toast("В коллекции пока нет треков")
+            return
+        if not self.win.shuffle:
+            self.win.btn_shuffle.click()
+        self.play_row(random.choice(rows))
+
     def _pp_play(self, shuffle):
         rows = self.pp_list.model_.rows
         if not rows:
@@ -5532,7 +5622,8 @@ class YaShell(QWidget):
             pl = w.playlists[n]
             tr = pl.get("tracks", [])
             cov = pl.get("cover") or (tr[0].get("cover", "") if tr else "")
-            it = QListWidgetItem(QIcon(cover_pixmap(cov, 36, 6, seed=n)), f"{n}\nПлейлист · {len(tr)}")
+            it = QListWidgetItem(QIcon(liked_cover(36, 6) if n == LIKED and not pl.get("cover")
+                                       else cover_pixmap(cov, 36, 6, seed=n)), f"{n}\nПлейлист · {len(tr)}")
             it.setData(Qt.ItemDataRole.UserRole, n)
             lst.addItem(it)
         nick = w.profile.get("nickname", "user")
@@ -5603,7 +5694,7 @@ class YaShell(QWidget):
         top = QHBoxLayout()
         self.l_ai = QPushButton("  Синхронизировать с ИИ")
         self.l_ai.setObjectName("YaChip")
-        self.l_ai.setIcon(ya_icon("wave", 16, YELLOW))
+        self.l_ai.setIcon(ya_icon("ai_sync", 16, YELLOW))
         self.l_ai.setIconSize(QSize(16, 16))
         self.l_ai.setFixedHeight(34)
         self.l_ai.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -5882,7 +5973,8 @@ class YaShell(QWidget):
                                               ("Куда класть файлы тем/плейлистов",
                                                lambda: getattr(self.win, "files_help", lambda: None)(), "settings"),
                                               ("Найти теги для всей музыки", lambda: self.win.tag_all_library(), "search"),
-                                              ("Очистка медиатеки и кэша", lambda: self.win.open_cleanup(0), "settings"))),
+                                              ("Очистка медиатеки и кэша", lambda: self.win.open_cleanup(0), "settings"),
+                                              ("Найти пропавшие треки", lambda: self.win.find_lost_tracks(), "search"))),
             "tools": ("Ещё инструменты", (("Инструменты слушателя", lambda: self.win._listening_tools.open(), "settings"),
                                           ("Команды", lambda: self.win._listening_tools.palette(), "search"),
                                           ("Конструктор стримера",
@@ -6076,7 +6168,7 @@ class YaShell(QWidget):
                 return
             try:                                               # копия рядом с настройками — не потеряется
                 import shutil
-                dst = Path.home() / ".neon_player" / ("placeholder" + Path(fn).suffix.lower())
+                dst = data_home.root() / ("placeholder" + Path(fn).suffix.lower())
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(fn, dst)
                 fn = str(dst)

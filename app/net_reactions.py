@@ -7,18 +7,19 @@
 внутри подписанной реакции (поле img, base64), так что друзья и все, кому разошлась ветка, видят её
 без отдельной загрузки. Получатель проверяет, что хэш сходится, — подменить картинку нельзя.
 
-Файлы: ~/.neon_player/net/reactions/mine/<id>.png (свои; mine.json — порядок и названия)
-       ~/.neon_player/net/reactions/<id>.png       (увиденные у других)
+Файлы: ~/Echoes/net/reactions/mine/<id>.png (свои; mine.json — порядок и названия)
+       ~/Echoes/net/reactions/<id>.png       (увиденные у других)
 """
 from __future__ import annotations
 
+import data_home
 import base64
 import hashlib
 import json
 import re
 from pathlib import Path
 
-DIR = Path.home() / ".neon_player" / "net" / "reactions"
+DIR = data_home.root() / "net" / "reactions"
 MINE = DIR / "mine"
 INDEX = MINE / "mine.json"
 SIZE = 64

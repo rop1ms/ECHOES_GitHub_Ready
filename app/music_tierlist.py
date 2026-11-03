@@ -1,6 +1,7 @@
 """Personal music tier board, with virtualized track views and the existing ECHOES player."""
 from __future__ import annotations
 
+import data_home
 import json
 import math
 from pathlib import Path
@@ -346,7 +347,7 @@ class MusicTierPage(QWidget):
         import yamusic_theme as Y
         self.shell, self.win = shell, shell.win
         self.setObjectName("YaPage")
-        self.store = TierStore(getattr(self.win, "tierlist_path", Path.home() / ".neon_player/music_tierlist.json"))
+        self.store = TierStore(getattr(self.win, "tierlist_path", data_home.root() / "music_tierlist.json"))
         self.selected = ""
         self.tracks, self.by_key = [], {}
         self.undo_stack, self.redo_stack = [], []

@@ -83,9 +83,9 @@ def medal(kind: str, size: int, have: bool) -> QPixmap:
     p.setPen(Qt.PenStyle.NoPen)
     p.setBrush(g)
     p.drawEllipse(c, size * 0.4, size * 0.4)
-    from net_showcase import paint_sticker
-    s = size * 0.42
-    paint_sticker(p, "star", QRectF(c.x() - s / 2, c.y() - s / 2, s, s), QColor("#ffdb1a") if have else QColor("#55555c"))
+    from ach_icons import paint_ach                           # у каждой ачивки — свой значок
+    s = size * 0.44
+    paint_ach(p, kind, QRectF(c.x() - s / 2, c.y() - s / 2, s, s), QColor("#ffdb1a") if have else QColor("#55555c"))
     if not have:
         p.setOpacity(0.35)
     fr = net_frames.frame_pixmap({"id": "ach:" + kind}, size)

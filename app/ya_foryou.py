@@ -8,18 +8,19 @@
   fetch_recs(t)   — похожие исполнители (Deezer related от ваших главных, без тех, что уже есть),
                     их лучшие треки, «ещё от ваших исполнителей» (чего нет в коллекции), новое в ваших жанрах.
 
-Всё сетевое — в фоне и с кэшем на диске (~/.neon_player/foryou_net.json): тренды обновляются раз в 6 часов,
+Всё сетевое — в фоне и с кэшем на диске (~/Echoes/foryou_net.json): тренды обновляются раз в 6 часов,
 рекомендации — раз в сутки или когда меняются ваши главные исполнители.
 """
 from __future__ import annotations
 
+import data_home
 import json
 import math
 import re
 import time
 from pathlib import Path
 
-CACHE = Path.home() / ".neon_player" / "foryou_net.json"
+CACHE = data_home.root() / "foryou_net.json"
 UA = {"User-Agent": "ECHOES-player/1.0"}
 TRENDS_TTL = 6 * 3600
 RECS_TTL = 24 * 3600

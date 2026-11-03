@@ -17,6 +17,7 @@ corrupt bytes in ``backup_path``. A failed backup prevents subsequent writes.
 """
 from __future__ import annotations
 
+import data_home
 from collections.abc import Mapping
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -120,7 +121,7 @@ def _validated(snapshot: object) -> dict:
 
 class TierStore:
     def __init__(self, path: str | os.PathLike[str] | None = None):
-        self.path = Path(path).expanduser() if path is not None else Path.home() / ".neon_player" / "music_tierlist.json"
+        self.path = Path(path).expanduser() if path is not None else data_home.root() / "music_tierlist.json"
         self._lock = threading.RLock()
         self._state = {"format": FORMAT, "version": VERSION, "tiers": default_tiers(), "assignments": {}}
         self.load_error: str | None = None

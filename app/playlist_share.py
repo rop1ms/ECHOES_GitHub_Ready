@@ -14,11 +14,12 @@ ECHOES: треки, которые у него уже есть, просто п�
 Как открыть файл (тему .echoestheme или плейлист):
   * перетащить файл на окно плеера;
   * кнопка «＋ Новый плейлист» → «Из файла (от друга)…» (тема — конструктор → «Сохранить» → «Импорт…»);
-  * положить файл в папку «Импорт» (~/.neon_player/import) — плеер заберёт его сам при запуске
+  * положить файл в папку «Импорт» (~/Echoes/import) — плеер заберёт его сам при запуске
     и когда окно снова становится активным.
 """
 from __future__ import annotations
 
+import data_home
 import json
 import re
 import shutil
@@ -32,7 +33,7 @@ from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QLabel, QMessageBox, QPush
 PLAYLIST_EXT = ".echoesplaylist"
 THEME_EXT = ".echoestheme"
 LIST_EXTS = (PLAYLIST_EXT, ".m3u", ".m3u8", ".txt")
-INBOX = Path.home() / ".neon_player" / "import"
+INBOX = data_home.root() / "import"
 FORMAT = "echoes-playlist"
 FORMAT_ALL = "echoes-playlists"     # все плейлисты одним файлом — для ECHOES на телефоне
 
@@ -307,7 +308,7 @@ class FilesHelpDialog(QDialog):
         try:
             themes_dir = str(win.theme_store.root)
         except Exception:                                  # noqa: BLE001
-            themes_dir = str(Path.home() / ".neon_player" / "themes")
+            themes_dir = str(data_home.root() / "themes")
         INBOX.mkdir(parents=True, exist_ok=True)
         txt = (
             "<h3>Как открыть чужую тему или плейлист</h3>"

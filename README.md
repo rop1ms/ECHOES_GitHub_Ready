@@ -15,9 +15,9 @@ ECHOES brings a music library, endless recommendations, a peer-to-peer social ne
 2. Run **`Install ECHOES.bat`**. It installs a private Python runtime, libraries, VLC, FFmpeg, and shortcuts without administrator access.
 3. Launch ECHOES from the desktop or Start menu. A new profile follows your **system language**: Russian for a Russian system, English otherwise. Change it in Settings → Language; interface labels update immediately while music keeps playing.
 
-To update an existing installation, close ECHOES, including its tray icon, and run **`Update ECHOES.bat`** from the new download. The local launcher can also apply an unpacked update and retain the previous app version. Your library, playlists, and settings live separately from program files.
+The easiest way to install is **`ECHOES Launcher.exe`**: it downloads ECHOES from GitHub, lets you pick the install folder and options, and later launches and updates it. ECHOES itself also checks GitHub and shows an **Обновить** (Update) button in the window header when a new version is out. Your library, playlists, and settings live separately from program files, in `%USERPROFILE%\Echoes`.
 
-Russian installer entry points are included as `УСТАНОВИТЬ ECHOES.bat` and `ОБНОВИТЬ ECHOES.bat`. The first installation needs an internet connection. Online discovery, downloads, social connections, and optional AI models have their own network or dependency requirements; local playback does not need an online account.
+A Russian installer entry point is included as `УСТАНОВИТЬ ECHOES.bat`. The first installation needs an internet connection. Online discovery, downloads, social connections, and optional AI models have their own network or dependency requirements; local playback does not need an online account.
 
 ## Features
 

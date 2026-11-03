@@ -3,6 +3,7 @@
 импорт из тем, экспорт/импорт файлов, журнал и справка."""
 from __future__ import annotations
 
+import data_home
 import os
 import re
 
@@ -21,7 +22,7 @@ from dsl_lang import KEYWORDS, SOFT_KEYWORDS
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 BUILTIN_DIR = os.path.join(APP_DIR, "dsl_themes")
-USER_DIR = os.path.join(os.path.expanduser("~"), ".neon_player", "echoscript")
+USER_DIR = os.path.join(str(data_home.root()), "echoscript")
 
 TEMPLATE = """// Новая тема EchoScript. Справка — вкладка «Справка» справа сверху.
 theme { name: "%s", bg: "#0a0a12", accent: "#7c5cff", accent2: "#35e0c2", text: "#f2f2f7", muted: "#8b8ba3" }

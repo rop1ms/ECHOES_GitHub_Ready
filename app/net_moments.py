@@ -6,11 +6,12 @@
     (свои последние реакции переотправляются друзьям раз в 10 минут, повторы отбрасываются);
   * когда вы слушаете трек, на который друзья реагировали, в нужную секунду над плеером всплывает «кент 🔥»,
     а на полоске прогресса — метки этих моментов.
-Хранится в ~/.neon_player/net/moments.json: {трек: [{id, who, name, sec, emo, ts}]}.
+Хранится в ~/Echoes/net/moments.json: {трек: [{id, who, name, sec, emo, ts}]}.
 Сеть: mreact (только между друзьями).
 """
 from __future__ import annotations
 
+import data_home
 import json
 import math
 import secrets
@@ -22,7 +23,7 @@ from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath
 from PyQt6.QtWidgets import QWidget
 
 EMOJI = ("🔥", "❤️", "😮", "😂", "💀", "🎧")
-FILE = Path.home() / ".neon_player" / "net" / "moments.json"
+FILE = data_home.root() / "net" / "moments.json"
 _DATA = None
 
 

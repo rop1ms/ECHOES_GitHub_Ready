@@ -13,6 +13,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import hashlib
 import json
 import secrets
@@ -258,7 +259,7 @@ class DevSync(QObject):
             if nick:
                 self.win.profile.update(nickname=nick, status=status)
                 try:
-                    p = Path.home() / ".neon_player" / "profile.json"
+                    p = data_home.root() / "profile.json"
                     p.write_text(json.dumps(self.win.profile, ensure_ascii=False, indent=2), encoding="utf-8")
                 except OSError:
                     pass

@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import hashlib
 import io
 import json
@@ -35,7 +36,7 @@ CHUNK_NOSTR = 14000                               # в base64 + шифрован
 
 def home_dir(home=None) -> Path:
     """Папка обновлений (кэш хэшей, текущий манифест, скачанное). У узла сети — <net>/update."""
-    d = Path(home) if home else Path.home() / ".neon_player" / "net" / "update"
+    d = Path(home) if home else data_home.root() / "net" / "update"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

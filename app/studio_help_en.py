@@ -324,7 +324,7 @@ and scripts. You can send it to a friend.</li>
 <h2>How a friend opens your theme</h2>
 <ol>
 <li>The easiest — <b>drag the .echoestheme file onto the ECHOES window</b>: the theme is added and turned on right away.</li>
-<li>Or put the file into the <b>“Import”</b> folder — <code>C:\\Users\\&lt;name&gt;\\.neon_player\\import</code>.
+<li>Or put the file into the <b>“Import”</b> folder — <code>C:\\Users\\&lt;name&gt;\\Echoes\\import</code>.
 The player picks it up by itself at startup and when you return to the window.</li>
 <li>Or here: the “Save” page → <b>“Import…”</b>.</li>
 </ol>

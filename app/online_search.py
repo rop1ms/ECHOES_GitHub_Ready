@@ -17,6 +17,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import json
 import re
 import subprocess
@@ -28,14 +29,14 @@ from pathlib import Path
 
 import requests
 
-DATA = Path.home() / ".neon_player"
+DATA = data_home.root()
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                     "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"}
 SRC_NAMES = {"ytm": "YouTube Music", "yt": "YouTube", "sc": "SoundCloud"}
 
 
 def _log(*a):
-    """В консоль и в ~/.neon_player/online.log (у pythonw консоли нет)."""
+    """В консоль и в ~/Echoes/online.log (у pythonw консоли нет)."""
     msg = " ".join(str(x) for x in a)
     try:
         print("[online]", msg)
@@ -708,7 +709,7 @@ def album_tracks(artist: str, title: str) -> dict | None:
 #  с прослушиваниями, все песни. Кэш на диске — 3 дня (альбомы почти не меняются).
 # ══════════════════════════════════════════════════════════════════════════ #
 
-_DISCO_DIR = Path.home() / ".neon_player" / "net_cache" / "ytm"
+_DISCO_DIR = data_home.root() / "net_cache" / "ytm"
 _DISCO_TTL = 3 * 86400
 
 

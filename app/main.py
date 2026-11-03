@@ -1,4 +1,9 @@
 # main.py
+import data_home
+if __name__ == "__main__":                  # папка данных ~/.neon_player → ~/Echoes — до того, как что-то её откроет
+    _moved = data_home.migrate()
+    if _moved:
+        print("[data]", _moved)
 import sys
 try:                      # без мелькающих окон консоли у ffmpeg/yt-dlp/python-помощников (noflash.py)
     import noflash
@@ -40,7 +45,7 @@ sys.setswitchinterval(0.002)
 # C++-ядро эффектов (echoes_fx.dll, см. native_fx.py) можно выключить в настройках — модули
 # эффектов решают это при импорте, поэтому настройку читаем до них.
 try:
-    _st = json.loads((Path.home() / ".neon_player" / "settings.json").read_text(encoding="utf-8"))
+    _st = json.loads((data_home.root() / "settings.json").read_text(encoding="utf-8"))
     if isinstance(_st, dict) and _st.get("native_fx", True) is False:
         _os.environ["ECHOES_NO_NATIVE"] = "1"
 except Exception:                                          # noqa: BLE001
@@ -149,7 +154,7 @@ try:
 except ImportError:
     MutaFile = None
 
-DATA_DIR = Path.home() / ".neon_player"
+DATA_DIR = data_home.root()
 COVER_DIR = DATA_DIR / "covers"
 DATA_DIR.mkdir(exist_ok=True)
 try:                                                       # восстановление из копии — до чтения настроек
@@ -434,6 +439,9 @@ class MainWindow(QMainWindow):
         self.engine.error_changed.connect(self._on_engine_error)
         self._lyrics_fetched.connect(self._lyrics_ready)
         self.library = load_library(LIB_FILE)
+        import library_guard                          # коллекция не затирается вторым ECHOES; пропавшее — вернуть
+        self._lib_guard = library_guard.Guard(DATA_DIR, LIB_FILE, load_library, save_json)
+        self._lib_guard.loaded(self.library)
         self.tierlist_path = TIER_FILE
         stored_playlists = load_json(PL_FILE, {})
         self.playlists = stored_playlists
@@ -508,7 +516,7 @@ class MainWindow(QMainWindow):
         self.repeat_mode = 0
         self._track_finished_guard = False
         self._lyrics_request_id = 0
-        # Темы из конструктора (~/.neon_player/themes) — в общий список тем («✦ Название»)
+        # Темы из конструктора (~/Echoes/themes) — в общий список тем («✦ Название»)
         self.theme_store = theme_kit.ThemeStore(DATA_DIR)
         self._loom_migrate()                    # темы LOOM → темы конструктора (один раз)
         self._custom_keys = register_custom_themes(self.theme_store, theme_kit.to_theme_data)
@@ -1465,7 +1473,7 @@ class MainWindow(QMainWindow):
         self.clips_auto_cb = QCheckBox("Находить официальные клипы сами")
         self.clip_auto_tip = ("Для каждого играющего трека плеер в фоне найдёт официальный клип (YouTube) и\n"
                               "подгонит его по звуку, чтобы режим «Клип» открывался сразу. С «клипами онлайн»\n"
-                              "ничего не скачивается; без них клип скачивается в ~/.neon_player/clips.")
+                              "ничего не скачивается; без них клип скачивается в ~/Echoes/clips.")
         self.clips_auto_cb.setToolTip(self.clip_auto_tip)
         self.clips_auto_cb.setChecked(bool(self.settings.get("clips_auto", False)))
         self.clips_auto_cb.toggled.connect(self._on_clips_auto)
@@ -4462,7 +4470,53 @@ class MainWindow(QMainWindow):
         except RuntimeError:
             pass
 
-    def _save_library(self): save_json(LIB_FILE,self.library)
+    def _save_library(self):
+        added = self._lib_guard.save(self.library)
+        if added:                                      # файл коллекции изменили со стороны — объединено
+            QTimer.singleShot(0, self._refresh_library_view)
+
+    def _forget_tracks(self, paths):
+        """Треки убраны из коллекции осознанно: защита их не вернёт, «Найти пропавшие» не предложит."""
+        paths = [str(p) for p in paths if p]
+        self._lib_guard.forget(paths)
+        kept = [p for p in (self.settings.get("lib_removed") or []) if isinstance(p, str)]
+        self.settings["lib_removed"] = (kept + [p for p in paths if p not in kept])[-5000:]
+
+    def find_lost_tracks(self):
+        """«Найти пропавшие треки»: всё, что ECHOES помнит о треках (плейлисты, история, кэши, копии, загрузки),
+        чьи файлы на месте, а в коллекции их нет — показать и вернуть."""
+        import threading
+        import library_guard
+        self._toast("Ищу пропавшие треки…")
+        lib = list(self.library)
+        removed = set(self.settings.get("lib_removed") or [])
+        dl = str(self.settings.get("download_dir") or "")
+
+        def work():
+            try:
+                found = [p for p in library_guard.find_lost(DATA_DIR, lib, dl) if p not in removed]
+            except Exception as e:                     # noqa: BLE001
+                found = []
+                print("[library] find lost:", e)
+            self._ui_bridge.call.emit(lambda: self._lost_found(found))
+        threading.Thread(target=work, daemon=True, name="find-lost").start()
+
+    def _lost_found(self, found):
+        if not found:
+            QMessageBox.information(self, "Пропавшие треки", "Пропавших треков не нашлось: всё, что ECHOES помнит "
+                                    "и что есть на диске, уже в коллекции.")
+            return
+        sample = "\n".join(Path(p).stem for p in found[:12]) + ("\n…" if len(found) > 12 else "")
+        r = QMessageBox.question(self, "Пропавшие треки",
+                                 f"Нашлось треков, которых нет в коллекции, но файлы на месте: {len(found)}\n\n"
+                                 f"{sample}\n\nВернуть их в коллекцию?")
+        if r != QMessageBox.StandardButton.Yes:
+            return
+        for p in found:
+            self._register_track(p)
+        self._save_library()
+        self._refresh_library_view()
+        self._toast(f"Вернул в коллекцию: {len(found)}")
 
     def _play_from_library(self, item):
         track = item.data(Qt.ItemDataRole.UserRole)
@@ -5921,7 +5975,7 @@ class MainWindow(QMainWindow):
         if "daw_dsp" in sys.modules or getattr(self, "_daw_on", False):
             return
         try:
-            proj = Path.home() / ".neon_player" / "studio" / "projects"
+            proj = data_home.root() / "studio" / "projects"
             if not proj.is_dir() or not any(proj.iterdir()):
                 return
         except OSError:
@@ -7668,6 +7722,7 @@ class MainWindow(QMainWindow):
             self.title_lbl.setText("— не играет —")
             self.artist_lbl.setText("")
             cur_path = ""
+        self._forget_tracks(paths)
         self.library = [t for t in self.library if str(t.get("path", "")) not in paths]
         for pl in self.playlists.values():
             pl["tracks"] = [t for t in pl.get("tracks", []) if str(t.get("path", "")) not in paths]
@@ -7737,6 +7792,7 @@ class MainWindow(QMainWindow):
         cur_path = str(cur.get("path", "")) if cur else ""
         old_i = next((i for i, x in enumerate(self.library) if x.get("path") == old), -1)
         if old_i >= 0:
+            self._forget_tracks([old])
             self.library.remove(new_t)
             old_i = next((i for i, x in enumerate(self.library) if x.get("path") == old), -1)
             self.library[old_i] = new_t                    # то же место — номера в очереди не съезжают
@@ -8497,7 +8553,7 @@ class MainWindow(QMainWindow):
 
 def _install_crash_logging():
     """Любая ошибка — и Python, и нативный краш Qt — пишется в
-    ~/.neon_player/crash.log (и в консоль), а не теряется молча."""
+    ~/Echoes/crash.log (и в консоль), а не теряется молча."""
     import faulthandler
     log_path = DATA_DIR / "crash.log"
     # лог не растёт бесконечно: от старых запусков остаётся только хвост

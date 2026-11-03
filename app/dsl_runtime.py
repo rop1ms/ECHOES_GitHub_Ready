@@ -15,6 +15,7 @@ EchoScript — рантайм: всё, что скрипт может видет
 """
 from __future__ import annotations
 
+import data_home
 import math
 import random
 import time
@@ -1756,7 +1757,7 @@ def key_name(e) -> str:
 
 
 _DATA = None
-_DATA_FILE = Path.home() / ".neon_player" / "echoscript_data.json"
+_DATA_FILE = data_home.root() / "echoscript_data.json"
 _DATA_DIRTY = [False]
 
 

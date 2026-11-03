@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import base64
 import hashlib
 import time
@@ -18,7 +19,7 @@ from PyQt6.QtWidgets import (QCheckBox, QDialog, QHBoxLayout, QLabel, QPushButto
 from net_music import TrackChip, safe_track
 from yamusic_theme import Card, HRow, Page, YELLOW, section_title, cover_pixmap
 
-_PL_DIR = Path.home() / ".neon_player" / "net_cache" / "pl_covers"
+_PL_DIR = data_home.root() / "net_cache" / "pl_covers"
 
 
 def _plural(n, one, few, many):

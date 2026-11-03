@@ -1,4 +1,5 @@
 # audio_engine.py
+import data_home
 import os
 import sys
 import math
@@ -1358,11 +1359,11 @@ class AudioEngine(QObject):
         return True
 
     def _gl_log(self, msg: str):
-        """Короткий журнал стыков (~/.neon_player/gapless.log) — чтобы по
+        """Короткий журнал стыков (~/Echoes/gapless.log) — чтобы по
         реальным переходам подогнать тайминги под конкретный компьютер."""
         try:
             from pathlib import Path
-            p = Path.home() / ".neon_player" / "gapless.log"
+            p = data_home.root() / "gapless.log"
             if p.exists() and p.stat().st_size > 200_000:
                 p.write_text("", encoding="utf-8")
             with open(p, "a", encoding="utf-8") as f:

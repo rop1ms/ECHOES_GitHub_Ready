@@ -3,6 +3,7 @@
 Всё применяется сразу, без перезапуска."""
 from __future__ import annotations
 
+import data_home
 import shutil
 from pathlib import Path
 
@@ -258,7 +259,7 @@ class DecorDialog(QDialog):
         if not fn:
             return
         try:                                                   # копия рядом с настройками — не потеряется
-            dst = Path.home() / ".neon_player" / ("window_bg" + Path(fn).suffix.lower())
+            dst = data_home.root() / ("window_bg" + Path(fn).suffix.lower())
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(fn, dst)
             fn = str(dst)

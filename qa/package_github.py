@@ -16,8 +16,8 @@ assert DEST != ROOT and DEST.parent.is_dir()
 
 entries = []
 root_names = ['README.md','README.ru.md','LICENSE','THIRD_PARTY_NOTICES.md','.gitignore','.gitattributes',
-              'requirements.txt','requirements-dev.txt','Install ECHOES.bat','Update ECHOES.bat',
-              'УСТАНОВИТЬ ECHOES.bat','ОБНОВИТЬ ECHOES.bat','ECHOES Launcher.exe']
+              'requirements.txt','requirements-dev.txt','Install ECHOES.bat',
+              'УСТАНОВИТЬ ECHOES.bat','ECHOES Launcher.exe']
 entries.extend(ROOT / name for name in root_names)
 entries.extend(p for p in (ROOT/'app').iterdir() if p.is_file() and
                (p.suffix.lower() in ('.py','.dll','.ico','.png') or p.name in ('requirements.txt','version.txt')))

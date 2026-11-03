@@ -2154,7 +2154,7 @@ def copy_layers_from(theme: dict, other: dict, store=None) -> list[dict]:
 # ══════════════════════════════════════════════════════════════════════════ #
 
 def migrate_loom_scripts(store, settings: dict) -> dict:
-    """Темы LOOM (встроенная «Loom» и скрипты пользователя ~/.neon_player/echoscript/*.echo) → темы
+    """Темы LOOM (встроенная «Loom» и скрипты пользователя ~/Echoes/echoscript/*.echo) → темы
     конструктора. Каждый скрипт переносится один раз (settings["loom_migrated"]).
     → {имя скрипта: имя новой темы}."""
     try:

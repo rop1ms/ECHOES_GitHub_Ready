@@ -1,5 +1,6 @@
 """Bounded, offline chorus/highlight detection on a single background worker."""
 from __future__ import annotations
+import data_home
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
@@ -119,7 +120,7 @@ class ChorusAnalyzer(QObject):
         super().__init__(parent)
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='duel-chorus')
         self.pending = {}; self.values = {}; self.closed = False
-        self.path = Path.home()/'.neon_player/duel_chorus.json'
+        self.path = data_home.root() / 'duel_chorus.json'
         self.ready.connect(self._finished)
         self.destroyed.connect(lambda: self.shutdown())
 

@@ -13,12 +13,13 @@
 Для кириллицы берутся только шрифты, где она реально есть (проверка через
 QFontDatabase.writingSystems), латиница может брать любые.
 
-Шрифты (OFL, Google Fonts) один раз скачиваются в ~/.neon_player/fonts в
+Шрифты (OFL, Google Fonts) один раз скачиваются в ~/Echoes/fonts в
 фоне. Пока не скачались — используются системные (Impact, Segoe Script,
 Bahnschrift, Ink Free…), так что режим работает сразу.
 """
 from __future__ import annotations
 
+import data_home
 import math
 import random
 import re
@@ -31,7 +32,7 @@ from PyQt6.QtCore import Qt, QPointF, QRectF
 from PyQt6.QtGui import (QColor, QFont, QFontDatabase, QFontMetricsF, QImage, QPainter,
                          QPainterPath, QPen, QBrush, QLinearGradient, QTransform)
 
-FONT_DIR = Path.home() / ".neon_player" / "fonts"
+FONT_DIR = data_home.root() / "fonts"
 USER_FONT_DIR = FONT_DIR / "user"          # шрифты, загруженные пользователем
 
 # настройки режима «Слова» по умолчанию
@@ -251,7 +252,7 @@ class FontBank:
         return fams
 
     def add_user_font(self, src: str) -> list[str]:
-        """Скопировать .ttf/.otf в ~/.neon_player/fonts/user и подключить.
+        """Скопировать .ttf/.otf в ~/Echoes/fonts/user и подключить.
         Возвращает имена семейств (пусто — файл не шрифт)."""
         import shutil
         srcp = Path(src)

@@ -13,6 +13,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import json
 import os
 import re
@@ -26,7 +27,7 @@ from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFrame, QHBoxLayout, QLabel, QMessageBox, QPushButton,
                              QScrollArea, QTabWidget, QVBoxLayout, QWidget)
 
-DATA = Path.home() / ".neon_player"
+DATA = data_home.root()
 
 QSS = """
 * { font-family: "Segoe UI Variable Text", "Segoe UI", Arial; }

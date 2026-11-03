@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import json
 import threading
 from pathlib import Path
@@ -266,7 +267,7 @@ class ProfilePage(Page):
             settings = node.settings
             social = ({k: settings.get(k) for k in ("about", "fav", "share_tier", "follows")},
                       node.store.posts(node.me.onion, 30))
-        tier_path = Path(getattr(w, "tierlist_path", Path.home() / ".neon_player/music_tierlist.json"))
+        tier_path = Path(getattr(w, "tierlist_path", data_home.root() / "music_tierlist.json"))
         try:
             tier_revision = tier_path.stat().st_mtime_ns
         except OSError:

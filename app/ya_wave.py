@@ -28,7 +28,7 @@ import numpy as np
 from img_load import load_pixmap, read_image
 from PyQt6.QtCore import Qt, QTimer, QRectF, QPointF, QSize, QRect, pyqtSignal, QVariantAnimation, QEasingCurve
 from frameclock import FrameTimer, animation_delta
-from PyQt6.QtGui import (QRegion, QColor, QFont, QPainter, QPainterPath, QPixmap, QImage, QPen,
+from PyQt6.QtGui import (QRegion, QColor, QFont, QPainter, QPainterPath, QPainterPathStroker, QPixmap, QImage, QPen,
                          QLinearGradient, QRadialGradient, QFontMetrics)
 from PyQt6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QFrame,
                              QGraphicsBlurEffect, QGraphicsOpacityEffect, QStyle, QStyleOptionButton)
@@ -562,6 +562,153 @@ class NebulaField:
 _ICONS = OrderedDict()
 
 
+_GENRE_SHAPE = {"metal": "horns", "metalcore": "horns", "punk": "horns", "rock": "horns",
+                "phonk": "mic", "trap": "mic", "drill": "mic", "hiphop": "mic", "cloudrap": "mic",
+                "dnb": "eq", "dubstep": "eq", "electronic": "eq", "dance": "eq", "hyperpop": "eq",
+                "synthwave": "retro", "dreampop": "cloud", "ambient": "cloud", "lofi": "moon", "emo": "broken",
+                "jazz": "note", "funk": "note", "rnb": "note", "classical": "note", "soundtrack": "star",
+                "folk": "pick", "latin": "pick", "indie": "pick", "pop": "star", "jpop": "star"}
+_MOOD_SHAPE = {"energy": "burst", "happy": "flower", "calm": "wave", "sad": "drop", "mood_day": "planet",
+               "fresh": "sparkle", "fav": "heart"}
+
+
+def _star_path(cx, cy, r, n, inner, rot=-90.0):
+    path = QPainterPath()
+    for i in range(n * 2):
+        a = math.radians(rot + i * 180.0 / n)
+        rr = r if i % 2 == 0 else r * inner
+        pt = QPointF(cx + math.cos(a) * rr, cy + math.sin(a) * rr)
+        path.moveTo(pt) if i == 0 else path.lineTo(pt)
+    path.closeSubpath()
+    return path
+
+
+def _heart_path(cx, cy, s):
+    path = QPainterPath(QPointF(cx, cy + s * 0.36))
+    path.cubicTo(QPointF(cx - s * 0.58, cy), QPointF(cx - s * 0.36, cy - s * 0.48), QPointF(cx, cy - s * 0.2))
+    path.cubicTo(QPointF(cx + s * 0.36, cy - s * 0.48), QPointF(cx + s * 0.58, cy), QPointF(cx, cy + s * 0.36))
+    return path
+
+
+def _shape(kind: str, s: float):
+    """Фигуры значков «Моей волны»: «mood:calm», «genre:phonk» … (None — старая клякса/молния)."""
+    group, _, key = kind.partition(":")
+    name = (_MOOD_SHAPE if group == "mood" else _GENRE_SHAPE).get(key)
+    cx = cy = s / 2
+    path = QPainterPath()
+    path.setFillRule(Qt.FillRule.WindingFill)
+    if name == "burst":                                  # бодрое — колючая вспышка
+        return _star_path(cx, cy, s * 0.47, 10, 0.58)
+    if name == "flower":                                 # весёлое — цветок-солнышко
+        for i in range(6):
+            a = math.radians(i * 60 - 90)
+            path.addEllipse(QPointF(cx + math.cos(a) * s * 0.24, cy + math.sin(a) * s * 0.24), s * 0.17, s * 0.17)
+        path.addEllipse(QPointF(cx, cy), s * 0.2, s * 0.2)
+        return path.simplified()
+    if name == "wave":                                   # спокойное — гладкая волна-лента
+        top, bot = QPainterPath(), None
+        n = 48
+        pts = [(s * 0.08 + i / n * s * 0.84, cy - s * 0.06 + math.sin(i / n * math.pi * 2.0) * s * 0.16)
+               for i in range(n + 1)]
+        top.moveTo(pts[0][0], pts[0][1] - s * 0.12)
+        for x, y in pts:
+            top.lineTo(x, y - s * 0.12)
+        for x, y in reversed(pts):
+            top.lineTo(x, y + s * 0.12)
+        top.closeSubpath()
+        return top
+    if name == "drop":                                   # грустное — капля
+        path.moveTo(cx, s * 0.06)
+        path.cubicTo(QPointF(cx + s * 0.1, s * 0.3), QPointF(cx + s * 0.36, s * 0.46), QPointF(cx + s * 0.32, s * 0.66))
+        path.cubicTo(QPointF(cx + s * 0.28, s * 0.92), QPointF(cx - s * 0.28, s * 0.92), QPointF(cx - s * 0.32, s * 0.66))
+        path.cubicTo(QPointF(cx - s * 0.36, s * 0.46), QPointF(cx - s * 0.1, s * 0.3), QPointF(cx, s * 0.06))
+        return path
+    if name == "planet":                                 # настроение дня — планета с кольцом
+        path.addEllipse(QPointF(cx, cy), s * 0.27, s * 0.27)
+        ring = QPainterPath()
+        ring.addEllipse(QPointF(0, 0), s * 0.46, s * 0.13)
+        st = QPainterPathStroker()
+        st.setWidth(s * 0.07)
+        r2 = st.createStroke(ring)
+        from PyQt6.QtGui import QTransform
+        r2 = QTransform().translate(cx, cy).rotate(-22).map(r2)
+        return path.united(r2)
+    if name == "sparkle":                                # незнакомое — искра
+        return _star_path(cx, cy, s * 0.47, 4, 0.26).united(_star_path(s * 0.8, s * 0.2, s * 0.13, 4, 0.3))
+    if name == "heart":                                  # любимое — сердце
+        return _heart_path(cx, cy + s * 0.04, s * 1.1)
+    if name == "horns":                                  # рок/метал — «коза»
+        k = s / 56.0
+        pts = [(8, 48), (14, 8), (28, 24), (44, 6), (50, 46), (40, 46), (38, 24), (28, 36), (18, 22), (17, 48)]
+        path.moveTo(pts[0][0] * k, pts[0][1] * k)
+        for x, y in pts[1:]:
+            path.lineTo(x * k, y * k)
+        path.closeSubpath()
+        return path
+    if name == "mic":                                    # хип-хоп/трэп/фонк — микрофон
+        path.addRoundedRect(QRectF(cx - s * 0.16, s * 0.06, s * 0.32, s * 0.48), s * 0.16, s * 0.16)
+        path.addRoundedRect(QRectF(cx - s * 0.05, s * 0.5, s * 0.1, s * 0.3), s * 0.04, s * 0.04)
+        path.addRoundedRect(QRectF(cx - s * 0.2, s * 0.8, s * 0.4, s * 0.1), s * 0.05, s * 0.05)
+        arc = QPainterPath()
+        arc.arcMoveTo(QRectF(cx - s * 0.26, s * 0.12, s * 0.52, s * 0.52), 200)
+        arc.arcTo(QRectF(cx - s * 0.26, s * 0.12, s * 0.52, s * 0.52), 200, 140)
+        st = QPainterPathStroker()
+        st.setWidth(s * 0.06)
+        st.setCapStyle(Qt.PenCapStyle.RoundCap)
+        return path.united(st.createStroke(arc)).simplified()
+    if name == "eq":                                     # электроника — эквалайзер
+        for i, h in enumerate((0.42, 0.7, 0.52, 0.86, 0.6)):
+            x = s * 0.1 + i * s * 0.165
+            path.addRoundedRect(QRectF(x, s * 0.92 - s * h, s * 0.12, s * h), s * 0.06, s * 0.06)
+        return path.simplified()
+    if name == "retro":                                  # синтвейв — закатное солнце в полоску
+        path.addEllipse(QPointF(cx, cy), s * 0.42, s * 0.42)
+        cut = QPainterPath()
+        for i, y in enumerate((0.56, 0.68, 0.79)):
+            cut.addRect(QRectF(0, s * y, s, s * (0.035 + i * 0.015)))
+        return path.subtracted(cut)
+    if name == "cloud":                                  # эмбиент/дрим-поп — облако
+        for x, y, r in ((0.32, 0.56, 0.2), (0.52, 0.42, 0.25), (0.7, 0.58, 0.18)):
+            path.addEllipse(QPointF(s * x, s * y), s * r, s * r)
+        path.addRoundedRect(QRectF(s * 0.14, s * 0.56, s * 0.72, s * 0.2), s * 0.1, s * 0.1)
+        return path.simplified()
+    if name == "moon":                                   # lo-fi — полумесяц
+        path.addEllipse(QPointF(cx, cy), s * 0.4, s * 0.4)
+        cut = QPainterPath()
+        cut.addEllipse(QPointF(cx + s * 0.2, cy - s * 0.14), s * 0.33, s * 0.33)
+        return path.subtracted(cut)
+    if name == "broken":                                 # эмо — разбитое сердце
+        h = _heart_path(cx, cy + s * 0.04, s * 1.1)
+        crack = QPainterPath()
+        crack.moveTo(cx + s * 0.02, s * 0.2)
+        for x, y in ((-0.06, 0.38), (0.05, 0.5), (-0.04, 0.66), (0.02, 0.86), (0.08, 0.86), (0.03, 0.66),
+                     (0.11, 0.5), (0.0, 0.38), (0.08, 0.2)):
+            crack.lineTo(cx + s * x, s * y)
+        crack.closeSubpath()
+        return h.subtracted(crack)
+    if name == "note":                                   # джаз/фанк/R&B/классика — две ноты
+        path.addEllipse(QPointF(s * 0.28, s * 0.74), s * 0.14, s * 0.11)
+        path.addEllipse(QPointF(s * 0.7, s * 0.66), s * 0.14, s * 0.11)
+        path.addRect(QRectF(s * 0.37, s * 0.18, s * 0.06, s * 0.56))
+        path.addRect(QRectF(s * 0.79, s * 0.1, s * 0.06, s * 0.56))
+        beam = QPainterPath()
+        beam.moveTo(s * 0.37, s * 0.18)
+        beam.lineTo(s * 0.85, s * 0.1)
+        beam.lineTo(s * 0.85, s * 0.24)
+        beam.lineTo(s * 0.37, s * 0.32)
+        beam.closeSubpath()
+        return path.united(beam).simplified()
+    if name == "pick":                                   # фолк/инди/латино — медиатор
+        path.moveTo(cx, s * 0.92)
+        path.cubicTo(QPointF(s * 0.2, s * 0.62), QPointF(s * 0.02, s * 0.2), QPointF(s * 0.22, s * 0.1))
+        path.cubicTo(QPointF(s * 0.4, s * 0.02), QPointF(s * 0.6, s * 0.02), QPointF(s * 0.78, s * 0.1))
+        path.cubicTo(QPointF(s * 0.98, s * 0.2), QPointF(s * 0.8, s * 0.62), QPointF(cx, s * 0.92))
+        return path
+    if name == "star":                                   # поп/саундтреки — звезда
+        return _star_path(cx, cy + s * 0.03, s * 0.47, 5, 0.47)
+    return None
+
+
 def wave_icon(kind: str, c1: str, c2: str, size: int = 56, seed: int = 0, cover: str = "",
               source=None) -> QPixmap:
     key = (kind, c1, c2, size, seed, cover, source.cacheKey() if source is not None else 0)
@@ -608,7 +755,10 @@ def wave_icon(kind: str, c1: str, c2: str, size: int = 56, seed: int = 0, cover:
     else:
         cx, cy = s / 2, s / 2
         path = QPainterPath()
-        if kind == "blob":                    # четырёхлепестковая «клякса»-X
+        shaped = _shape(kind, s) if ":" in kind else None
+        if shaped is not None:                # своя фигура у каждого настроения и жанра (_shape)
+            path = shaped
+        elif kind == "blob":                  # четырёхлепестковая «клякса»-X
             n = 220
             rot = math.radians(45 + rng.uniform(-14, 14))
             for i in range(n + 1):

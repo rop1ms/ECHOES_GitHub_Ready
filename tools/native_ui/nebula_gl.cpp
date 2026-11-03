@@ -9,6 +9,12 @@
 //
 // Виджет сам по себе на GPU, поэтому кадр туманности не перерисовывает ни список волн, ни кнопки
 // поверх неё: их совмещает видеокарта.
+//
+// Шейдер тяжёлый (десятки sin/cos на пиксель), а облако мягкое: считаем его в уменьшенный кадр (res_,
+// по умолчанию 0.5 — в 4 раза меньше пикселей) и растягиваем с линейной фильтрацией; зерно добавляется
+// уже при растяжении, по пикселю экрана, — на глаз то же самое, а видеокарта не задыхается (в «Моей волне»
+// туманностей две: страница и фон окна под интерфейсом, wave_veil).
+#include <QtOpenGL/QOpenGLFramebufferObject>
 #include <QtOpenGL/QOpenGLShaderProgram>
 #include <QtOpenGL/QOpenGLBuffer>
 #include <QtOpenGL/QOpenGLTexture>
@@ -75,6 +81,7 @@ uniform vec2 uRings[6];
 uniform float uSeed;
 uniform float uBurst;
 uniform float uScale;          // >1 — облако компактнее (страница «Моя волна»), 1 — как на баннере
+uniform vec2 uRes;             // доля разрешения кадра (уменьшенный кадр → координаты полного)
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233)) + uSeed) * 43758.5453); }
 float n2(vec2 p, float t) {
@@ -116,8 +123,8 @@ vec3 ramp(float m, vec3 c0, vec3 c1, vec3 c2, vec3 c3) {
 }
 
 void main() {
-    float px = gl_FragCoord.x;
-    float py = uSize.y - gl_FragCoord.y;
+    float px = gl_FragCoord.x / uRes.x;
+    float py = uSize.y - gl_FragCoord.y / uRes.y;
     float t = uTime.x, energy = uTime.y, kick = uTime.z;
     float R = max(1.0, uCenter.z);
     vec2 p = vec2(px - uCenter.x, py - uCenter.y) / R;
@@ -198,6 +205,23 @@ void main() {
 }
 )";
 
+// Растяжение уменьшенного кадра на весь виджет (линейно) + зерно по пикселю экрана.
+const char *BLIT_FRAG = R"(
+#ifdef GL_ES
+precision highp float;
+#endif
+uniform sampler2D uTex;
+uniform vec2 uSize;
+uniform float uSeed;
+uniform float uGrain;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233)) + uSeed) * 43758.5453); }
+void main() {
+    vec3 c = texture2D(uTex, gl_FragCoord.xy / uSize).rgb;
+    float n = (hash(gl_FragCoord.xy) + hash(gl_FragCoord.yx + 17.0) - 1.0) * uGrain;
+    gl_FragColor = vec4(clamp(c + n, 0.0, 1.0), 1.0);
+}
+)";
+
 class NebulaGL final : public QOpenGLWidget, protected QOpenGLFunctions {
 public:
     explicit NebulaGL(QWidget *parent = nullptr) : QOpenGLWidget(parent) {
@@ -210,9 +234,12 @@ public:
         vbo_.destroy();
         delete prog_;
         delete ovl_prog_;
+        delete blit_prog_;
         delete tex_;
+        delete fbo_;
         doneCurrent();
     }
+    float res_ = 0.5f;                                      // доля разрешения, в которой считается облако
     NebParams p_;
     bool have_ = false;
     QImage overlay_;
@@ -236,6 +263,11 @@ protected:
                    ovl_prog_->addShaderFromSourceCode(QOpenGLShader::Fragment, OVL_FRAG);
         ovl_prog_->bindAttributeLocation("pos", 0);
         ok_ = ok_ && ook && ovl_prog_->link();
+        blit_prog_ = new QOpenGLShaderProgram;
+        blit_ok_ = blit_prog_->addShaderFromSourceCode(QOpenGLShader::Vertex, VERT) &&
+                   blit_prog_->addShaderFromSourceCode(QOpenGLShader::Fragment, BLIT_FRAG);
+        blit_prog_->bindAttributeLocation("pos", 0);
+        blit_ok_ = blit_ok_ && blit_prog_->link();          // не собрался — считаем в полном размере, как раньше
         const float quad[] = {-1, -1, 1, -1, -1, 1, 1, 1};
         vbo_.create();
         vbo_.bind();
@@ -248,13 +280,30 @@ protected:
         glViewport(0, 0, W, H);
         glClearColor(0, 0, 0, 1);
         glClear(GL_COLOR_BUFFER_BIT);
+        const bool low = ok_ && have_ && blit_ok_ && res_ < 0.99f && W > 64 && H > 64;
+        const int w = low ? std::max(1, int(W * res_)) : W, h = low ? std::max(1, int(H * res_)) : H;
+        if (low) {
+            if (!fbo_ || fbo_->size() != QSize(w, h)) {
+                delete fbo_;
+                fbo_ = new QOpenGLFramebufferObject(w, h);
+                glBindTexture(GL_TEXTURE_2D, fbo_->texture());
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                glBindTexture(GL_TEXTURE_2D, 0);
+            }
+            fbo_->bind();
+            glViewport(0, 0, w, h);
+        }
         if (ok_ && have_) {
             prog_->bind();
             prog_->setUniformValue("uSize", QVector2D(W, H));
+            prog_->setUniformValue("uRes", QVector2D(float(w) / W, float(h) / H));
             prog_->setUniformValue("uX0", float(p_.x0));
             prog_->setUniformValue("uCenter", QVector3D(p_.cx, p_.cy, p_.R));
             prog_->setUniformValue("uTime", QVector4D(p_.T * p_.flow, p_.energy, p_.kick, p_.gain));
-            prog_->setUniformValue("uAmt", QVector4D(p_.fil_amt, p_.ray_amt, p_.grain, p_.env_r));
+            prog_->setUniformValue("uAmt", QVector4D(p_.fil_amt, p_.ray_amt, low ? 0.f : p_.grain, p_.env_r));
             prog_->setUniformValue("uLobe", p_.lobe);
             prog_->setUniformValue("uFilCol", QVector3D(p_.fil_col[0], p_.fil_col[1], p_.fil_col[2]));
             prog_->setUniformValue("uRingCol", QVector3D(p_.ring_col[0], p_.ring_col[1], p_.ring_col[2]));
@@ -283,6 +332,25 @@ protected:
             prog_->disableAttributeArray(0);
             vbo_.release();
             prog_->release();
+        }
+        if (low) {                                          // уменьшенный кадр → весь виджет, с зерном
+            glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+            glViewport(0, 0, W, H);
+            blit_prog_->bind();
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, fbo_->texture());
+            blit_prog_->setUniformValue("uTex", 0);
+            blit_prog_->setUniformValue("uSize", QVector2D(W, H));
+            blit_prog_->setUniformValue("uSeed", float(p_.seed % 997) * 0.618f);
+            blit_prog_->setUniformValue("uGrain", p_.grain);
+            vbo_.bind();
+            blit_prog_->enableAttributeArray(0);
+            blit_prog_->setAttributeBuffer(0, GL_FLOAT, 0, 2);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            blit_prog_->disableAttributeArray(0);
+            vbo_.release();
+            glBindTexture(GL_TEXTURE_2D, 0);
+            blit_prog_->release();
         }
         if (overlay_dirty_) {
             overlay_dirty_ = false;
@@ -321,6 +389,9 @@ protected:
 private:
     QOpenGLShaderProgram *prog_ = nullptr;
     QOpenGLShaderProgram *ovl_prog_ = nullptr;
+    QOpenGLShaderProgram *blit_prog_ = nullptr;
+    QOpenGLFramebufferObject *fbo_ = nullptr;
+    bool blit_ok_ = false;
     QOpenGLTexture *tex_ = nullptr;
     QOpenGLBuffer vbo_{QOpenGLBuffer::VertexBuffer};
 };
@@ -348,6 +419,12 @@ EUI_API const char *eui_nebula_log(void *w) { return N(w)->log_.constData(); }
 
 EUI_API void eui_nebula_burst(void *w, float burst) { N(w)->burst_ = burst; }
 EUI_API void eui_nebula_scale(void *w, float scale) { N(w)->scale_ = scale; N(w)->update(); }
+
+// Доля разрешения, в которой считается облако (0.25…1; 1 — каждый пиксель, как раньше).
+EUI_API void eui_nebula_res(void *w, float res) {
+    N(w)->res_ = std::clamp(res, 0.25f, 1.0f);
+    N(w)->update();
+}
 
 EUI_API void eui_nebula_overlay(void *w, const QPixmap *pm) {
     NebulaGL *n = N(w);

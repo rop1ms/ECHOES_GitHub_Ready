@@ -20,6 +20,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import hashlib
 import io
 import shutil
@@ -30,7 +31,7 @@ from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 
 from downloader import DownloadManager, AUDIO_EXTS
 
-TMP_ROOT = Path.home() / ".neon_player" / "dl_tmp"
+TMP_ROOT = data_home.root() / "dl_tmp"
 ROUNDS = 3                 # сколько полных проходов по всем источникам
 ROUND_PAUSE_MS = (0, 15000, 45000)
 

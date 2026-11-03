@@ -27,6 +27,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import json
 import os
 import re
@@ -40,7 +41,7 @@ PREFIX = "stream:"
 FIND = "stream:find:"
 _SEP = "\x1f"
 MIN_MATCH = 0.72                     # как в online_search.find_best
-CACHE_FILE = Path.home() / ".neon_player" / "stream_cache.json"
+CACHE_FILE = data_home.root() / "stream_cache.json"
 _SAVE_LOCK = threading.Lock()                          # one writer at a time: saves share the .tmp file
 
 

@@ -14,7 +14,7 @@ Discord Rich Presence — в профиле Discord видно, что вы сл
 Обложка: Discord показывает только публичную https-картинку или ассет приложения. Локальные обложки
 он не видит, поэтому обложка ищется на Deezer и iTunes одновременно (кто первый нашёл; название чистится
 от «(Official Video)», feat., хэштегов), следующий трек очереди — заранее; кэш в
-~/.neon_player/discord_covers.json; не нашлась — ассет «vinyl». Поиск можно выключить в настройках.
+~/Echoes/discord_covers.json; не нашлась — ассет «vinyl». Поиск можно выключить в настройках.
 
 Требует пакет `pypresence` (4.4+ для «Слушает»; старые версии — обычный статус) и запущенный
 десктопный Discord на этом же компьютере. Всё мягко: нет пакета / Discord закрыт — плеер работает как
@@ -26,6 +26,7 @@ Discord Rich Presence — в профиле Discord видно, что вы сл
   3. Rich Presence → Art Assets — картинки с ключами «vinyl», «play», «pause»
 """
 
+import data_home
 import json
 import re
 import os
@@ -59,7 +60,7 @@ RETRY_SEC = 15                          # пауза между попыткам
 RATE_MAX, RATE_WINDOW = 5, 20.5         # лимит Discord: 5 обновлений активности за 20 с
 DEBOUNCE = 0.6                          # быстрые переключения треков — одним обновлением
 
-_COVER_FILE = os.path.join(os.path.expanduser("~"), ".neon_player", "discord_covers.json")
+_COVER_FILE = os.path.join(str(data_home.root()), "discord_covers.json")
 
 
 def _fit(s, n=128):
@@ -306,7 +307,7 @@ class _Covers:
         threading.Thread(target=work, daemon=True, name="discord-cover-lookup").start()
 
 
-_ARTIST_FILE = os.path.join(os.path.expanduser("~"), ".neon_player", "discord_artists.json")
+_ARTIST_FILE = os.path.join(str(data_home.root()), "discord_artists.json")
 
 
 class _Artists:

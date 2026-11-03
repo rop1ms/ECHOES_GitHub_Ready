@@ -10,7 +10,7 @@
   * синхронизация — у клипа часто есть вступление или сценка до музыки. Звук клипа и
     трека раскладываются на «огибающую атак» (где начинаются удары и ноты), и
     взаимная корреляция находит сдвиг: время клипа = время трека + offset;
-  * кэш — ~/.neon_player/clips: index.json (какой клип у какого трека, сдвиг, «клипа нет» —
+  * кэш — ~/Echoes/clips: index.json (какой клип у какого трека, сдвиг, «клипа нет» —
     чтобы не искать заново каждый раз) и скачанные клипы, если их сохраняли;
   * по умолчанию клипы ОНЛАЙН (stream_job): видео не скачивается, VLC играет видеодорожку по
     ссылке, для синхронизации звук клипа берётся во временный файл и сразу удаляется.
@@ -19,6 +19,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import json
 import os
 import re
@@ -30,7 +31,7 @@ from pathlib import Path
 
 import numpy as np
 
-CLIP_DIR = Path.home() / ".neon_player" / "clips"
+CLIP_DIR = data_home.root() / "clips"
 INDEX = CLIP_DIR / "index.json"
 VIDEO_EXT = (".mp4", ".webm", ".mkv", ".mov")
 

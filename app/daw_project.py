@@ -14,6 +14,7 @@
 """
 from __future__ import annotations
 
+import data_home
 import hashlib
 import json
 import math
@@ -32,7 +33,7 @@ import daw_fx as FX
 import daw_inst as I
 from daw_dsp import SR
 
-STUDIO = Path.home() / ".neon_player" / "studio"
+STUDIO = data_home.root() / "studio"
 PROJECTS = STUDIO / "projects"
 RECS = STUDIO / "recordings"
 CACHE = STUDIO / "cache"

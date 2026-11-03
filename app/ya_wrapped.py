@@ -12,6 +12,7 @@ Echoes Wrapped — итоги года сторис-слайдами (как Spo
 """
 from __future__ import annotations
 
+import data_home
 import math
 import time
 from collections import Counter
@@ -503,7 +504,7 @@ class WrappedDialog(QDialog):
             super().keyPressEvent(e)
 
     def _png_path(self) -> Path:
-        d = Path.home() / ".neon_player" / "wrapped"
+        d = data_home.root() / "wrapped"
         d.mkdir(parents=True, exist_ok=True)
         return d / f"echoes_wrapped_{self.data['year']}.png"
 

@@ -7,6 +7,7 @@ Echoes Music → Инструменты), размер и пропорции о�
 """
 from __future__ import annotations
 
+import data_home
 import ctypes
 import os
 import shutil
@@ -19,7 +20,7 @@ from PyQt6.QtGui import QKeySequence, QShortcut, QPixmap, QPainter, QPainterPath
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton, QKeySequenceEdit,
                              QCheckBox, QComboBox, QFrame, QApplication, QDoubleSpinBox, QScrollArea, QWidget)
 
-DATA = Path(os.path.expanduser("~")) / ".neon_player"
+DATA = data_home.root()
 
 ACTIONS = [  # (ключ, название, сочетание по умолчанию — как было зашито в плеере)
     ("play_pause", "Пауза / воспроизведение", "Space"),

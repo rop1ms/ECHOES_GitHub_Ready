@@ -2,19 +2,20 @@
 """
 Свои шрифты из файлов (.ttf / .otf / .ttc / .woff / .woff2).
 
-Файл копируется в ~/.neon_player/fonts/user и регистрируется в Qt при запуске — шрифт виден во всех списках
+Файл копируется в ~/Echoes/fonts/user и регистрируется в Qt при запуске — шрифт виден во всех списках
 шрифтов (тема Echoes Music, конструктор окна стримера) как обычный установленный, переустанавливать его
 в Windows не нужно. Регистрация одна на процесс: повторные вызовы load_all() ничего не стоят.
 """
 from __future__ import annotations
 
+import data_home
 import hashlib
 import shutil
 from pathlib import Path
 
 from PyQt6.QtGui import QFontDatabase
 
-FONT_DIR = Path.home() / ".neon_player" / "fonts" / "user"     # та же папка, что у своих шрифтов режима «Слова» (milk_words)
+FONT_DIR = data_home.root() / "fonts" / "user"     # та же папка, что у своих шрифтов режима «Слова» (milk_words)
 EXTS = (".ttf", ".otf", ".ttc", ".woff", ".woff2")
 FILTER = "Шрифты (*.ttf *.otf *.ttc *.woff *.woff2)"
 _LOADED: dict[str, list[str]] = {}                       # путь -> семейства

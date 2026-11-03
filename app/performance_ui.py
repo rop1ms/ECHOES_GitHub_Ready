@@ -1,5 +1,5 @@
 """Performance controls with explicit memory/CPU tradeoffs and live RAM counters."""
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QLabel,QComboBox,QSpinBox,QCheckBox,QPushButton,QTabWidget
 from echo_glass import GlassFrame,glass_controls_qss
 from duel_settings import tr
@@ -44,12 +44,17 @@ class PerformanceCard(GlassFrame):
         self.check('video_hw','Аппаратное декодирование видео','Hardware video decoding',global_=True,default=True)
         self.check('native_fx','Нативные эффекты C++ (нужен перезапуск)','Native C++ effects (restart required)',global_=True,default=True)
         self.heading('Режим геймера','Gamer mode')
+        # кнопка режима — здесь, рядом с его настройками (раньше — геймпад в шапке окна)
+        self.gamer=QPushButton();self.gamer.setCheckable(True);self.gamer.setMinimumHeight(44)
+        self.gamer.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.gamer.clicked.connect(self._gamer_toggle);self.form.addRow(self.gamer)
+        QTimer.singleShot(0,self._gamer_hook)
         self.check('gamer_mode_auto','Включать автоматически, когда запущена игра','Turn on automatically while a game is running',global_=True,default=True)
-        about=QLabel(self.t('Кнопка с геймпадом наверху. В игре ECHOES только играет музыку: анимации стоят, пока окно не в фокусе, '
+        about=QLabel(self.t('В игре ECHOES только играет музыку: анимации стоят, пока окно не в фокусе, '
                             'фоновые задачи ждут, игра получает приоритет процессора (звук — нет, он не заикается), кэши и модели ИИ '
                             'выгружаются из памяти. Игры узнаются по полноэкранному режиму и папкам Steam, Epic, Riot, Xbox и других; '
                             'режим выключается, когда игра закрыта.',
-                            'The gamepad button at the top. In a game ECHOES only plays music: animations stop while its window is not focused, '
+                            'In a game ECHOES only plays music: animations stop while its window is not focused, '
                             'background work waits, the game gets CPU priority (audio keeps its own, so it never stutters), caches and AI models '
                             'are unloaded. Games are recognised by fullscreen mode and Steam, Epic, Riot, Xbox and other game folders; '
                             'the mode turns off when the game closes.'))
@@ -63,6 +68,24 @@ class PerformanceCard(GlassFrame):
         self.load(P.config(win.settings),win.settings)
 
     def t(self,ru,en):return tr(self.win,ru,en)
+    def _gamer_hook(self):
+        try:
+            import game_mode
+            gm=game_mode.install(self.win);gm.changed.connect(lambda on,_why:self._gamer_ui(on));self._gamer_ui(gm.active)
+        except Exception as e:print('[gamer]',e)
+    def _gamer_toggle(self):
+        gm=getattr(self.win,'_game_mode',None)
+        if gm is None:self.gamer.setChecked(False);return
+        gm.toggle()
+    def _gamer_ui(self,on):
+        try:
+            self.gamer.setChecked(bool(on))
+            self.gamer.setText(self.t('  Режим геймера включён — выключить','  Gamer mode is on — turn off') if on else
+                               self.t('  Включить режим геймера','  Turn gamer mode on'))
+            from yamusic_theme import ya_icon,YELLOW
+            self.gamer.setIcon(ya_icon('gamepad',20,'#000000' if on else '#ffffff'))
+            self.gamer.setObjectName('AccentBtn' if on else '');self.gamer.style().unpolish(self.gamer);self.gamer.style().polish(self.gamer)
+        except RuntimeError:pass
     def heading(self,ru,en):
         page=QWidget();self.form=QFormLayout(page);self.form.setContentsMargins(10,16,10,16);self.form.setSpacing(10)
         self.tabs.addTab(page,self.t(ru,en))
