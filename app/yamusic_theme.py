@@ -5955,57 +5955,7 @@ class YaShell(QWidget):
         w = self._keybinds_card = player_prefs.keybinds_card(self.win); hub.v.addWidget(w)
         hub.add("tools", "Горячие клавиши", w, "клавиши бинды сочетания горячие пробел глобальные везде hotkey "
                                               "shortcut keybind")
-        groups = {
-            "look": ("Внешний вид", (("Темы оформления", None, "palette"),
-                                     ("Конструктор тем", lambda: self.win._open_theme_studio(), "edit"),
-                                     ("Режим обложки", self.win._toggle_cover_mode, "cover"),
-                                     ("Масштаб и окно",
-                                      lambda: getattr(self.win, "open_player_prefs", lambda: None)(), "settings"))),
-            "lyrics": ("Тексты песен", (("Редактор текста", self.win._open_lyrics_editor, "lyrics"),
-                                        ("Перевод и прокрутка текста", lambda: self.win._lyrics_options.open(), "lyrics"))),
-            "library": ("Плейлисты и файлы", (("Импорт из Spotify", self.win._open_spotify_import, "download"),
-                                              (__import__('duel_settings').tr(self.win,'Импорт из Яндекс Музыки','Import from Yandex Music'),lambda:self.win._open_service_import('yandex'),'download'),
-                                              (__import__('duel_settings').tr(self.win,'Импорт из VK Музыки','Import from VK Music'),lambda:self.win._open_service_import('vk'),'download'),
-                                              ("Плейлист из файла",
-                                               lambda: getattr(self.win, "import_playlist_file", lambda *_: None)(), "download"),
-                                              ("Плейлисты на телефон",
-                                               lambda: getattr(self.win, "export_playlists_for_phone", lambda *_: None)(), "download"),
-                                              ("Куда класть файлы тем/плейлистов",
-                                               lambda: getattr(self.win, "files_help", lambda: None)(), "settings"),
-                                              ("Найти теги для всей музыки", lambda: self.win.tag_all_library(), "search"),
-                                              ("Очистка медиатеки и кэша", lambda: self.win.open_cleanup(0), "settings"),
-                                              ("Найти пропавшие треки", lambda: self.win.find_lost_tracks(), "search"))),
-            "tools": ("Ещё инструменты", (("Инструменты слушателя", lambda: self.win._listening_tools.open(), "settings"),
-                                          ("Команды", lambda: self.win._listening_tools.palette(), "search"),
-                                          ("Конструктор стримера",
-                                           lambda: __import__('stream_designer').StreamEditor(self.win).exec(), "edit"))),
-            "apps": ("Профиль", (("Профиль", self.win._open_profile, "user"),)),
-        }
-        for cat, (gtitle, items) in groups.items():
-            box = QWidget()
-            box.setObjectName("YaPageInner")
-            bl = QVBoxLayout(box)
-            bl.setContentsMargins(0, 10, 0, 6)
-            bl.setSpacing(6)
-            sec = QLabel(gtitle.upper()); sec.setObjectName("Section")
-            bl.addWidget(sec)
-            chips = QWidget(); chips.setObjectName("YaPageInner")
-            row = FlowLayout(chips, 8, 8)
-            for text, fn, ic in items:
-                b = chip(text, checkable=False)
-                b.setIcon(ya_icon(ic, 16, "#d0d0d0"))
-                b.setIconSize(QSize(16, 16))
-                if fn is None:
-                    b.clicked.connect(lambda _=False, b=b: self.win._winamp_theme_menu(b.mapToGlobal(b.rect().bottomLeft())))
-                else:
-                    b.clicked.connect(fn)
-                row.addWidget(b)
-            bl.addWidget(chips)
-            hub.v.addWidget(box)
-            hub.add(cat, gtitle, box, {"library": "spotify спотифай импорт экспорт очистка кэш место диск память теги",
-                                       "look": "тема темы оформление скин масштаб клавиши окно обложка",
-                                       "lyrics": "текст слова перевод караоке",
-                                       "tools": "команды стример obs", "apps": "профиль ник аватар"}.get(cat, ""))
+        self._build_inline_tools(hub)                      # бывшие кнопки-окна — строки настроек, раскрываются на месте
         w = self._build_wave_setting(); hub.v.addWidget(w); hub.add("play", "Слушать онлайн без скачивания", w,
                                                                     "стриминг поток youtube soundcloud")
         w = self._build_mood_filter_setting(); hub.v.addWidget(w); hub.add("library", "Фильтр по настроению", w)
@@ -6027,6 +5977,129 @@ class YaShell(QWidget):
         hub.v.addStretch(1)
         QTimer.singleShot(0, hub.refresh)
         return hub
+
+    def _build_inline_tools(self, hub):
+        """Инструменты, что раньше были кнопками с отдельными окнами, — обычные строки в своих разделах Настроек:
+        раскрываются прямо здесь (settings_inline). Окнами остаются только то, что само по себе приложение или режим."""
+        import settings_inline as si
+        from duel_settings import tr as _tr
+        w = self.win
+
+        def put(cat, title, widget, keys=""):
+            hub.v.addWidget(widget)
+            hub.add(cat, title, widget, keys)
+
+        def sec(cat, title, sub, icon, factory, keys="", height=None, on_closed=None):
+            put(cat, title, si.Section(title, sub, ya_icon(icon, 20, YELLOW), factory, YELLOW, height, on_closed), keys)
+
+        def row(cat, title, sub, icon, actions, keys=""):
+            put(cat, title, si.Row(title, sub, ya_icon(icon, 20, YELLOW), actions, YELLOW), keys)
+
+        # ── Оформление ──
+        sec("look", "Темы оформления", "Все темы плеера — выберите, и плеер переоденется", "palette",
+            self._inline_themes, "тема темы оформление скин winamp классическая")
+        row("look", "Конструктор тем", "Своя тема с нуля: цвета, слои, кнопки и анимации — отдельный редактор", "edit",
+            [("Открыть", lambda: w._open_theme_studio())], "конструктор тем свой дизайн")
+        row("look", "Режим обложки", "Во весь экран — только обложка, трек и управление", "cover",
+            [("Включить", w._toggle_cover_mode)], "обложка полный экран")
+        import player_prefs
+        sec("look", "Масштаб и окно", "Размер и пропорции окна, масштаб интерфейса", "settings",
+            self._inline_prefs,
+            "масштаб окно размер разрешение пропорции")
+        # ── Тексты песен ──
+        sec("lyrics", "Перевод и прокрутка текста", "Перевод, размер шрифта, интервал, скорость прокрутки, стекло",
+            "lyrics", lambda: w._lyrics_options.build(), "перевод прокрутка шрифт текст караоке")
+        row("lyrics", "Редактор текста", "Текст, таймкоды, теги и обложка играющего трека", "lyrics",
+            [("Открыть для трека", w._open_lyrics_editor)], "редактор текста таймкоды lrc")
+        # ── Медиатека ──
+        from spotify_import import SpotifyImportDialog
+        sec("library", "Импорт из Spotify", "Вставьте ссылку на плейлист — ECHOES найдёт и скачает треки", "download",
+            lambda: SpotifyImportDialog(w), "spotify спотифай импорт плейлист")
+        sec("library", _tr(w, "Импорт из Яндекс Музыки", "Import from Yandex Music"),
+            "Плейлист или «Мне нравится» по ссылке", "download",
+            lambda: SpotifyImportDialog(w, provider="yandex"), "яндекс музыка импорт")
+        sec("library", _tr(w, "Импорт из VK Музыки", "Import from VK Music"), "Плейлист VK по ссылке", "download",
+            lambda: SpotifyImportDialog(w, provider="vk"), "вк vk музыка импорт")
+        row("library", "Плейлист из файла", "Файл ECHOES, M3U или список треков", "download",
+            [("Выбрать файл…", lambda: getattr(w, "import_playlist_file", lambda *_: None)())],
+            "плейлист файл m3u импорт")
+        row("library", "Плейлисты на телефон", "Все плейлисты одним файлом — для ECHOES на iPhone", "download",
+            [("Сохранить файл…", lambda: getattr(w, "export_playlists_for_phone", lambda *_: None)())],
+            "телефон iphone экспорт плейлисты")
+        import playlist_share
+        sec("library", "Куда класть файлы тем и плейлистов", "Папки импорта и перетаскивание на окно", "settings",
+            lambda: playlist_share.FilesHelpDialog(w), "файлы папка импорт темы")
+        import tag_all
+        sec("library", "Найти теги для всей музыки", "Исполнитель, альбом, жанр и обложка для каждого трека",
+            "search", lambda: tag_all.TagAllDialog(w), "теги обложки жанр альбом", height=460)
+        import cleanup
+        sec("library", "Очистка медиатеки и кэша", "Битые файлы, клипы и кэш — сколько места занимает и что убрать",
+            "settings", lambda: cleanup.CleanupDialog(w, 0), "очистка кэш место диск удалить", height=640)
+        sec("library", "Найти пропавшие треки", "Треки, файлы которых на диске, а в коллекции их нет", "search",
+            lambda: si.LostTracks(w), "пропавшие треки вернуть восстановить коллекция")
+        # ── Инструменты ──
+        row("tools", "Палитра команд", "Любое действие плеера по названию — Ctrl+Shift+P", "search",
+            [("Открыть", lambda: w._listening_tools.palette())], "команды палитра поиск действий")
+        import stream_designer
+        sec("tools", "Конструктор окна стримера", "Окно «Сейчас играет» для OBS и TikTok Studio — соберите своё",
+            "edit", lambda: stream_designer.StreamStudio(w), "стример obs стрим окно оверлей конструктор")
+        # ── Профиль ──
+        from profile_editor import ProfileEditor
+
+        def profile_saved(result):
+            if result:
+                w._load_profile()
+                try:
+                    self.refresh_sidebar()
+                    if "net" in self.pages:
+                        self.pages["net"].on_profile_changed()
+                except Exception as e:                       # noqa: BLE001
+                    print("[profile]", e)
+        sec("apps", "Профиль", "Фото, ник, статус, «о себе» и любимые треки", "user",
+            lambda: ProfileEditor(w), "профиль ник аватар статус", on_closed=profile_saved)
+        row("apps", "Страница профиля", "Статистика, ачивки и оформление", "user",
+            [("Открыть", w._open_profile)], "профиль страница")
+
+    def _inline_prefs(self):
+        """«Окно и масштаб» без кнопок-переходов: всё, куда они вели, теперь рядом в Настройках."""
+        import player_prefs
+        dlg = player_prefs.PrefsDialog(self.win, (self.win.__dict__.get("_prefs") or {}).get("keys") or {})
+        for b in dlg.findChildren(QPushButton):
+            if b.text().endswith("…") or b.text().startswith(("Горячие клавиши —", "Палитра команд")):
+                b.hide()
+        return dlg
+
+    def _inline_themes(self) -> QWidget:
+        """Все темы плеера плитками по группам (вместо меню)."""
+        from themes import theme_groups
+        box = QWidget(); box.setObjectName("YaPageInner")
+        v = QVBoxLayout(box)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(6)
+        cur = self.win.settings.get("theme", "")
+        btns = []
+
+        def pick(name):
+            for b in btns:
+                b.setChecked(b.text() == name)
+            self.win._request_theme(name)
+        for title, hint, names in theme_groups():
+            if not names:
+                continue
+            lab = QLabel(title); lab.setObjectName("YaSub")
+            lab.setToolTip(hint)
+            v.addWidget(lab)
+            holder = QWidget(); holder.setObjectName("YaPageInner")
+            fl = FlowLayout(holder, 6, 6)
+            for name in names:
+                b = chip(name)
+                b.setChecked(name == cur)
+                b.setToolTip(hint)
+                b.clicked.connect(lambda _=False, n=name: pick(n))
+                fl.addWidget(b)
+                btns.append(b)
+            v.addWidget(holder)
+        return box
 
     def _build_skin_card(self, hub) -> QWidget:
         """«Тема Echoes Music»: цвета, шрифт и кнопки — окно настройки с предпросмотром (ya_skin)."""

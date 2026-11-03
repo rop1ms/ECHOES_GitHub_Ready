@@ -1667,14 +1667,18 @@ class MainWindow(QMainWindow):
         # ── Открытия / экспорт ────────────────────────────────────────
         sec=QLabel("Открытия"); sec.setObjectName("Section"); rv2.addWidget(sec)
         b=QPushButton("Трек дня"); b.clicked.connect(self._play_track_of_the_day); rv2.addWidget(b)
-        b=QPushButton("Импорт плейлиста Spotify"); b.setObjectName("AccentBtn")
-        b.setToolTip("Ссылка на плейлист Spotify → треки ищутся на YouTube Music / SoundCloud и скачиваются")
-        b.clicked.connect(self._open_spotify_import); rv2.addWidget(b)
-        from duel_settings import tr
-        for provider,ru,en in [('yandex','Импорт из Яндекс Музыки','Import from Yandex Music'),('vk','Импорт из VK Музыки','Import from VK Music')]:
-            source_button=QPushButton(tr(self,ru,en));source_button.clicked.connect(lambda _=False,p=provider:self._open_service_import(p));rv2.addWidget(source_button)
+        # импорт из Spotify / Яндекс / VK — в Настройках → Медиатека (встроенными строками, без окон)
         b=QPushButton("Экспорт GIF пластинки"); b.clicked.connect(self._export_vinyl_gif); rv2.addWidget(b)
-        b=QPushButton("Genius token"); b.setObjectName("GhostBtn"); b.clicked.connect(self._set_token); rv2.addWidget(b)
+        token_row=QHBoxLayout()                                  # токен Genius — прямо полем, без окна
+        token_row.addWidget(QLabel("Genius token"))
+        self.genius_edit=QLineEdit(self.settings.get("genius_token",""))
+        self.genius_edit.setPlaceholderText("Access token для текстов с Genius")
+        self.genius_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.genius_edit.editingFinished.connect(
+            lambda: (self.settings.__setitem__("genius_token",self.genius_edit.text().strip()),
+                     save_json(SETTINGS_FILE,self.settings)))
+        token_row.addWidget(self.genius_edit,1)
+        rv2.addLayout(token_row)
 
         # ── Discord Rich Presence ─────────────────────────────────────
         sec=QLabel("Discord Rich Presence"); sec.setObjectName("Section"); rv2.addWidget(sec)

@@ -5,7 +5,7 @@ import urllib.parse
 import urllib.request
 from PyQt6.QtCore import QObject, pyqtSignal, Qt
 from PyQt6.QtWidgets import (QDialog, QFormLayout, QComboBox, QDoubleSpinBox,
-    QCheckBox, QPushButton, QLabel, QLineEdit, QMessageBox)
+    QCheckBox, QPushButton, QLabel, QLineEdit, QMessageBox, QVBoxLayout, QWidget)
 from lyrics_view import parse_lrc, split_plain
 
 
@@ -146,7 +146,13 @@ class LyricsOptions(QObject):
         dlg = QDialog(self.win)
         dlg.finished.connect(dlg.deleteLater)
         dlg.setWindowTitle('Текст: перевод и оформление')
-        form = QFormLayout(dlg)
+        QVBoxLayout(dlg).addWidget(self.build(dlg))
+        dlg.exec()
+
+    def build(self, dlg=None) -> QWidget:
+        """Форма «перевод и оформление текста»: в окне (open) или прямо в Настройках (dlg=None — без «Готово»)."""
+        box = QWidget()
+        form = QFormLayout(box)
         mode = QComboBox()
         for title, value in [('Под оригиналом', 'below'), ('Вместо оригинала', 'replace'), ('Оригинал', 'off')]:
             mode.addItem(title, value)
@@ -213,7 +219,8 @@ class LyricsOptions(QObject):
         translate = QPushButton('Перевести текущий текст')
         translate.clicked.connect(lambda: (apply(), self.translate()))
         form.addRow(translate)
-        close = QPushButton('Готово')
-        close.clicked.connect(lambda: (apply(), dlg.accept()))
-        form.addRow(close)
-        dlg.exec()
+        if dlg is not None:
+            close = QPushButton('Готово')
+            close.clicked.connect(lambda: (apply(), dlg.accept()))
+            form.addRow(close)
+        return box

@@ -3537,3 +3537,23 @@ EXACT.update({                                   # v30: ник, мини-про�
     '  Включить режим геймера': '  Turn gamer mode on',
     '  Режим геймера включён — выключить': '  Gamer mode is on — turn off',
 })
+
+EXACT.update({                                   # v31: настройки без окон, конструктор стримера
+    'Темы оформления': 'Themes', 'Все темы плеера — выберите, и плеер переоденется': 'All player themes — pick one to switch',
+    'Конструктор тем': 'Theme studio', 'Открыть': 'Open', 'Включить': 'Turn on', 'Режим обложки': 'Cover mode',
+    'Масштаб и окно': 'Scale and window', 'Размер и пропорции окна, масштаб интерфейса': 'Window size, aspect and UI scale',
+    'Перевод и прокрутка текста': 'Lyrics translation and scrolling', 'Редактор текста': 'Lyrics editor',
+    'Открыть для трека': 'Open for track', 'Импорт из Spotify': 'Import from Spotify',
+    'Плейлист из файла': 'Playlist from file', 'Выбрать файл…': 'Choose file…', 'Плейлисты на телефон': 'Playlists to phone',
+    'Сохранить файл…': 'Save file…', 'Куда класть файлы тем и плейлистов': 'Where to put theme and playlist files',
+    'Найти теги для всей музыки': 'Find tags for all music', 'Очистка медиатеки и кэша': 'Library and cache cleanup',
+    'Палитра команд': 'Command palette', 'Конструктор окна стримера': 'Streamer window designer',
+    'Профиль': 'Profile', 'Страница профиля': 'Profile page', 'Проверить': 'Check', 'Проверить ещё раз': 'Check again',
+    'ШАБЛОНЫ': 'TEMPLATES', 'СЛОИ': 'LAYERS', 'ОКНО': 'WINDOW', 'Компакт': 'Compact', 'Широкая полоса': 'Wide bar',
+    'Карточка': 'Card', 'Минимал': 'Minimal', '  Окно стримера': '  Streamer window', 'Цвет': 'Color',
+    'Прозрачность': 'Opacity', 'Скругление': 'Corners', 'Шрифт': 'Font', 'Размер': 'Size', 'Текст': 'Text',
+    'Фон': 'Background', 'Свой': 'Custom', 'Слева': 'Left', 'По центру': 'Center', 'Справа': 'Right',
+    'Без рамки (для прозрачного фона)': 'Frameless (for a transparent background)',
+    'Выберите слой на холсте или в списке': 'Pick a layer on the canvas or in the list',
+    'Выбрать картинку / GIF…': 'Choose picture / GIF…', 'Файл не выбран': 'No file chosen',
+})
