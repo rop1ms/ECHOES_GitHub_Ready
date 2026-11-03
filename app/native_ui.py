@@ -39,6 +39,7 @@ def _load():
         return None
     try:
         import PyQt6
+        from PyQt6 import QtNetwork  # Load the matching Qt runtime for the native catalogues.
         qt_bin = os.path.join(os.path.dirname(PyQt6.__file__), "Qt6", "bin")
         if os.path.isdir(qt_bin):
             os.add_dll_directory(qt_bin)                   # Qt6*.dll — те же, что уже загрузил PyQt6

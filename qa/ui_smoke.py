@@ -22,6 +22,7 @@ for directory in (installed / "vlc", installed / "ffmpeg"):
     os.environ["PATH"] = str(directory) + os.pathsep + os.environ["PATH"]
 os.environ["PYTHON_VLC_LIB_PATH"] = str(installed / "vlc" / "libvlc.dll")
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
+os.environ["ECHOES_SPOKEN_OFFLINE"] = "1"
 os.environ["ECHOES_AUDIO_BACKEND"] = "vlc"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"

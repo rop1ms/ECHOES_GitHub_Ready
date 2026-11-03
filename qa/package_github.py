@@ -22,10 +22,11 @@ entries.extend(ROOT / name for name in root_names)
 entries.extend(p for p in (ROOT/'app').iterdir() if p.is_file() and
                (p.suffix.lower() in ('.py','.dll','.ico','.png') or p.name in ('requirements.txt','version.txt')))
 for folder in ('app/assets','app/dsl_themes','app/sounds','app/discord_assets','app/montage_native',
-               'setup','launcher','docs','tools/native','tools/montage'):
+               'setup','launcher','docs','tools/native','tools/montage','tools/native_ui','tools/launcher_native'):
     entries.extend(p for p in (ROOT/folder).rglob('*') if p.is_file())
 entries.append(ROOT/'tools/build_launcher.ps1')
 entries.extend((ROOT/'qa').glob('test_*.py'))
+entries.extend((ROOT/'qa').glob('test_*.cpp'))
 entries.extend(ROOT/'qa'/name for name in ('ui_smoke.py','make_readme_screenshots.py','build_ui_symbols.py','package_github.py','benchmark_row_memory.py','profile_queue_navigation.py','probe_first_page_geometry.py','profile_net_first_open.py','probe_device_responsiveness.py','stress_startup_navigation.py','probe_library_startup.py','check_duel_performance_ui.py','check_radio_fire_ui.py','check_radio_studio_ui.py'))
 entries=sorted(set(p for p in entries if not any(part in ('__pycache__','(null)','launcher-build') for part in p.parts)
                    and p.suffix.lower() not in ('.pyc','.pyo','.bak','.log','.db','.sqlite','.key','.pem')

@@ -33,9 +33,9 @@ foreach ($h in Get-ChildItem $here -Filter *.h) {
     }
 }
 $inc = @("/I$Qt\include", "/I$Qt\include\QtCore", "/I$Qt\include\QtGui", "/I$Qt\include\QtWidgets",
-         "/I$Qt\include\QtOpenGL", "/I$Qt\include\QtOpenGLWidgets", "/I$here")
+         "/I$Qt\include\QtOpenGL", "/I$Qt\include\QtOpenGLWidgets", "/I$Qt\include\QtNetwork", "/I$here")
 $libs = @("$Qt\lib\Qt6Core.lib", "$Qt\lib\Qt6Gui.lib", "$Qt\lib\Qt6Widgets.lib", "$Qt\lib\Qt6OpenGL.lib",
-          "$Qt\lib\Qt6OpenGLWidgets.lib", "opengl32.lib")
+          "$Qt\lib\Qt6OpenGLWidgets.lib", "$Qt\lib\Qt6Network.lib", "opengl32.lib")
 & cl.exe /nologo /std:c++17 /permissive- /Zc:__cplusplus /EHsc /O2 /MD /utf-8 /W3 /DNDEBUG /DQT_NO_DEBUG `
     /DUNICODE /D_UNICODE /DNOMINMAX $inc $srcs $mocs /Fo"$obj\\" /LD /Fe"$out" /link /NOLOGO $libs
 if ($LASTEXITCODE -ne 0) { throw 'echoes_ui build failed' }

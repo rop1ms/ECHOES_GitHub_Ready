@@ -4042,6 +4042,12 @@ class YaShell(QWidget):
 
     def _fill_foryou(self):
         page = self.pages["foryou"]
+        spoken = self.__dict__.get('_spoken_panel')
+        if spoken is not None:
+            try:
+                page.v.removeWidget(spoken)
+            except RuntimeError:
+                spoken = self._spoken_panel = None
         hero = self.__dict__.get("_fy_hero")
         try:                                           # баннер «Моя волна» переживает пересборку: его туманность
             if hero is not None:                       # на видеокарте создавалась заново (~150 мс на переходе);
@@ -4069,6 +4075,13 @@ class YaShell(QWidget):
             hero.show()
         except Exception as e:                         # noqa: BLE001
             print("[ya] wave hero:", e)
+
+        import native_spoken
+        if spoken is None:
+            spoken = self._spoken_panel = native_spoken.create(w)
+        if spoken is not None:
+            page.v.addWidget(spoken)
+            spoken.show()
 
         try:                                           # Echoes.NET: друзья сейчас слушают / открытые комнаты
             self.pages["net"].add_friends_row(page)

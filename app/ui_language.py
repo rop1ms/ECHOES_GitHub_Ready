@@ -187,6 +187,8 @@ def apply(language,window=None):
     import sys
     theme=sys.modules.get('yamusic_theme')
     for row in list(getattr(theme,'_NATIVE_ROWS',())):row.relabel()
+    import native_spoken
+    native_spoken.relabel(language)
     for widget in app.allWidgets():
         if sip.isdeleted(widget):continue
         if isinstance(widget,W.QListWidget):

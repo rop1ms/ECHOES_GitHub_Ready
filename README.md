@@ -31,6 +31,10 @@ A Russian installer entry point is included as `УСТАНОВИТЬ ECHOES.bat`
 
 Artist cards show birthplace, country / region, birth date and death date when available. MusicBrainz date precision is preserved (day, month, or year), with a source link in the details.
 
+**Audiobooks & podcasts:** browse real LibriVox books and podcast RSS episodes in For You & Trends, search, select a chapter or episode, and listen in ECHOES. The new panels are native C++ / Qt. [Details](docs/SPOKEN_AUDIO.md).
+
+**Launcher languages:** English, Russian, or your own JSON translation, with instant switching and a saved preference. [Translation guide](docs/LAUNCHER_TRANSLATIONS.md).
+
 ### Sound and focused listening
 
 - VLC playback plus an optional native audio output and mixer; gapless/crossfade controls, volume normalization, equalizer presets, bass and stereo controls.
