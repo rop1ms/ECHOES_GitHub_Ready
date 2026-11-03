@@ -261,6 +261,16 @@ class FpsGuard:
         except Exception:                                  # noqa: BLE001
             pass
         print("[sys] FPS guard: лёгкий режим включён")
+        if s.get("crash_auto"):                            # согласились на автоотчёты — сообщить и о тормозах
+            try:
+                import crash_report
+                import diagnostics
+                import hashlib
+                sig = hashlib.sha1(("perf|" + str((INFO.get("gpu") or {}).get("renderer"))).encode()).hexdigest()[:12]
+                crash_report.send(w, [{"kind": "perf", "sig": sig, "title": "Тормоза: интерфейс ниже 15 к/с",
+                                       "text": diagnostics.report(w)}])
+            except Exception as e:                         # noqa: BLE001
+                print("[sys] perf report:", e)
 
 
 def install_guard(win):

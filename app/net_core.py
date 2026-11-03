@@ -4576,6 +4576,8 @@ class NetNode:
                                                                   part)
             if ok:
                 os.replace(part, dest)
+                from net_files import mark_internet
+                mark_internet(dest)                            # «из интернета»: SmartScreen / защищённый просмотр
                 self.store.set_file(fid, state="have", path=str(dest))
                 self.emit("file", (fid, "done", str(dest)))
                 return
@@ -4683,6 +4685,8 @@ class NetNode:
         final = Path(r["path"])
         final.unlink(missing_ok=True)
         part.rename(final)
+        from net_files import mark_internet
+        mark_internet(final)                                   # «из интернета»: SmartScreen / защищённый просмотр
         self.store.set_file(fid, state="have")
         self.emit("file", (fid, "done", str(final)))
 

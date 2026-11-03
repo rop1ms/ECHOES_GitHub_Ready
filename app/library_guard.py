@@ -142,6 +142,7 @@ def find_lost(data_dir: Path, library: list, download_dir: str = "") -> list:
              "track_intel.json", "loudness.json", "settings.json", "library.json.bak", "music_tierlist.json"]
     files = [data_dir / n for n in names]
     files += sorted(data_dir.glob("library.shrink-*.json")) + sorted((data_dir / "backups").glob("*.json"))
+    files += sorted((data_dir / "state").glob("*.json"))    # тяжёлые разделы настроек (settings_store)
     for f in files:
         obj = _json(f)
         if obj is not None:

@@ -131,7 +131,9 @@ def _track_row(shell, r):
     pic.setFixedSize(34, 34)
     pic.setPixmap(cover_pixmap(r.get("cover") or t.get("cover", ""), 34, 6, seed=r.get("title", "")))
     h.addWidget(pic)
-    txt = QLabel(f"<b>{r.get('title', '')}</b>  <span style='color:#9a9a9a'>{r.get('artist', '')}</span>")
+    import html as _h                                    # названия из тегов и с площадок — текст, не разметка
+    txt = QLabel(f"<b>{_h.escape(str(r.get('title', '')))}</b>  "
+                 f"<span style='color:#9a9a9a'>{_h.escape(str(r.get('artist', '')))}</span>")
     txt.setStyleSheet("background:transparent;")
     h.addWidget(txt, 1)
 

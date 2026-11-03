@@ -120,10 +120,21 @@ class BugReportsDialog(QDialog):
             if direction=='in' and not self.node.my_role():listing.clear();detail.clear();continue
             selected=listing.currentItem();ident=selected.data(Qt.ItemDataRole.UserRole)['id'] if selected else None
             listing.blockSignals(True);listing.clear()
-            for row in self.node.store.q('SELECT * FROM bug_reports WHERE direction=? ORDER BY ts DESC LIMIT 150',(direction,)):
+            rows=self.node.store.q('SELECT * FROM bug_reports WHERE direction=? ORDER BY ts DESC LIMIT 400',(direction,))
+            # автоотчёты о вылетах (crash_report.py): одинаковая ошибка у разных людей — одной строкой «×N»
+            auto_n,auto_who,shown={},{},set()
+            for row in rows:
+                pa=json.loads(row['payload']);sig=pa.get('auto')
+                if sig:auto_n[sig]=auto_n.get(sig,0)+1;auto_who.setdefault(sig,set()).add(row['peer'])
+            for row in rows[:150] if direction!='in' else rows:
                 p=json.loads(row['payload'])
                 if listing.property('support_category') not in ('all',p.get('category','bug')):continue
+                sig=p.get('auto')
+                if sig and direction=='in':
+                    if sig in shown:continue
+                    shown.add(sig)
                 category={'bug':self.t('Баг','Bug'),'radio':self.t('Радио','Radio'),'appeal':self.t('Апелляция','Appeal'),'other':self.t('Запрос','Request')}.get(p.get('category','bug'),'')
+                if sig:category=self.t('Автоотчёт','Auto report')+(f' ×{auto_n[sig]} · {len(auto_who[sig])} чел.' if direction=='in' and auto_n[sig]>1 else '')
                 listing.addItem(category+' · '+p['title']+'\n'+states.get(row['state'],row['state'])+' · '+time.strftime('%d.%m %H:%M',time.localtime(row['ts'])))
                 item=listing.item(listing.count()-1);item.setData(Qt.ItemDataRole.UserRole,row)
                 if row['id']==ident:listing.setCurrentItem(item)

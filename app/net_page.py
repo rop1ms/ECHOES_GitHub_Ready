@@ -193,6 +193,7 @@ class _PicBus(QObject):
 
 def lbl(text="", obj="", wrap=False, sel=False) -> QLabel:
     w = QLabel(text)
+    w.setTextFormat(Qt.TextFormat.PlainText)            # ники, посты, названия — от людей: текст, не HTML-разметка
     if obj:
         w.setObjectName(obj)
     if wrap:

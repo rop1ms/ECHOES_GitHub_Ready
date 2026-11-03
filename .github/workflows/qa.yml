@@ -52,7 +52,7 @@ jobs:
         run: python qa/run_all.py --out qa-logs --timeout 900
       - name: Логи тестов
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: qa-logs
           path: qa-logs

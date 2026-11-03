@@ -37,7 +37,8 @@ def _thumb_img(meta) -> QImage:
     img = QImage()
     if th:
         try:
-            img.loadFromData(base64.b64decode(th))
+            import img_guard                               # превью от собеседника — без «картинок-бомб»
+            img = img_guard.load(base64.b64decode(th), 640)
         except ValueError:
             pass
     return img

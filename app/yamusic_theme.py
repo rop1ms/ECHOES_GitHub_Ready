@@ -4870,11 +4870,14 @@ class YaShell(QWidget):
         if self._disc_added or self._disc_pool:
             extra = f"  ·  + новое для вас: {self._disc_added}"
         t = self.current_track()
-        if t is not None and t.get("wave_new"):
-            m = f" · совпадение {t['match']}%" if t.get("match") else ""
-            self.wave.hint.setText("Новое для вас · онлайн, похоже на то, что вы слушаете" + m + extra)
-        else:
-            self.wave.hint.setText(base + extra)
+        try:                                          # страницу волны могли пересоздать, пока шёл поиск нового
+            if t is not None and t.get("wave_new"):
+                m = f" · совпадение {t['match']}%" if t.get("match") else ""
+                self.wave.hint.setText("Новое для вас · онлайн, похоже на то, что вы слушаете" + m + extra)
+            else:
+                self.wave.hint.setText(base + extra)
+        except RuntimeError:
+            pass
 
     # ── «Коллекция» ──────────────────────────────────────────────────── #
 

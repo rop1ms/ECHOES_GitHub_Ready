@@ -158,6 +158,9 @@ class Banner(QWidget):
                 raw = base64.b64decode(b)
             except ValueError:
                 raw = b""
+            import img_guard                          # баннер — от другого человека: без «картинок-бомб»
+            if _kind(raw) == "gif" and not img_guard.gif_ok(raw):
+                raw = b""
             if _kind(raw) == "gif":
                 self._buf = QBuffer()
                 self._buf.setData(QByteArray(raw))
@@ -166,8 +169,7 @@ class Banner(QWidget):
                 self.movie.frameChanged.connect(lambda _i: self.update())
                 self.movie.start()
             elif raw:
-                img = QImage()
-                img.loadFromData(raw)
+                img = img_guard.load(raw, 1280)
                 self.pm = QPixmap.fromImage(img) if not img.isNull() else None
         self.update()
 

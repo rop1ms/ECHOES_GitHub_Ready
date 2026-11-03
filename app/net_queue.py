@@ -75,9 +75,10 @@ class Offer(QFrame):
         v.setContentsMargins(14, 12, 14, 12)
         v.setSpacing(6)
         who = net._contact_label(onion)
-        t = QLabel(f"<b>{who}</b> подкидывает трек")
+        import html as _h                                # имя и трек — от собеседника: экранируем, не разметка
+        t = QLabel(f"<b>{_h.escape(str(who))}</b> подкидывает трек")
         v.addWidget(t)
-        tr = QLabel(f"<b>{track.get('title', '')}</b> — {track.get('artist', '')}")
+        tr = QLabel(f"<b>{_h.escape(str(track.get('title', '')))}</b> — {_h.escape(str(track.get('artist', '')))}")
         tr.setWordWrap(True)
         v.addWidget(tr)
         if note:

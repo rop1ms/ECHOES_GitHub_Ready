@@ -253,11 +253,11 @@ def img_of(b64: str) -> QImage:
     k = (len(b64), b64[:48], b64[-48:])
     hit = _IMG.get(k)
     if hit is None:
-        hit = QImage()
+        import img_guard                                   # картинки витрины — от других людей: без «бомб»
         try:
-            hit.loadFromData(base64.b64decode(b64))
+            hit = img_guard.load(base64.b64decode(b64))
         except ValueError:
-            pass
+            hit = QImage()
         if len(_IMG) > 120:
             _IMG.clear()
         _IMG[k] = hit

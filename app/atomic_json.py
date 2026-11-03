@@ -138,3 +138,12 @@ def flush(timeout=10.0):
 
 import atexit as _atexit
 _atexit.register(flush)
+
+
+def save_bytes_async(path, payload: bytes):
+    """Готовое содержимое JSON (уже сериализованное) — в очередь фоновой записи."""
+    with _COND:
+        _PENDING[str(Path(path))]=bytes(payload)
+        if _WRITER[0] is None or not _WRITER[0].is_alive():
+            _WRITER[0]=threading.Thread(target=_writer,daemon=True,name='json-writer');_WRITER[0].start()
+        _COND.notify_all()

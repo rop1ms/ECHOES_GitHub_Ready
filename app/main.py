@@ -190,6 +190,9 @@ def save_json(path, obj):
     # Compact encoding stays in the C encoder; pretty-printing large settings
     # recursively in Python used an entire input frame on every slider step.
     from atomic_json import save_json_async               # диск — в фоновом потоке (atomic_json)
+    if isinstance(obj, dict) and str(path).replace("\\", "/").endswith("/settings.json"):
+        import settings_store                              # тяжёлые разделы — отдельными файлами, по изменению
+        return settings_store.save(path, obj)
     return save_json_async(path,obj)
 
 
@@ -464,6 +467,8 @@ class MainWindow(QMainWindow):
             "download_dir": str(DATA_DIR / "downloads"), "vk_cookies": "",
             "spotify_client_id": "", "spotify_client_secret": "",
         })
+        import settings_store                            # история, дневник, дуэль… — из state/ (settings_store)
+        settings_store.load_into(self.settings, SETTINGS_FILE)
         try:                                             # своя настройка темы Echoes Music (цвета, шрифт, кнопки)
             import ya_skin
             ya_skin.apply(self.settings.get("ya_skin"))
@@ -8801,6 +8806,10 @@ if __name__=="__main__":
     try:                  # запуск удался — откат больше не нужен; после отката — сказать почему
         import boot_guard
         QTimer.singleShot(15000, boot_guard.mark_ok)
+        import onboarding                              # новичку — три шага: музыка, плейлисты, вид
+        QTimer.singleShot(1200, lambda: onboarding.maybe_show(win))
+        import crash_report                            # вылеты с прошлого раза — спросить, отправить ли автору
+        QTimer.singleShot(9000, lambda: crash_report.check_on_start(win))
         _rb = boot_guard.rolled_back_notice()
         if _rb:
             QTimer.singleShot(4000, lambda: win._toast(_rb))

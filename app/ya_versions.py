@@ -161,7 +161,9 @@ class VersionsDialog(QDialog):
         pic.setFixedSize(40, 40)
         pic.setPixmap(cover_pixmap(x.get("cover", ""), 40, 6, seed=x.get("title", "")))
         h.addWidget(pic)
-        t = QLabel(f"<b>{x.get('title', '')}</b><br><span style='color:#9a9a9a'>{x.get('artist', '')}</span>")
+        import html as _h                                # названия с YouTube/SoundCloud — текст, не разметка
+        t = QLabel(f"<b>{_h.escape(str(x.get('title', '')))}</b><br>"
+                   f"<span style='color:#9a9a9a'>{_h.escape(str(x.get('artist', '')))}</span>")
         h.addWidget(t, 1)
         k = QLabel(("▶ играет · " if current else "") + kind_of(x.get("title", "")))
         k.setStyleSheet("color:#ffdb1a;font-weight:800;")

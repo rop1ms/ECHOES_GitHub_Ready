@@ -30,16 +30,18 @@ def clean(payload):
         result[key]=value.strip()
     diag = payload.get('diag')                     # техническая сводка о ПК (diagnostics.py), необязательно
     if isinstance(diag,str) and diag.strip():result['diag']=diag.strip()[:4000]
+    auto = payload.get('auto')                     # автоотчёт о вылете: подпись ошибки (crash_report.py)
+    if isinstance(auto,str) and re.fullmatch('[0-9a-f]{12}',auto):result['auto']=auto
     ts = payload.get('ts')
     if isinstance(ts,bool) or not isinstance(ts,(int,float)) or not math.isfinite(ts):return None
     result['ts']=max(0.,min(float(ts),time.time()+60))
     return result
 
 
-def queue(node, peer, title, details, steps='', version='', category='bug', diag=''):
+def queue(node, peer, title, details, steps='', version='', category='bug', diag='', auto=''):
     if peer not in recipients(node):raise ValueError('invalid_recipient')
     payload=clean({'id':secrets.token_hex(12),'title':title,'details':details,'steps':steps,
-                   'version':version,'name':node._name(),'ts':time.time(),'category':category,'diag':diag})
+                   'version':version,'name':node._name(),'ts':time.time(),'category':category,'diag':diag,'auto':auto})
     if payload is None:raise ValueError('invalid_report')
     if len(node.store.q("SELECT id FROM bug_reports WHERE direction='out' AND state='queued' LIMIT 30"))>=MAX_PENDING:
         raise ValueError('queue_full')

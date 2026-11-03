@@ -34,7 +34,24 @@ TEXT = {".txt", ".md", ".log", ".csv", ".json", ".py", ".js", ".ts", ".html", ".
         ".yaml", ".yml", ".lua", ".c", ".cpp", ".h", ".cs", ".java", ".go", ".rs", ".sh", ".lrc", ".srt", ".echo"}
 ARCHIVE = {".zip", ".rar", ".7z", ".tar", ".gz"}
 DANGER = {".exe", ".bat", ".cmd", ".ps1", ".vbs", ".js", ".jse", ".wsf", ".msi", ".scr", ".com", ".lnk", ".reg",
-          ".hta", ".jar", ".dll", ".cpl", ".pif"}
+          ".hta", ".jar", ".dll", ".cpl", ".pif",
+          # тоже запускают код или ставят программы: пакеты, ярлыки, образы дисков, справка, скрипты, макросы
+          ".msix", ".msixbundle", ".appx", ".appxbundle", ".appinstaller", ".application", ".msp", ".mst",
+          ".url", ".website", ".settingcontent-ms", ".library-ms", ".search-ms", ".iso", ".img", ".vhd", ".vhdx",
+          ".chm", ".vbe", ".wsh", ".wsc", ".sct", ".psm1", ".psd1", ".ps1xml", ".inf", ".gadget", ".xll",
+          ".py", ".pyw", ".pyz", ".sys", ".docm", ".dotm", ".xlsm", ".xltm", ".xlam", ".pptm", ".potm", ".ppam"}
+
+
+def mark_internet(path) -> None:
+    """Пометка Windows «файл из интернета» (Zone.Identifier, как у браузера): SmartScreen предупредит при
+    запуске, Office откроет документ в защищённом режиме. Присланное через Echoes.NET — чужое, как из сети."""
+    if os.name != "nt":
+        return
+    try:
+        with open(str(path) + ":Zone.Identifier", "w", encoding="ascii") as f:
+            f.write("[ZoneTransfer]\nZoneId=3\nReferrerUrl=echoes-net://friend\n")
+    except OSError:
+        pass
 
 KIND_COLOR = {"image": "#3ddc84", "video": "#ff4fa3", "audio": "#ffdb1a", "pdf": "#ff5c5c", "text": "#5ab0ff",
               "archive": "#c08cff", "file": "#9a9a9a"}

@@ -213,7 +213,8 @@ def block(net, p) -> QFrame:
     w.setStyleSheet("QFrame#ChalTag{background:rgba(255,157,0,0.12);border-radius:12px;} QLabel{background:transparent;}")
     h = QHBoxLayout(w)
     h.setContentsMargins(12, 6, 8, 6)
-    t = QLabel(f"\U000f1000 Челлендж: <b>{p.get('theme') or theme_for(week)}</b>")
+    import html as _h                                    # тема — из чужого поста: только текст, не разметка
+    t = QLabel(f"\U000f1000 Челлендж: <b>{_h.escape(str(p.get('theme') or theme_for(week)))}</b>")
     h.addWidget(t, 1)
     if week == week_id():
         mine = st.my_react(p["id"], net.node.me.onion, "cv") == "1"
