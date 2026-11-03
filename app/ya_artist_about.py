@@ -69,7 +69,7 @@ class AboutCard(QWidget):
     def __init__(self, shell, data, name):
         super().__init__()
         self.shell, self.d, self.name = shell, data or {}, name
-        self.setMinimumHeight(320)
+        self.setMinimumHeight(440)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setToolTip("Подробнее об исполнителе")
         p = self.d.get("picture") or ""
@@ -90,8 +90,8 @@ class AboutCard(QWidget):
         card = QPainterPath()
         card.addRoundedRect(QRectF(0, 0, W, H), 12, 12)
         p.fillPath(card, QColor(255, 255, 255, 18 if not self.underMouse() else 26))
-        D = 200
-        cx, cy = 40, 40
+        D = 120 if W < 650 else 200
+        cx, cy = (20, 24) if W < 650 else (40, 40)
         circ = QPainterPath()
         circ.addEllipse(QRectF(cx, cy, D, D))
         p.save()
@@ -110,7 +110,7 @@ class AboutCard(QWidget):
             p.setFont(_font(15, True))
             p.drawText(QRectF(cx, y - 18, D + 120, 24), Qt.AlignmentFlag.AlignVCenter, f"{_full(n)} {what}")
         # справа от фото — имя, цифры по площадкам, жанры, описание (раньше там было пусто)
-        x = cx + D + 44
+        x = cx + D + (20 if W < 650 else 44)
         rw = W - x - 32
         y = cy + 4
         d = self.d
@@ -120,21 +120,35 @@ class AboutCard(QWidget):
         p.drawText(QRectF(x, y, rw, 36), Qt.AlignmentFlag.AlignVCenter,
                    fm.elidedText(self.name or d.get("name") or "", Qt.TextElideMode.ElideRight, int(rw)))
         y += 48
+        from artist_net import facts
+        from i18n import tr
+        personal = [(label, value) for label, value in facts(d)
+                    if label in ('Дата рождения', 'Дата смерти', 'Дата распада', 'Основана', 'Откуда', 'Место рождения', 'Страна / регион')]
+        p.setFont(_font(13))
+        p.setPen(QColor(255, 255, 255, 215))
+        for label, value in personal:
+            text = tr(label) + ': ' + value
+            p.drawText(QRectF(x, y, rw, 22), Qt.AlignmentFlag.AlignVCenter,
+                       QFontMetrics(_font(13)).elidedText(text, Qt.TextElideMode.ElideRight, max(1, int(rw))))
+            y += 24
         stats = [(d.get(k), lab) for k, lab in (("ytm_subs", "подписчиков YouTube"), ("fans", "поклонников Deezer"),
                                                 ("listeners", "слушателей Last.fm"), ("playcount", "прослушиваний"),
                                                 ("ytm_views", "просмотров YouTube")) if d.get(k)]
-        col_w = max(150, rw / 3)
-        for i, (v, lab) in enumerate(stats[:6]):
-            sx = x + (i % 3) * col_w
-            sy = y + (i // 3) * 52
+        columns = max(1, min(3, int(rw / 150)))
+        col_w = rw / columns
+        shown_stats = stats[:3] if columns < 3 else stats[:6]
+        for i, (v, lab) in enumerate(shown_stats):
+            sx = x + (i % columns) * col_w
+            sy = y + (i // columns) * 52
             p.setFont(_font(20, True))
             p.setPen(QColor("#ffffff"))
             p.drawText(QRectF(sx, sy, col_w - 10, 26), Qt.AlignmentFlag.AlignVCenter, _human(v))
             p.setFont(_font(12))
             p.setPen(QColor(255, 255, 255, 150))
-            p.drawText(QRectF(sx, sy + 26, col_w - 10, 18), Qt.AlignmentFlag.AlignVCenter, lab)
+            p.drawText(QRectF(sx, sy + 26, col_w - 10, 18), Qt.AlignmentFlag.AlignVCenter,
+                       QFontMetrics(_font(12)).elidedText(tr(lab), Qt.TextElideMode.ElideRight, max(1, int(col_w - 10))))
         if stats:
-            y += 52 * ((min(len(stats), 6) + 2) // 3) + 10
+            y += 52 * ((len(shown_stats) + columns - 1) // columns) + 10
         tags = [str(t) for t in (d.get("tags") or [])][:8]
         if tags:
             p.setFont(_font(13, True))
@@ -206,7 +220,8 @@ class AboutDialog(QDialog):
         left.addStretch(1)
         links = [("YouTube Music", f"https://music.youtube.com/channel/{d['ytm_id']}" if d.get("ytm_id") else ""),
                  ("Deezer", f"https://www.deezer.com/artist/{d['deezer_id']}" if d.get("deezer_id") else ""),
-                 ("SoundCloud", d.get("sc_profile") or ""), ("Википедия", d.get("wiki_url") or "")]
+                 ("SoundCloud", d.get("sc_profile") or ""), ("Википедия", d.get("wiki_url") or ""),
+                 ("MusicBrainz", f"https://musicbrainz.org/artist/{d['mb_id']}" if d.get('mb_id') else '')]
         for title, url in links:
             if not url:
                 continue
@@ -236,6 +251,19 @@ class AboutDialog(QDialog):
                           "QLabel{background:transparent;}")
         bl = QVBoxLayout(box)
         bl.setContentsMargins(16, 14, 16, 14)
+        bl.setAlignment(Qt.AlignmentFlag.AlignTop)
+        from artist_net import facts
+        from i18n import tr
+        for label, value in facts(d):
+            fact = QLabel(tr(label) + ': ' + value)
+            fact.setTextFormat(Qt.TextFormat.PlainText)
+            fact.setWordWrap(True)
+            fact.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            bl.addWidget(fact)
+        if d.get('mb_id'):
+            source = QLabel(tr('Источник: MusicBrainz'))
+            source.setObjectName('YaSub')
+            bl.addWidget(source)
         lb = QLabel(bio or "Описания пока нет.")
         lb.setWordWrap(True)
         lb.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)

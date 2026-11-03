@@ -42,6 +42,9 @@ def left_text(ts: float | None = None) -> str:
     end = (now + datetime.timedelta(days=7 - now.isoweekday())).replace(hour=23, minute=59, second=59)
     s = max(0, int((end - now).total_seconds()))
     d, h = s // 86400, s % 86400 // 3600
+    import i18n
+    if i18n.LANG == 'en':
+        return f'{d}d {h}h remaining' if d else f'{h}h {s % 3600 // 60}m remaining'
     return f"ещё {d} д {h} ч" if d else f"ещё {h} ч {s % 3600 // 60} мин"
 
 
@@ -155,7 +158,8 @@ def card(net) -> QFrame:
     top = QHBoxLayout()
     col = QVBoxLayout()
     col.setSpacing(0)
-    k = QLabel("ЧЕЛЛЕНДЖ НЕДЕЛИ  ·  " + left_text())
+    from i18n import tr
+    k = QLabel(tr("ЧЕЛЛЕНДЖ НЕДЕЛИ") + "  ·  " + left_text())
     k.setStyleSheet("color:#ffcf70;font-size:11px;font-weight:800;letter-spacing:1px;")
     t = QLabel(theme_for(week))
     t.setStyleSheet("font-size:22px;font-weight:900;")

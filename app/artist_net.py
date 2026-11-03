@@ -46,7 +46,7 @@ CACHE = data_home.root() / "net_cache"
 IMG_DIR = CACHE / "img"
 ART_DIR = CACHE / "artists"
 TTL = 3 * 86400
-ARTIST_SCHEMA = 4                                  # 3: SoundCloud для малоизвестных и однофамильцев
+ARTIST_SCHEMA = 5                                  # Full life dates, birthplace and language-aware biographies.
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) EchoesPlayer/1.0"}
 _TLS = threading.local()
 _FAILED = {}                                       # имя → когда не ответил ни один сервер (не долбить сеть)
@@ -400,7 +400,8 @@ def _mb(name):
     if not genres:
         genres = [t.get("name", "") for t in sorted(d.get("tags") or [], key=lambda t: -int(t.get("count") or 0))]
     return {"mb_checked": True, "mb_id": best["id"], "mb_type": d.get("type") or "",
-            "mb_country": country, "mb_area": area if area != country else "",
+            "mb_country": country, "mb_area": "", "mb_origin": area,
+            "mb_birthplace": area, "mb_deathplace": (d.get("end-area") or {}).get("name") or "",
             "mb_begin": life.get("begin") or "", "mb_ended": bool(life.get("ended")),
             "mb_end": life.get("end") or "", "mb_disamb": d.get("disambiguation") or "",
             "mb_aliases": [x.get("name", "") for x in d.get("aliases") or []][:6],
@@ -417,8 +418,31 @@ _RU_PLACES = {"Russia": "Россия", "Germany": "Германия", "United S
               "Los Angeles": "Лос-Анджелес", "New York": "Нью-Йорк", "Berlin": "Берлин", "Kyiv": "Киев"}
 
 
+def _language():
+    import i18n
+    return i18n.LANG
+
+
 def _ru_place(x):
-    return _RU_PLACES.get(x, x)
+    return _RU_PLACES.get(x, x) if _language() == 'ru' else x
+
+
+def life_date(value):
+    """Preserve the source's precision; never invent a missing month or day."""
+    from datetime import date
+    value = str(value or '')
+    try:
+        if re.fullmatch(r'\d{4}-\d{2}-\d{2}', value):
+            date.fromisoformat(value)
+            return value
+        if re.fullmatch(r'\d{4}-\d{2}', value):
+            date.fromisoformat(value + '-01')
+            return value
+        if re.fullmatch(r'\d{4}', value) and int(value) > 0:
+            return value
+    except ValueError:
+        pass
+    return ''
 
 
 def facts(d: dict) -> list:
@@ -426,14 +450,25 @@ def facts(d: dict) -> list:
     d = d or {}
     out = []
     t = d.get("mb_type")
-    begin = str(d.get("mb_begin") or "")[:4]
+    begin = life_date(d.get("mb_begin"))
     if begin:
-        end = str(d.get("mb_end") or "")[:4] if d.get("mb_ended") else ""
-        out.append(("Основана" if t == "Group" else "Год рождения" if t == "Person" else "Начало",
-                    begin + (f" — {end}" if end else "")))
-    place = ", ".join(_ru_place(x) for x in (d.get("mb_area"), d.get("mb_country")) if x)
+        out.append(("Основана" if t == "Group" else "Дата рождения" if t == "Person" else "Начало", begin))
+    end = life_date(d.get("mb_end")) if d.get("mb_ended") else ''
+    if end and t in ('Person', 'Group', 'Orchestra', 'Choir'):
+        out.append(("Дата смерти" if t == 'Person' else "Дата распада", end))
+    if t == 'Person' and d.get('mb_birthplace'):
+        out.append(("Место рождения", _ru_place(d['mb_birthplace'])))
+    if t == 'Person' and end and d.get('mb_deathplace'):
+        out.append(("Место смерти", _ru_place(d['mb_deathplace'])))
+    # An artist's associated country may differ from the country of birth.
+    # Keep these separate rather than constructing a false city/country pair.
+    origin = d.get('mb_origin') or d.get('mb_area') or ''
+    place = _ru_place(origin or d.get('mb_country') or '')
     if place:
-        out.append(("Откуда", place))
+        if not (t == 'Person' and origin == d.get('mb_birthplace')):
+            out.append(("Откуда", place))
+    if origin and d.get('mb_country'):
+        out.append(("Страна / регион", _ru_place(d['mb_country'])))
     alb = d.get("albums") or []
     years = sorted(int(a["year"]) for a in alb if str(a.get("year") or "").isdigit())
     if years and not (begin and t == "Group"):           # у групп со стажем Deezer отдаёт не всю дискографию
@@ -466,6 +501,21 @@ def _fill_bio(d: dict):
         d["bio"], d["bio_src"] = d["ytm_bio"], "YouTube Music"
         return
     name = d.get("name") or ""
+    if _language() == 'en':
+        who = 'band' if d.get('mb_type') == 'Group' else 'artist'
+        place = ', '.join(dict.fromkeys(x for x in (d.get('mb_area'), d.get('mb_country')) if x))
+        parts = [f'{name} — {who}' + (f' ({place})' if place else '') + '.']
+        tags = d.get('mb_genres') or d.get('tags') or []
+        if tags:
+            parts.append('Genres: ' + ', '.join(tags[:3]) + '.')
+        if d.get('mb_type') == 'Person':
+            if life_date(d.get('mb_begin')):
+                parts.append('Born: ' + life_date(d['mb_begin']) + '.')
+            if d.get('mb_ended') and life_date(d.get('mb_end')):
+                parts.append('Died: ' + life_date(d['mb_end']) + '.')
+        if len(parts) > 1:
+            d['bio'], d['bio_src'] = ' '.join(parts), 'Echoes'
+        return
     who = "группа" if d.get("mb_type") == "Group" else "исполнитель"
     s = f"{name} — {who}"
     place = ", ".join(_ru_place(x) for x in (d.get("mb_area"), d.get("mb_country")) if x)
@@ -501,8 +551,10 @@ _MUSIC_WORDS = re.compile(r"музык|певец|певиц|рэпер|испо
 
 
 def _wiki(name):
-    for lang, titles in (("ru", [name, f"{name} (музыкант)", f"{name} (рэпер)", f"{name} (группа)"]),
-                         ("en", [name, f"{name} (musician)", f"{name} (rapper)", f"{name} (band)"])):
+    variants = {"ru": [name, f"{name} (музыкант)", f"{name} (рэпер)", f"{name} (группа)"],
+                "en": [name, f"{name} (musician)", f"{name} (rapper)", f"{name} (band)"]}
+    for lang in ([_language()] if _language() == 'en' else ['ru', 'en']):
+        titles = variants[lang]
         for t in titles:
             j = _get(f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{quote(t.replace(' ', '_'))}")
             if not j or j.get("type") == "disambiguation":
@@ -522,7 +574,7 @@ def _lastfm(name, key):
         return None
     j = _get("https://ws.audioscrobbler.com/2.0/", {"method": "artist.getinfo", "artist": name,
                                                     "autocorrect": 1, "api_key": key, "format": "json",
-                                                    "lang": "ru"})
+                                                    "lang": _language()})
     a = (j or {}).get("artist")
     if not a:
         return None
@@ -573,7 +625,7 @@ def fetch_artist(name: str, lastfm_key: str = "", force: bool = False, images: b
     """Собрать карточку артиста (в фоне). Возвращает dict; ключ 'sources' —
     какие серверы ответили, 'error' — если ни один. images=False — из картинок только фото."""
     c = cached(name)
-    if c and c.get('schema') == ARTIST_SCHEMA and not force and time.time() - c.get("ts", 0) < TTL:
+    if c and c.get('schema') == ARTIST_SCHEMA and c.get('bio_language') == _language() and not force and time.time() - c.get("ts", 0) < TTL:
         if images and c.get("partial"):
             if _attach_images(c, True):
                 _save(name, c)
@@ -583,7 +635,7 @@ def fetch_artist(name: str, lastfm_key: str = "", force: bool = False, images: b
             c["stale"] = True
             return c
         return {"name": name, "sources": [], "error": "Серверы не ответили — проверьте интернет"}
-    data = {"name": name, "ts": int(time.time()), "sources": [], 'schema': ARTIST_SCHEMA}
+    data = {"name": name, "ts": int(time.time()), "sources": [], 'schema': ARTIST_SCHEMA, 'bio_language': _language()}
     with ThreadPoolExecutor(max_workers=5) as ex:
         fd = ex.submit(_deezer, name, titles)
         fw = ex.submit(_wiki, name)
@@ -668,6 +720,12 @@ def fetch_artist(name: str, lastfm_key: str = "", force: bool = False, images: b
 def human(n: int) -> str:
     """1234567 → «1,2 млн», 45300 → «45,3 тыс.»"""
     n = int(n or 0)
+    if _language() == 'en':
+        if n >= 1_000_000:
+            return f'{n / 1_000_000:.1f}'.rstrip('0').rstrip('.') + 'M'
+        if n >= 1000:
+            return f'{n / 1000:.1f}'.rstrip('0').rstrip('.') + 'K'
+        return str(n)
     if n >= 1_000_000:
         return f"{n / 1_000_000:.1f}".rstrip("0").rstrip(".").replace(".", ",") + " млн"
     if n >= 10_000:

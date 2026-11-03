@@ -88,13 +88,14 @@ class SpotifyImportDialog(QDialog):
         lay.addLayout(row)
         if provider=='auto':                          # какие площадки понимает: щелчок — пример ссылки
             from PyQt6.QtWidgets import QWidget
-            chips=QWidget();cl=QHBoxLayout(chips);cl.setContentsMargins(0,0,0,0);cl.setSpacing(6)
+            from yamusic_theme import FlowLayout
+            chips=QWidget();cl=FlowLayout(chips,6,6);cl.setContentsMargins(0,0,0,0)
             for key,(title,example) in platform_import.PROVIDERS.items():
                 chip=QPushButton(names.get(key,title));chip.setObjectName('YaChip')
                 chip.setCursor(Qt.CursorShape.PointingHandCursor);chip.setToolTip(example)
                 chip.clicked.connect(lambda _=False,e=example:(self.url.setPlaceholderText(e),self.url.setFocus()))
                 cl.addWidget(chip)
-            cl.addStretch(1);lay.addWidget(chips)
+            lay.addWidget(chips)
         if provider!='spotify':
             note=QLabel(self.t('Без токенов и входа в аккаунт. Если сервис скрывает список, загрузите TXT/M3U со строками «Исполнитель — Название». Неполный список будет отмечен.',
                 'No tokens or account login. If the service hides the list, load a TXT/M3U file with Artist — Title entries. Partial lists are marked.'))

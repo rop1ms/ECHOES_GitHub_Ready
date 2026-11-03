@@ -113,7 +113,8 @@ class ArtistCard(QWidget):
             c = None
         if c and not c.get("error"):
             self._apply(c)
-            if not c.get("ytm_checked") or "ytm_related" not in c or "mb_checked" not in c:
+            if (not c.get("ytm_checked") or "ytm_related" not in c or "mb_checked" not in c
+                    or c.get('schema') != artist_net.ARTIST_SCHEMA or c.get('bio_language') != artist_net._language()):
                 self._fetch(name)                             # дополнить «слушателями за месяц»
         else:
             self._fetch(name)

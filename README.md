@@ -29,6 +29,8 @@ A Russian installer entry point is included as `УСТАНОВИТЬ ECHOES.bat`
 - **Online search and streaming:** discover music through supported online sources, prepare upcoming streams, and download tracks or albums from supported services. Import playlists from Spotify, Yandex Music and VK Music, and share playlists with other ECHOES users. Yandex/VK import reads public metadata without token fields; TXT/M3U lists are supported when a service requires login or returns only part of a playlist.
 - **Library care:** tag and cover lookup, genre analysis and corrections, track tools, duplicate/cache cleanup, listening statistics, a profile, and Wrapped-style listening recaps.
 
+Artist cards show birthplace, country / region, birth date and death date when available. MusicBrainz date precision is preserved (day, month, or year), with a source link in the details.
+
 ### Sound and focused listening
 
 - VLC playback plus an optional native audio output and mixer; gapless/crossfade controls, volume normalization, equalizer presets, bass and stereo controls.

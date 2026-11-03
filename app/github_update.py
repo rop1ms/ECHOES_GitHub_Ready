@@ -26,7 +26,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
-REPO = "rop1ms/ECHOES_GitHub_Ready"
+REPO = "rop1ms/Echoes"
 BRANCH = "main"
 VERSION_URL = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/app/version.txt"
 COMMIT_URL = f"https://api.github.com/repos/{REPO}/commits/{BRANCH}"

@@ -12,7 +12,7 @@ import zipfile
 
 import psutil
 
-REPO = "rop1ms/ECHOES_GitHub_Ready"
+REPO = "rop1ms/Echoes"
 BRANCH = "main"
 VERSION_URL = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/app/version.txt"
 ZIP_URL = f"https://codeload.github.com/{REPO}/zip/refs/heads/{BRANCH}"
