@@ -1,6 +1,11 @@
 # github_update.py
 """
-Обновление ECHOES с GitHub: кнопка «Обновить» в шапке окна, когда на GitHub вышла новая версия.
+Обновление ECHOES с GitHub: кнопка «Обновить» в шапке окна, когда автор выпустил новую версию.
+
+  Ставится только ПОДПИСАННЫЙ выпуск (release_sign): release/<канал>.json в репозитории — версия, точный
+  коммит и SHA-256 каждого файла, подписанные ключом автора. Скачивается ровно этот коммит, и каждый файл
+  сверяется; не сошлось — не ставим. Каналы: «stable» (все) и «beta» (друзья-тестеры, Настройки → Обновления).
+  Пуш в main без выпуска никого не обновляет. Версия, которая не запустилась (boot_guard), — пропускается.
 
   * раз в несколько часов (и вскоре после запуска) сравниваем свой app/version.txt с тем, что лежит в ветке
     main репозитория ECHOES на GitHub (raw-файл, без API и без лимитов);
@@ -31,6 +36,9 @@ BRANCH = "main"
 VERSION_URL = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/app/version.txt"
 COMMIT_URL = f"https://api.github.com/repos/{REPO}/commits/{BRANCH}"
 ZIP_URL = f"https://codeload.github.com/{REPO}/zip/refs/heads/{BRANCH}"
+RELEASE_URL = "https://raw.githubusercontent.com/{repo}/{branch}/release/{channel}.json"
+COMMIT_ZIP_URL = "https://codeload.github.com/{repo}/zip/{commit}"
+MIRRORS: list = []        # запасные адреса выпусков (кортежи repo, branch), если GitHub недоступен
 APP_DIR = Path(__file__).resolve().parent
 CHECK_EVERY_S = 3 * 3600
 FIRST_CHECK_MS = 25_000
@@ -61,6 +69,37 @@ def remote_version() -> str:
     return _get(VERSION_URL).decode("utf-8", "replace").strip()
 
 
+def channel_of(settings) -> str:
+    ch = str((settings or {}).get("update_channel") or "stable")
+    return ch if ch in ("stable", "beta") else "stable"
+
+
+def remote_release(channel: str = "stable") -> dict:
+    """Подписанный выпуск канала; подпись не сошлась — ошибка (такое не ставим)."""
+    import release_sign
+    last = None
+    for repo, branch in [(REPO, BRANCH)] + list(MIRRORS):
+        try:
+            m = json.loads(_get(RELEASE_URL.format(repo=repo, branch=branch, channel=channel)).decode("utf-8"))
+        except Exception as e:                           # noqa: BLE001
+            last = e
+            continue
+        if not release_sign.verify(m):
+            raise RuntimeError("подпись выпуска не прошла проверку — обновление отклонено")
+        m["_repo"] = repo
+        return m
+    raise last or RuntimeError("нет выпуска")
+
+
+def bad_versions() -> set:
+    """Версии, которые у этого человека не запустились (откатились) — их не предлагаем снова."""
+    try:
+        import boot_guard
+        return set(boot_guard.state().get("bad") or [])
+    except Exception:                                    # noqa: BLE001
+        return set()
+
+
 def changes_note() -> str:
     """Сообщение последнего коммита (что нового) — или пусто."""
     try:
@@ -72,13 +111,20 @@ def changes_note() -> str:
         return ""
 
 
-def download(ver: str, progress=None, cancel=None) -> Path:
-    """Архив ветки → распакованная папка с app/ и setup/; проверяет, что внутри версия ver."""
+def download(ver, progress=None, cancel=None) -> Path:
+    """Подписанный выпуск (манифест) → распакованная папка с app/ и setup/, каждый файл сверен с подписью.
+    Строка вместо манифеста — старый путь (архив ветки), только для тестов."""
     import requests
+    manifest = ver if isinstance(ver, dict) else None
+    if manifest is not None:
+        ver = manifest["version"]
+        url = COMMIT_ZIP_URL.format(repo=manifest.get("_repo") or REPO, commit=manifest["commit"])
+    else:
+        url = ZIP_URL
     base = Path(tempfile.gettempdir()) / "echoes_github_update"
     base.mkdir(parents=True, exist_ok=True)
     zpath = base / f"echoes-{re.sub(r'[^0-9.-]', '_', ver)}.zip"
-    with requests.get(ZIP_URL, stream=True, timeout=20, headers={"User-Agent": "ECHOES-updater"}) as r:
+    with requests.get(url, stream=True, timeout=20, headers={"User-Agent": "ECHOES-updater"}) as r:
         r.raise_for_status()
         total = int(r.headers.get("Content-Length") or 0)
         got = 0
@@ -105,6 +151,11 @@ def download(ver: str, progress=None, cancel=None) -> Path:
         raise RuntimeError("в архиве нет программы")
     if parse_version(got_ver) < parse_version(ver):
         raise RuntimeError(f"в архиве версия {got_ver or '?'}, ждали {ver}")
+    if manifest is not None:                             # каждый файл — как подписал автор
+        import release_sign
+        problems = release_sign.check_tree(src, manifest)
+        if problems:
+            raise RuntimeError("файлы выпуска не совпали с подписью: " + "; ".join(problems[:3]))
     try:
         zpath.unlink()
     except OSError:
@@ -135,6 +186,7 @@ class GitHubUpdater(QObject):
         self.win = win
         self.remote = ""
         self.note = ""
+        self.manifest = None
         self.busy = False
         self._cancel = threading.Event()
         self.found.connect(self._on_found)
@@ -154,13 +206,17 @@ class GitHubUpdater(QObject):
         if self.busy or (os.environ.get("ECHOES_NO_GH_UPDATE") and not manual):
             return
 
+        channel = channel_of(getattr(self.win, "settings", None))
+
         def work():
             try:
-                rv = remote_version()
-                if parse_version(rv) > parse_version(local_version()):
+                m = remote_release(channel)
+                rv = m["version"]
+                if parse_version(rv) > parse_version(local_version()) and rv not in bad_versions():
+                    self.manifest = m
                     if manual:
                         self._manual = True
-                    self.found.emit(rv, changes_note())
+                    self.found.emit(rv, str(m.get("notes") or "")[:900])
                 elif manual:
                     self.latest.emit(rv)
             except Exception as e:                       # noqa: BLE001
@@ -199,8 +255,9 @@ class GitHubUpdater(QObject):
         from PyQt6.QtWidgets import QMessageBox
         text = (f"Вышла новая версия ECHOES: {self.remote}\nУ вас: {local_version() or 'неизвестно'}\n\n"
                 + (f"Что нового:\n{self.note}\n\n" if self.note else "")
-                + "ECHOES скачает её с GitHub, закроется на минуту, обновит файлы и откроется снова. "
-                  "Настройки, плейлисты и библиотека не трогаются.")
+                + "ECHOES скачает её с GitHub, проверит подпись автора, закроется на минуту, обновит файлы "
+                  "и откроется снова. Настройки, плейлисты и библиотека не трогаются; если новая версия "
+                  "не запустится, ECHOES сам вернёт прошлую.")
         box = QMessageBox(self.win)
         box.setWindowTitle("Обновление ECHOES")
         box.setText(text)
@@ -224,7 +281,7 @@ class GitHubUpdater(QObject):
         self.busy = True
         self._cancel.clear()
         self._button("0%")
-        ver = self.remote
+        ver = self.manifest or self.remote
 
         def work():
             try:

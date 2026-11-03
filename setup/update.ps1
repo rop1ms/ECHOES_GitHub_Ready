@@ -100,6 +100,15 @@ if ($killed) { Start-Sleep -Milliseconds 1200; Ok 'закрыт' } else { Ok 'н
 
 # ── 3. заменить файлы ────────────────────────────────────────────────────
 Step 'Обновляю файлы программы'
+# прошлая версия — в app.prev: если новая дважды не запустится, ECHOES сам вернёт её (app/boot_guard.py)
+$curVer = ''; $newVer = ''
+try { $curVer = (Get-Content -LiteralPath (Join-Path $APP 'version.txt') -Raw -ErrorAction Stop).Trim() } catch {}
+try { $newVer = (Get-Content -LiteralPath (Join-Path $SRC_APP 'version.txt') -Raw -ErrorAction Stop).Trim() } catch {}
+if ($curVer -and $curVer -ne $newVer -and (Test-Path -LiteralPath (Join-Path $APP 'main.py'))) {
+    $prev = Join-Path $InstallDir 'app.prev'
+    $null = & robocopy $APP $prev /MIR /XD __pycache__ /XF '*.old*' /R:1 /W:1 /NFL /NDL /NJH /NJS /NP
+    if ($LASTEXITCODE -lt 8) { Info "прошлая версия $curVer сохранена для отката" } else { Warn 'копия для отката не сохранилась' }
+}
 Get-ChildItem -Path $APP -Filter '*.dll.old*' -File -ErrorAction SilentlyContinue |
     ForEach-Object { Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue }
 $changed = 0; $same = 0; $failed = @()
@@ -149,7 +158,9 @@ Ok "обновлено файлов: $changed, без изменений: $same"
 # ── 4. загрузчик и библиотеки ────────────────────────────────────────────
 Step 'Обновляю загрузчик yt-dlp и поиск YouTube Music (1-2 минуты)'
 $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-& $PY -m pip install --upgrade --prefer-binary --no-warn-script-location --disable-pip-version-check `
+$constraints = Join-Path $PSScriptRoot 'constraints.txt'           # проверенные версии библиотек
+$cArgs = if (Test-Path -LiteralPath $constraints) { @('-c', $constraints) } else { @() }
+& $PY -m pip install --upgrade --prefer-binary --no-warn-script-location --disable-pip-version-check @cArgs `
       --timeout 60 --retries 3 yt-dlp ytmusicapi syncedlyrics requests mutagen Pillow sounddevice pycryptodomex websockets av `
       winrt-runtime winrt-Windows.Foundation winrt-Windows.Foundation.Collections winrt-Windows.Media `
       winrt-Windows.Media.Playback winrt-Windows.Storage winrt-Windows.Storage.Streams 2>&1 | ForEach-Object {
@@ -170,7 +181,7 @@ try { $qtOld = ([version]("$qt".Trim()) -lt [version]$needQt) } catch { $qtOld =
 if ($qtOld) {
     Step "Обновляю Qt интерфейса ($qt → $needQt+), это нужно для плавности (1-3 минуты)"
     $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-    & $PY -m pip install --upgrade --prefer-binary --no-warn-script-location --disable-pip-version-check `
+    & $PY -m pip install --upgrade --prefer-binary --no-warn-script-location --disable-pip-version-check @cArgs `
           --timeout 120 --retries 3 PyQt6 "PyQt6-Qt6>=$needQt" 2>&1 | ForEach-Object {
         $l = "$_"
         if ($l -match '^Successfully installed (.+)') { Info "обновлено: $($Matches[1])" }

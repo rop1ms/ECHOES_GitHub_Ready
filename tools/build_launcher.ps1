@@ -9,6 +9,6 @@ $savedBuildPath = $env:PATH
 try {
     # Avoid bundling incompatible ICU/UCRT DLLs from unrelated tools on PATH.
     $env:PATH = "$(Split-Path $pythonExecutable);$env:SystemRoot\System32;$env:SystemRoot"
-    & $pythonExecutable -m PyInstaller --noconfirm --clean --onefile --windowed --name 'ECHOES Launcher' --icon $icon --add-data "$icon;." --add-binary "$root/tools/launcher_native/echoes_launcher.dll;." --paths launcher --hidden-import core --hidden-import psutil --distpath . --workpath tools/launcher-build --specpath tools tools/launcher_native/host.py
+    & $pythonExecutable -m PyInstaller --noconfirm --clean --onefile --windowed --name 'ECHOES Launcher' --icon $icon --add-data "$icon;." --add-binary "$root/tools/launcher_native/echoes_launcher.dll;." --paths launcher --paths app --hidden-import core --hidden-import release_sign --hidden-import Cryptodome.Signature.eddsa --hidden-import psutil --distpath . --workpath tools/launcher-build --specpath tools tools/launcher_native/host.py
     if ($LASTEXITCODE -ne 0) { throw 'Launcher build failed' }
 } finally { $env:PATH = $savedBuildPath }

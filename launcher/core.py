@@ -16,6 +16,29 @@ REPO = "rop1ms/Echoes"
 BRANCH = "main"
 VERSION_URL = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/app/version.txt"
 ZIP_URL = f"https://codeload.github.com/{REPO}/zip/refs/heads/{BRANCH}"
+RELEASE_URL = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/release/stable.json"
+COMMIT_ZIP_URL = f"https://codeload.github.com/{REPO}/zip/{{commit}}"
+
+
+def _release_sign():
+    """Проверка подписи автора (app/release_sign.py; в exe — вшит при сборке)."""
+    try:
+        import release_sign
+    except ImportError:
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
+        import release_sign
+    return release_sign
+
+
+def release() -> dict:
+    """Подписанный стабильный выпуск: версия, коммит и отпечатки файлов. Подпись не сошлась — ошибка."""
+    req = urllib.request.Request(RELEASE_URL, headers={"User-Agent": "ECHOES-Launcher"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        m = json.loads(r.read().decode("utf-8"))
+    if not _release_sign().verify(m):
+        raise RuntimeError("подпись выпуска не прошла проверку — установка отменена")
+    return m
 DEFAULT_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Programs" / "ECHOES"
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
@@ -69,9 +92,7 @@ def parse_version(s) -> tuple:
 
 
 def remote_version(timeout=8) -> str:
-    req = urllib.request.Request(VERSION_URL, headers={"User-Agent": "ECHOES-Launcher"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read().decode("utf-8", "replace").strip()
+    return str(release().get("version") or "")
 
 
 def running(root):
@@ -98,11 +119,13 @@ def launch(root):
 
 
 def download_source(progress=lambda done, total: None, cancel=lambda: False) -> Path:
-    """Свежая версия с GitHub → распакованная папка (с app/ и setup/)."""
+    """Подписанный выпуск с GitHub → распакованная папка (с app/ и setup/), каждый файл сверен с подписью."""
+    manifest = release()
     base = Path(tempfile.gettempdir()) / "echoes_launcher"
     base.mkdir(parents=True, exist_ok=True)
     zpath = base / "echoes.zip"
-    req = urllib.request.Request(ZIP_URL, headers={"User-Agent": "ECHOES-Launcher"})
+    req = urllib.request.Request(COMMIT_ZIP_URL.format(commit=manifest["commit"]),
+                                 headers={"User-Agent": "ECHOES-Launcher"})
     with urllib.request.urlopen(req, timeout=30) as r, open(zpath, "wb") as f:
         total = int(r.headers.get("Content-Length") or 0)
         done = 0
@@ -126,6 +149,9 @@ def download_source(progress=lambda done, total: None, cancel=lambda: False) -> 
     src = out / root
     if not (src / "app/main.py").is_file() or not (src / "setup/install.ps1").is_file():
         raise RuntimeError("в архиве нет программы")
+    problems = _release_sign().check_tree(src, manifest)
+    if problems:
+        raise RuntimeError("файлы не совпали с подписью автора: " + "; ".join(problems[:3]))
     return src
 
 

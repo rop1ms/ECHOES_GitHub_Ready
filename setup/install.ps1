@@ -336,6 +336,9 @@ if ($code -eq 0) {
 Step 4 'Библиотеки Python (это самый долгий шаг — 2-10 минут)'
 $pipBase = @('-m', 'pip', 'install', '--upgrade', '--prefer-binary', '--no-warn-script-location',
              '--disable-pip-version-check', '--timeout', '60', '--retries', '5')
+# проверенные версии библиотек (constraints.txt): у всех одинаковая сборка, новая версия библиотеки не сломает установку
+$constraints = Join-Path $PSScriptRoot 'constraints.txt'
+if (Test-Path -LiteralPath $constraints) { $pipBase += @('-c', $constraints) }
 $ok = $false
 for ($i = 1; $i -le 3 -and -not $ok; $i++) {
     if ($i -gt 1) { Warn "ещё одна попытка ($i/3)…"; Start-Sleep 3 }

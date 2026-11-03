@@ -6140,6 +6140,43 @@ class YaShell(QWidget):
             lambda: ProfileEditor(w), "профиль ник аватар статус", on_closed=profile_saved)
         row("apps", "Страница профиля", "Статистика, ачивки и оформление", "user",
             [("Открыть", w._open_profile)], "профиль страница")
+        sec("apps", "Обновления", "Подписанные выпуски автора; бета — раньше всех, для тестеров", "download",
+            self._inline_updates, "обновления обновить версия бета канал откат подпись")
+
+    def _inline_updates(self) -> QWidget:
+        """Канал обновлений (stable / beta) и проверка сейчас (github_update)."""
+        import github_update
+        w = self.win
+        box = QWidget(); box.setObjectName("YaPageInner")
+        v = QVBoxLayout(box)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(8)
+        info = QLabel(f"Сейчас: {github_update.local_version() or '?'}. Ставятся только выпуски, подписанные "
+                      "автором; если новая версия не запустится, ECHOES сам вернёт прошлую.")
+        info.setObjectName("YaSub")
+        info.setWordWrap(True)
+        v.addWidget(info)
+        row = QHBoxLayout()
+        from PyQt6.QtWidgets import QComboBox
+        cb = QComboBox()
+        cb.addItem("Стабильные — для всех", "stable")
+        cb.addItem("Бета — раньше всех, могут быть ошибки", "beta")
+        cb.setCurrentIndex(max(0, cb.findData(github_update.channel_of(w.settings))))
+
+        def picked(i):
+            w.settings["update_channel"] = cb.itemData(i)
+            w._schedule_settings_save()
+            up = getattr(w, "_gh_updater", None)
+            if up is not None:
+                up.check(manual=True)
+        cb.currentIndexChanged.connect(picked)
+        row.addWidget(cb, 1)
+        chk = QPushButton("Проверить сейчас")
+        chk.setObjectName("InlineAct")
+        chk.clicked.connect(lambda: getattr(w, "_gh_updater", None) and w._gh_updater.check(manual=True))
+        row.addWidget(chk)
+        v.addLayout(row)
+        return box
 
     def _inline_prefs(self):
         """«Окно и масштаб» без кнопок-переходов: всё, куда они вели, теперь рядом в Настройках."""

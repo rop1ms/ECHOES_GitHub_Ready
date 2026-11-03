@@ -1,4 +1,7 @@
 # main.py
+import boot_guard                          # откат версии, которая дважды не запустилась
+if __name__ == "__main__":
+    boot_guard.enter()
 import data_home
 if __name__ == "__main__":                  # папка данных ~/.neon_player → ~/Echoes — до того, как что-то её откроет
     _moved = data_home.migrate()
@@ -8795,6 +8798,14 @@ if __name__=="__main__":
     except Exception as _e:                            # noqa: BLE001
         print("[gpu] anchor:", _e)
     win.show()
+    try:                  # запуск удался — откат больше не нужен; после отката — сказать почему
+        import boot_guard
+        QTimer.singleShot(15000, boot_guard.mark_ok)
+        _rb = boot_guard.rolled_back_notice()
+        if _rb:
+            QTimer.singleShot(4000, lambda: win._toast(_rb))
+    except Exception as _e:                            # noqa: BLE001
+        print("[boot]", _e)
     if _native_intro:     # за заставкой — загрузить всё заранее, потом она растворится
         try:
             import intro_anim, warmup
@@ -8834,6 +8845,11 @@ if __name__=="__main__":
                 print("[taskbar]", e)
         QTimer.singleShot(700, _identity)
     _code = app.exec()
+    try:
+        import boot_guard
+        boot_guard.mark_ok()                           # обычный выход — тоже удачный запуск
+    except Exception:                                  # noqa: BLE001
+        pass
     try:                                               # настройки и библиотека пишутся в фоне — дописать
         import atomic_json
         atomic_json.flush(8.0)

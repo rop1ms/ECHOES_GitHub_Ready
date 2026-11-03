@@ -57,6 +57,9 @@ def main() -> int:
             failed.append(t.stem)
             tail = log.decode("utf-8", "replace").strip().splitlines()[-25:]
             print("      " + "\n      ".join(tail), flush=True)
+            if os.environ.get("GITHUB_ACTIONS"):            # аннотация на GitHub — видна без входа в аккаунт
+                msg = "%0A".join(x.replace("%", "%25").replace("\r", "") for x in tail[-12:])
+                print(f"::error title={t.stem} упал ({code})::{msg}", flush=True)
     print(f"\nИтог: {sum(1 for r in results if r[1] == 'ok')} прошло, {len(failed)} упало, "
           f"{sum(1 for r in results if r[1] == 'skip')} пропущено", flush=True)
     if failed:

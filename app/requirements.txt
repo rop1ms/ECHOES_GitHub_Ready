@@ -12,7 +12,7 @@ beautifulsoup4
 lyricsgenius
 Pillow
 pypresence
-spotdl
+# spotdl — необязательный (установщик ставит отдельно): он требует старый websockets 14, а Echoes.NET — 17
 pycryptodomex    # Echoes.NET: ключи ed25519 и подписи (Tor качается самим плеером по кнопке)
 websockets       # Echoes.NET: публичная сеть и запасная почта через релеи Nostr
 sounddevice      # свой аудиовывод: точный gapless (без него звук выводит VLC)

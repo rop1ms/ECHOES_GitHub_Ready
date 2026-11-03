@@ -1,0 +1,31 @@
+# Проверенные версии библиотек ECHOES — с ними прошли все тесты (qa/run_all.py, CI на GitHub).
+# Установщик и обновление ставят ровно их: у всех пользователей одинаковая сборка, и новая версия
+# какой-нибудь библиотеки не сломает ECHOES у новичков. Поднимать версии — здесь, после прогона тестов.
+# Не закреплены нарочно (сайты меняются, нужны свежие): yt-dlp, yt-dlp-ejs, ytmusicapi, syncedlyrics, certifi.
+PyQt6==6.11.0
+PyQt6-Qt6==6.11.2
+PyQt6_sip==13.12.0
+python-vlc==3.0.21203
+numpy==2.5.3
+scipy==1.18.1
+mutagen==1.48.1
+requests==2.34.2
+urllib3==2.8.0
+charset-normalizer==3.5.2
+idna==3.20
+pillow==13.0.0
+pycryptodomex==3.24.1
+websockets==17.4
+sounddevice==0.5.6
+cffi==2.1.1
+av==19.0.2
+pypresence==4.6.2
+beautifulsoup4==4.15.0
+lyricsgenius==3.14.0
+winrt-runtime==4.1.0
+winrt-Windows.Foundation==4!10.0.28000.2957
+winrt-Windows.Foundation.Collections==4!10.0.28000.2957
+winrt-Windows.Media==4!10.0.28000.2957
+winrt-Windows.Media.Playback==4!10.0.28000.2957
+winrt-Windows.Storage==4!10.0.28000.2957
+winrt-Windows.Storage.Streams==4!10.0.28000.2957
