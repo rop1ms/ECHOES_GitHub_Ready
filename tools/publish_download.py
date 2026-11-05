@@ -83,6 +83,12 @@ def main():
             digest = 'sha256:' + hashlib.sha256(asset.read_bytes()).hexdigest()
             if asset.name in existing:
                 if existing[asset.name].get('digest') != digest:
+                    if asset == checksums:
+                        with urllib.request.urlopen(existing[asset.name]['browser_download_url'], timeout=30) as response:
+                            old_sums = response.read()
+                        if ('sha256:' + hashlib.sha256(old_sums).hexdigest() == existing[asset.name]['digest']
+                                and old_sums.replace(b'\r\n', b'\n') == checksums.read_bytes().replace(b'\r\n', b'\n')):
+                            continue
                     if asset != archive:
                         raise RuntimeError('Existing asset differs: ' + asset.name)
                     # Git on Windows/Linux may use different ZIP compression libraries.
