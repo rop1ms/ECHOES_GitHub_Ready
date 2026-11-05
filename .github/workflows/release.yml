@@ -1,0 +1,26 @@
+name: Publish downloads
+on:
+  push:
+    branches: [main]
+    paths: ['release/stable.json']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: publish-downloads
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pycryptodomex==3.23.0
+      - run: python tools/publish_download.py
+        env:
+          GH_TOKEN: ${{ github.token }}

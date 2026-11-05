@@ -9,6 +9,8 @@ ECHOES brings a music library, endless recommendations, a peer-to-peer social ne
 
 **Start here:** [Install](#install) · [Features](#features) · [Screenshots](#screenshots) · [Development](#development) · [Publish this repository](docs/PUBLISH.md) · [License](#license)
 
+**[Download ECHOES](https://github.com/rop1ms/Echoes/releases/latest)** — launcher and complete setup archive.
+
 ## Install
 
 1. Download the repository with **Code → Download ZIP**, then extract the **entire** archive.

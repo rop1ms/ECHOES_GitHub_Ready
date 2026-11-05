@@ -31,3 +31,7 @@ Choose one method. In GitHub Desktop, add this local folder, create a local repo
 Use Git or GitHub Desktop: this package includes runtime/launcher files over the browser's 25 MiB upload limit. Every included file is below GitHub's 100 MiB Git file limit. See [GitHub's documentation](https://docs.github.com/en/repositories/working-with-files/managing-files/adding-a-file-to-a-repository).
 
 For an installable download, attach a ZIP of the entire folder to a GitHub Release. Keep `app/` and `setup/` together. Never add a personal `.neon_player` directory, profile backups, chat databases, keys, `.env` files, private music, caches, or local models. Retain all third-party notices when distributing binaries.
+
+## Подписанные обновления и файлы для скачивания
+
+После коммита и push новой версии выполните `python tools/release.py stable --notes "Что нового"`. Ключ автора остаётся на вашем компьютере. Push `release/stable.json` запускает Publish downloads: проверяет подпись, собирает архив точного коммита, сверяет файлы и публикует GitHub Release с лаунчером, ECHOES_Setup.zip и SHA256SUMS.txt. Обычный push кода не выпускает обновление. Повторить публикацию можно через Actions → Publish downloads → Run workflow.
