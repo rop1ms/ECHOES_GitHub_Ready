@@ -603,6 +603,8 @@ class _WinAnim(QObject):
     def eventFilter(self, obj, ev):
         if obj is self.win:
             t = ev.type()
+            if t in (QEvent.Type.WindowStateChange, QEvent.Type.WinIdChange):
+                QTimer.singleShot(0, self._fullscreen_border)
             if t == QEvent.Type.WindowStateChange:
                 minimized = bool(self.win.windowState() & Qt.WindowState.WindowMinimized)
                 if minimized:
@@ -618,6 +620,11 @@ class _WinAnim(QObject):
                 self._shown_once = True
                 QTimer.singleShot(0, lambda: self._fade_in(240))  # первое появление окна
         return False
+
+    def _fullscreen_border(self):
+        if not sip.isdeleted(self.win):
+            import window_snap
+            window_snap.fullscreen_border(self.win)
 
 
 def _cancel_state_animation(win):
@@ -707,6 +714,15 @@ def animate_state(win, target: str):
             win.showFullScreen()
         else:
             win.showNormal()
+    if target == "full" or win.isFullScreen():
+        # A desktop-sized topmost ghost can cover dialogs and stalls GL composition.
+        # Let Qt change fullscreen state directly, with live painting throughout.
+        _cancel_state_animation(win)
+        _finish_related(win)
+        apply()
+        import window_snap
+        window_snap.fullscreen_border(win)
+        return
     if not enabled(win) or not win.isVisible() or win.isMinimized() or getattr(win, "_state_anim", None):
         apply()
         return

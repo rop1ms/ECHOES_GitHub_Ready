@@ -18,6 +18,7 @@ GWL_STYLE = -16
 WS_THICKFRAME = 0x00040000
 WS_MINIMIZEBOX = 0x00020000
 WS_MAXIMIZEBOX = 0x00010000
+WS_BORDER = 0x00800000
 WM_NCCALCSIZE = 0x0083
 SWP_FLAGS = 0x0001 | 0x0002 | 0x0004 | 0x0010 | 0x0020      # NOSIZE|NOMOVE|NOZORDER|NOACTIVATE|FRAMECHANGED
 
@@ -51,6 +52,32 @@ def apply_styles(window) -> bool:
         return False
 
 
+def fullscreen_border(window):
+    """Qt's Windows/OpenGL workaround: keep DWM composing popups in fullscreen.
+
+    https://doc.qt.io/qt-6/windows-issues.html#fullscreen-opengl-based-windows
+    """
+    if sys.platform != 'win32':
+        return
+    ctypes, wintypes, u = _api()
+    hwnd = wintypes.HWND(int(window.winId()))
+    style = u.GetWindowLongPtrW(hwnd, GWL_STYLE)
+    previous = getattr(window, '_fullscreen_border_hwnd', None)
+    if window.isFullScreen():
+        if previous != int(window.winId()):
+            window._fullscreen_border_original = bool(style & WS_BORDER)
+            window._fullscreen_border_hwnd = int(window.winId())
+        want = style | WS_BORDER
+    elif previous == int(window.winId()):
+        want = style | WS_BORDER if window._fullscreen_border_original else style & ~WS_BORDER
+        window._fullscreen_border_hwnd = None
+    else:
+        return
+    if want != style:
+        u.SetWindowLongPtrW(hwnd, GWL_STYLE, want)
+        u.SetWindowPos(hwnd, None, 0, 0, 0, 0, SWP_FLAGS)
+
+
 class _NcFilter(QAbstractNativeEventFilter):
     def __init__(self, window):
         super().__init__()
@@ -70,6 +97,9 @@ class _NcFilter(QAbstractNativeEventFilter):
                 return False, 0
             msg = self._w.MSG.from_address(int(message))
             if msg.message != WM_NCCALCSIZE or (msg.hWnd or 0) != self.hwnd or not msg.wParam:
+                return False, 0
+            if self.window.isFullScreen():
+                # Preserve the real one-pixel DWM border in fullscreen.
                 return False, 0
             if self._u.IsZoomed(self.hwnd):
                 # развёрнутое окно Windows может вынести за край монитора на толщину рамки — подрезаем
