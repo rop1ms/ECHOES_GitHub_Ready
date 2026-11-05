@@ -1,6 +1,6 @@
 {
  "channel": "beta",
- "commit": "1ec0d71af3f0c5f7746906e0c601d3c970a0a084",
+ "commit": "0f35bcc66e10280621b63030354a7bebbddaed0e",
  "files": {
   "app/ach_icons.py": "47ffb85503510ffbb5e904657b59e7735900818821c459d56c3efdc7ab5a9d79",
   "app/ambience.py": "3155bd80ec6632ca38b8e941a98e0c90ff257230d3ba00138ddb575ac7859de3",
@@ -398,13 +398,13 @@
   "app/track_sort.py": "fedfd8ec98467c8206ab2bc428a1ce1ec0d65d816c5ace123de05f301bf2a4e6",
   "app/track_tools.py": "5696ceb9d8b4143823f77eb9f32c72fcdace1f89fdb947f09beb321f21470a35",
   "app/tray.py": "3ba4ee0990576c78b996dff0e17438dd6a2c70bc6e17bd9d372d66d152dfcccb",
-  "app/ui_anim.py": "9383949284a23c58e2e32ec7c2d3f9183c238ae962f0f0c708b5929d51279e64",
+  "app/ui_anim.py": "d57e75d2f9b441ff8a084cc921aab4cd4eb3dcdd69c58054280dafd2f45c4425",
   "app/ui_free.py": "f4be12ef3b8265985e371a760ced6522ca2070ab39e0cb68dc24edf3b99b2e13",
   "app/ui_language.py": "ef161964718471c9d64746371d5d100be39efb4509266089c259a171bfa681f7",
   "app/ui_rounding.py": "dfaad7ff031c00345c8b1900417d85e7d6fc17b0a7fb4a08dd2fc18f286bc413",
   "app/ui_scale.py": "cfe315b0f3ffae45fe9b8fe22ebac4cee61737c028425786de364ad73146278b",
   "app/ui_symbols.py": "76dcde27573b72683749f02d04cf53811439919c73202339c6f78fb66964bd58",
-  "app/version.txt": "09cc1a2ffda477557ae1388cd6ee05acd8fe89c0d48fe4c3e15c40b5fc4a8a1b",
+  "app/version.txt": "562b365b440aa2d94b0f5c72fdcb60243d84fa674fb81675a109c7b6fb255470",
   "app/video_safety.py": "092d8b03837bd7b95ff26ffd77591a0943882cd750ba40402fe8c8355604b5cb",
   "app/vinyl.py": "a91eb325a6dcc72f403cc9208a588f2a7906b9ce2c3b23df4e04f2844d9aff46",
   "app/visualizer.py": "dc4b9678dc60ceb394cb6b7fee308ae3b162d626c4660c08140ee8ac57d1b1ab",
@@ -419,7 +419,7 @@
   "app/win_taskbar.py": "418ed1b2c43391f7a0762d48032d00fb96d4091eb23eae0880e46a3c9e84248f",
   "app/winamp_theme.py": "5208015f09363a780c6a51c854aa4950662f21c1d47dd3215c69d24a7ce915b3",
   "app/window_corners.py": "7c47c98433fee7c4e48d589a63aadeb9c8ea1a27953a559f770b5d871203ebf4",
-  "app/window_snap.py": "5e24ab0eabfab30a45435879a215a06833ad5945b65aa96a70fd4e2ce5e28149",
+  "app/window_snap.py": "c340c89e8a19529ec1628e9c858266f55a9380f3ba531ed83a03300c74633e6c",
   "app/word_sync.py": "118ddf8d5dfc031ab1e0c5f3c5b61169721b12e7afa7e34c366abf1c811eb355",
   "app/ya_artist_about.py": "33d7541a863db408fd086c8c5ff3015bbf43a7ee1af247fa7d04e111fe86f648",
   "app/ya_artist_card.py": "ca40e6085bb0dca6ce238b5b1f37dcb8fac4be452a7a35925e02dab044ca3d78",
@@ -453,8 +453,8 @@
   "setup/update.en.ps1": "40dc25bbe3edc1d229759e35e86f5188b7e82b96c5a5343fcebf831de5bfb917",
   "setup/update.ps1": "48504190003b4155f6bca323e4b4ff7f068e9205e89eac0741fb0ffdf5fa0aa6"
  },
- "notes": "release 2026.11.02-36 → stable, beta",
- "sig": "5XuqhZ94uJxMms+fuF6EWe45lfAVL4JBJz96OlZJM8iJv1AUaU2eyUV2iSTmqPcYpomlB8SWuvC95OGWCCviAg==",
- "ts": 1793889276,
- "version": "2026.11.02-36"
+ "notes": "Исправлены невидимые панель «Звук» и выпадающие списки пресетов, наушников и ограничения FPS в F11 на Windows. Убрана тяжёлая анимация со снимками рабочего стола при входе и выходе из F11; сохраняются размер окна и развёрнутое состояние.",
+ "sig": "dTi5cOImOcV15zn9j9+CL970cp3IleiT7pRFQdAPRS/J4tje1aENnpwCPWedFBSOduptuJqzUKtCtQ0k8CJMAw==",
+ "ts": 1793902646,
+ "version": "2026.11.05-1"
 }
