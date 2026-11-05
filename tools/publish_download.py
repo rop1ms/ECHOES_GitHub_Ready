@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -56,7 +57,9 @@ def main():
         problems = rs.check_tree(source, manifest)
         if problems:
             raise RuntimeError('; '.join(problems[:5]))
-        launcher = source / 'ECHOES Launcher.exe'
+        # GitHub replaces spaces in asset names with dots. Use its final name in checksums too.
+        launcher = folder / 'ECHOES.Launcher.exe'
+        shutil.copyfile(source / 'ECHOES Launcher.exe', launcher)
         assets = [archive, launcher, ROOT / 'release/stable.json']
         checksums = folder / 'SHA256SUMS.txt'
         checksums.write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.name + '\n'
