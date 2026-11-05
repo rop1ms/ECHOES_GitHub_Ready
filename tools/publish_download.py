@@ -4,6 +4,7 @@ Requires GH_TOKEN (CI), or the existing Git credential on the author's computer.
 Never reads or uploads the signing key.
 """
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -82,7 +83,21 @@ def main():
             digest = 'sha256:' + hashlib.sha256(asset.read_bytes()).hexdigest()
             if asset.name in existing:
                 if existing[asset.name].get('digest') != digest:
-                    raise RuntimeError('Existing asset differs: ' + asset.name)
+                    if asset != archive:
+                        raise RuntimeError('Existing asset differs: ' + asset.name)
+                    # Git on Windows/Linux may use different ZIP compression libraries.
+                    # Accept an existing archive only when every entry has identical content.
+                    with urllib.request.urlopen(existing[asset.name]['browser_download_url'], timeout=180) as response:
+                        old_bytes = response.read()
+                    if 'sha256:' + hashlib.sha256(old_bytes).hexdigest() != existing[asset.name]['digest']:
+                        raise RuntimeError('Existing archive checksum mismatch')
+                    with zipfile.ZipFile(io.BytesIO(old_bytes)) as old, zipfile.ZipFile(archive) as new:
+                        if set(old.namelist()) != set(new.namelist()) or any(
+                                old.read(name) != new.read(name) for name in new.namelist()):
+                            raise RuntimeError('Existing archive content differs')
+                    archive.write_bytes(old_bytes)
+                    checksums.write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.name + '\n'
+                                                for p in assets if p != checksums), 'utf-8')
                 continue
             uploaded = request(release['upload_url'].split('{')[0] + '?name=' + urllib.parse.quote(asset.name),
                                'POST', asset.read_bytes(), 'application/octet-stream')
