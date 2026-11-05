@@ -1,6 +1,6 @@
 {
  "channel": "beta",
- "commit": "3ef71a3d71da1a8c8a6b33391ada807f20f1ff05",
+ "commit": "1ec0d71af3f0c5f7746906e0c601d3c970a0a084",
  "files": {
   "app/ach_icons.py": "47ffb85503510ffbb5e904657b59e7735900818821c459d56c3efdc7ab5a9d79",
   "app/ambience.py": "3155bd80ec6632ca38b8e941a98e0c90ff257230d3ba00138ddb575ac7859de3",
@@ -453,8 +453,8 @@
   "setup/update.en.ps1": "40dc25bbe3edc1d229759e35e86f5188b7e82b96c5a5343fcebf831de5bfb917",
   "setup/update.ps1": "48504190003b4155f6bca323e4b4ff7f068e9205e89eac0741fb0ffdf5fa0aa6"
  },
- "notes": "v2026.11.02-36: safe signed updates, crash reports, lighter settings, Echoes.NET hardening, first-run wizard\nUpdates\n- Only author-signed releases install (release/<channel>.json: version, exact commit,\n  SHA-256 of every app/ and setup/ file; Ed25519). Updater and launcher download that\n  commit and verify every file. Pushing to main alone no longer updates anyone.\n- Channels: stable / beta (Settings -> Обновления). tools/release.py publishes.\n- Rollback: update.ps1 keeps app.prev; a version that fails to start twice in a row is\n  restored automatically and never offered again (boot_guard.py).\n- Library versions pinned (setup/constraints.txt); CI runs ruff + all tests on Windows.\nCrashes and bugs\n- Opt-in crash reports: after a crash a small card offers to send a scrubbed report\n  (no user paths/track names) with system info; identical errors grouped for the author.\n- Fixed a wave hint update on a deleted label.\nPerformance\n- settings.json keeps only light settings; history, diary, duel session etc. live in\n  state/*.json and are written only when changed (572 KB -> 65 KB per save).\nEchoes.NET security\n- Image bombs rejected before decoding (img_guard); received files carry Mark-of-the-Web;\n  more dangerous file types ask before opening; peer names/texts never render as HTML.\nFirst run\n- Three-step welcome for new users: music folder, transfer playlists by link, colour theme.",
- "sig": "kKVgae6vgQ0xIAVBOITrvP07unRm/ovqE8mhUb0WiftlzE0/v3sj2pVk5urBfcFn18WiRUwUB8idPUFZlqebDA==",
- "ts": 1793746958,
+ "notes": "release 2026.11.02-36 → stable, beta",
+ "sig": "5XuqhZ94uJxMms+fuF6EWe45lfAVL4JBJz96OlZJM8iJv1AUaU2eyUV2iSTmqPcYpomlB8SWuvC95OGWCCviAg==",
+ "ts": 1793889276,
  "version": "2026.11.02-36"
 }
